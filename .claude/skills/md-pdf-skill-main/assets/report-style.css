@@ -1,0 +1,479 @@
+/* =============================================
+   report-forge: report-style.css
+   Pandoc + WeasyPrint 기반 한국어 보고서 스타일
+   ============================================= */
+
+/* ---------- 폰트 ---------- */
+@font-face {
+  font-family: 'Noto Sans KR';
+  src: local('Noto Sans CJK KR'), local('NotoSansCJKkr-Regular');
+}
+
+/* ---------- 페이지 기본 ---------- */
+@page {
+  size: A4;
+  margin: 22mm 18mm 22mm 18mm;
+
+  @top-right {
+    content: string(section-heading);
+    font-family: "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif;
+    font-size: 8pt;
+    color: #94a3b8;
+    vertical-align: bottom;
+    padding-bottom: 4px;
+    border-bottom: 0.5pt solid #e2e8f0;
+  }
+
+  @bottom-left {
+    content: string(report-title);
+    font-family: "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif;
+    font-size: 8pt;
+    color: #94a3b8;
+    vertical-align: top;
+    padding-top: 4px;
+  }
+
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-family: "Noto Sans CJK KR", "Apple SD Gothic Neo", sans-serif;
+    font-size: 8pt;
+    color: #64748b;
+    font-weight: 600;
+    vertical-align: top;
+    padding-top: 4px;
+  }
+}
+
+/* 표지 페이지 — 헤더/푸터 없음 */
+@page cover {
+  margin: 0;
+  @top-right  { content: none; }
+  @bottom-left  { content: none; }
+  @bottom-right { content: none; }
+}
+
+/* 목차 페이지 — 페이지 번호만 */
+@page toc-page {
+  @top-right  { content: none; }
+  @bottom-left  { content: none; }
+}
+
+/* ---------- 기본 타이포그래피 ---------- */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Noto Sans CJK KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.75;
+  color: #1e293b;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* ---------- 표지 ---------- */
+.cover {
+  page: cover;
+  background: #1a2744;
+  width: 100%;
+  height: 297mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 30mm 24mm;
+  break-after: page;
+}
+
+.cover-accent {
+  width: 48px;
+  height: 4px;
+  background: #e8a020;
+  margin-bottom: 20px;
+  border-radius: 2px;
+}
+
+.cover-title {
+  font-size: 28pt;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.25;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.5px;
+}
+
+.cover-subtitle {
+  font-size: 14pt;
+  font-weight: 400;
+  color: #94a3b8;
+  margin: 0 0 32px 0;
+  line-height: 1.4;
+}
+
+.cover-divider {
+  width: 100%;
+  height: 1px;
+  background: rgba(255,255,255,0.12);
+  margin: 24px 0;
+}
+
+.cover-meta-table {
+  width: 100%;
+  border: none;
+  margin: 0;
+  font-size: 9.5pt;
+}
+
+.cover-meta-table td {
+  border: none;
+  padding: 5px 0;
+  vertical-align: top;
+  background: transparent;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.cover-meta-table td:first-child {
+  color: #e8a020;
+  font-weight: 700;
+  white-space: nowrap;
+  padding-right: 16px;
+  width: 80px;
+}
+
+.cover-meta-table td:last-child {
+  color: #cbd5e1;
+}
+
+.cover-footer {
+  position: absolute;
+  bottom: 24mm;
+  left: 24mm;
+  right: 24mm;
+  font-size: 8pt;
+  color: #475569;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding-top: 12px;
+}
+
+/* ---------- 목차 ---------- */
+#TOC, nav[id="TOC"] {
+  page: toc-page;
+  break-after: page;
+  padding: 0;
+}
+
+#TOC::before {
+  content: "목차";
+  display: block;
+  font-size: 18pt;
+  font-weight: 800;
+  color: #1a2744;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 3px solid #e8a020;
+}
+
+#TOC ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#TOC ul li {
+  padding: 4px 0;
+  border-bottom: 1px dotted #e2e8f0;
+}
+
+#TOC ul li a {
+  text-decoration: none;
+  color: #1e293b;
+  font-size: 10pt;
+  display: flex;
+  justify-content: space-between;
+}
+
+#TOC ul li a::after {
+  content: target-counter(attr(href), page);
+  color: #e8a020;
+  font-weight: 700;
+  float: right;
+  margin-left: 8px;
+}
+
+#TOC ul ul {
+  padding-left: 16px;
+  margin: 2px 0;
+}
+
+#TOC ul ul li {
+  border-bottom: none;
+}
+
+#TOC ul ul li a {
+  font-size: 9.5pt;
+  color: #475569;
+}
+
+/* ---------- 본문 헤딩 ---------- */
+h1 {
+  font-size: 20pt;
+  font-weight: 800;
+  color: #1a2744;
+  margin: 0 0 16px 0;
+  padding-bottom: 10px;
+  border-bottom: 3px solid #e8a020;
+  break-after: avoid;
+  string-set: report-title content();
+}
+
+h2 {
+  font-size: 14pt;
+  font-weight: 700;
+  color: #1a2744;
+  margin: 28px 0 12px 0;
+  padding: 8px 14px;
+  background: #f1f5f9;
+  border-left: 4px solid #e8a020;
+  break-after: avoid;
+  string-set: section-heading content();
+}
+
+h3 {
+  font-size: 11.5pt;
+  font-weight: 700;
+  color: #1e3a5f;
+  margin: 22px 0 8px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e2e8f0;
+  break-after: avoid;
+}
+
+h4 {
+  font-size: 10.5pt;
+  font-weight: 700;
+  color: #334155;
+  margin: 16px 0 6px 0;
+  break-after: avoid;
+}
+
+/* ---------- 단락 ---------- */
+p {
+  margin: 0 0 10px 0;
+  orphans: 3;
+  widows: 3;
+}
+
+/* ---------- 테이블 ---------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 20px;
+  font-size: 9.5pt;
+  break-inside: avoid;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+thead tr {
+  background: #1a2744;
+}
+
+th {
+  background: #1a2744;
+  color: #ffffff;
+  font-weight: 700;
+  padding: 9px 12px;
+  text-align: left;
+  border: 1px solid #1a2744;
+  letter-spacing: 0.02em;
+}
+
+td {
+  border: 1px solid #e2e8f0;
+  padding: 7px 12px;
+  vertical-align: top;
+  color: #334155;
+}
+
+tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+tr:nth-child(odd) td {
+  background: #ffffff;
+}
+
+/* 경고/이슈 행 하이라이트 */
+tr.warn td { background: #fefce8; }
+tr.danger td { background: #fef2f2; }
+
+/* ---------- 리스트 ---------- */
+ul, ol {
+  margin: 6px 0 12px 0;
+  padding-left: 22px;
+}
+
+li {
+  margin-bottom: 4px;
+  line-height: 1.65;
+}
+
+ul li {
+  list-style-type: "• ";
+}
+
+ul ul li {
+  list-style-type: "◦ ";
+  color: #475569;
+}
+
+ul ul ul li {
+  list-style-type: "▪ ";
+  color: #64748b;
+}
+
+/* ---------- 코드 ---------- */
+code {
+  font-family: "SF Mono", "JetBrains Mono", "Menlo", "Consolas", monospace;
+  font-size: 8.5pt;
+  background: #f1f5f9;
+  color: #0f4c75;
+  padding: 2px 5px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+pre {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 14px 16px;
+  border-radius: 8px;
+  font-family: "SF Mono", "JetBrains Mono", "Menlo", monospace;
+  font-size: 8.5pt;
+  line-height: 1.55;
+  overflow-x: hidden;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 10px 0 16px;
+  break-inside: avoid;
+}
+
+pre code {
+  background: transparent;
+  color: #e2e8f0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+/* ---------- 인용구 ---------- */
+blockquote {
+  margin: 12px 0;
+  padding: 10px 16px;
+  background: #fefce8;
+  border-left: 4px solid #e8a020;
+  border-radius: 0 6px 6px 0;
+  color: #44403c;
+  font-style: normal;
+  break-inside: avoid;
+}
+
+blockquote p {
+  margin: 0;
+  font-size: 10pt;
+}
+
+/* ---------- 강조 배지 ---------- */
+strong {
+  color: #1a2744;
+  font-weight: 700;
+}
+
+em {
+  color: #475569;
+  font-style: italic;
+}
+
+/* ---------- 링크 ---------- */
+a {
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* 출처 링크 스타일 */
+p a[href^="http"] {
+  color: #1d4ed8;
+  border-bottom: 1px dotted #93c5fd;
+  font-size: 9pt;
+}
+
+/* ---------- 구분선 ---------- */
+hr {
+  border: none;
+  border-top: 2px solid #e2e8f0;
+  margin: 24px 0;
+}
+
+/* ---------- 이미지 ---------- */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 12px auto;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* ---------- 정보 박스 (callout) ---------- */
+.callout, .info-box {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-left: 4px solid #3b82f6;
+  border-radius: 0 6px 6px 0;
+  padding: 10px 14px;
+  margin: 12px 0;
+  font-size: 10pt;
+  break-inside: avoid;
+}
+
+.callout-warn {
+  background: #fefce8;
+  border-color: #fde68a;
+  border-left-color: #f59e0b;
+}
+
+.callout-danger {
+  background: #fef2f2;
+  border-color: #fecaca;
+  border-left-color: #ef4444;
+}
+
+/* ---------- 출처 섹션 ---------- */
+.sources h2, .sources h3 {
+  background: #f8fafc;
+  border-left: 4px solid #64748b;
+}
+
+.sources ul li {
+  font-size: 9pt;
+  color: #475569;
+  margin-bottom: 3px;
+}
+
+.sources ul li a {
+  color: #1d4ed8;
+}
+
+/* ---------- 페이지 분리 ---------- */
+.page-break {
+  break-before: page;
+}
+
+h1 { break-before: page; }
+h1:first-of-type { break-before: avoid; }

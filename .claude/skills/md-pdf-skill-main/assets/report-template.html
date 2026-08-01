@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko" xml:lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>$if(title)$$title$$endif$</title>
+$for(css)$  <link rel="stylesheet" href="$css$" />
+$endfor$
+</head>
+<body>
+
+$-- 표지 페이지 --$
+$if(title)$
+<div class="cover">
+  <div class="cover-accent"></div>
+  <h1 class="cover-title">$title$</h1>
+  $if(subtitle)$<p class="cover-subtitle">$subtitle$</p>$endif$
+  <div class="cover-divider"></div>
+  <table class="cover-meta-table">
+    <tbody>
+      $if(date)$
+      <tr>
+        <td>작성일</td>
+        <td>$date$</td>
+      </tr>
+      $endif$
+      $if(author)$
+      <tr>
+        <td>작성</td>
+        <td>$author$</td>
+      </tr>
+      $endif$
+      $if(abstract)$
+      <tr>
+        <td>개요</td>
+        <td>$abstract$</td>
+      </tr>
+      $endif$
+      $if(keywords)$
+      <tr>
+        <td>키워드</td>
+        <td>$keywords$</td>
+      </tr>
+      $endif$
+    </tbody>
+  </table>
+</div>
+$endif$
+
+$-- 목차 --$
+$if(toc)$
+$table-of-contents$
+$endif$
+
+$-- 본문 --$
+$body$
+
+</body>
+</html>

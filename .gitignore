@@ -15,6 +15,9 @@
 /[Uu]ser[Ss]ettings/
 *.log
 
+*.omc
+*.omx
+
 # By default unity supports Blender asset imports, *.blend1 blender files do not need to be commited to version control.
 *.blend1
 *.blend1.meta
@@ -104,3 +107,9 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# OMX local session state/logs
+.omx/
+
+# Embedded git repo (codex skill) - reinstall per machine
+.claude/skills/codex/
