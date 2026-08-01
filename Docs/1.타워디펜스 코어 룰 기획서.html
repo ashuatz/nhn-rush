@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+<meta charset="UTF-8">
+<title>타워디펜스 코어 룰 기획서 — 킹덤러쉬 베이스 (드래프트)</title>
+<style>
+  :root{
+    --bg:#ffffff; --card:#ffffff; --border:#d9d9d9; --accent:#000000; --accent-dark:#000000;
+    --text:#1a1a1a; --sub:#666666; --warn-bg:#f5f5f5; --warn-border:#cccccc;
+    --ok:#000000; --ng:#000000; --code-bg:#f5f5f5;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; padding:40px 24px; background:var(--bg); color:var(--text); font-family:"Pretendard","Malgun Gothic",-apple-system,sans-serif; line-height:1.65;}
+  .wrap{max-width:1080px; margin:0 auto;}
+  header{margin-bottom:36px;}
+  .doc-tag{display:inline-block; background:#1a1a1a; color:#fff; font-size:12px; font-weight:700; padding:4px 10px; border-radius:4px;}
+  h1{font-size:27px; margin:12px 0 6px; color:#000;}
+  .meta{color:var(--sub); font-size:13px;}
+  h2{font-size:19px; margin:46px 0 14px; padding-bottom:8px; border-bottom:2px solid #1a1a1a; display:flex; align-items:center; gap:8px; color:#000;}
+  h2 .num{color:#000; font-weight:800;}
+  h3{font-size:15px; margin:26px 0 10px; color:#000; font-weight:700;}
+  h4{font-size:13.5px; margin:18px 0 8px; color:var(--text);}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:8px; padding:22px 24px; margin-bottom:16px;}
+  table{width:100%; border-collapse:collapse; font-size:13.3px; margin:10px 0;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:#f2f2f2; color:#000; font-weight:700;}
+  tr:nth-child(even) td{background:#fafafa;}
+  code{background:#f0f0f0; color:#1a1a1a; padding:1px 6px; border-radius:4px; font-size:12.3px; font-family:"Consolas","Menlo",monospace;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:16px 0;}
+  .step{background:#f2f2f2; border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:12.8px; font-weight:600; min-width:110px; text-align:center;}
+  .step.action{background:#1a1a1a; color:#fff; border-color:#1a1a1a;}
+  .step.data{background:#eaeaea; border-color:#c8c8c8;}
+  .arrow{color:#666; font-size:18px;}
+  .warn{background:var(--warn-bg); border:1px solid var(--warn-border); border-left:3px solid #1a1a1a; border-radius:6px; padding:14px 16px; font-size:13.3px; margin:14px 0;}
+  .warn b{color:#000;}
+  .note{background:#f5f5f5; border:1px solid #d9d9d9; border-left:3px solid #999; border-radius:6px; padding:14px 16px; font-size:13.3px; margin:14px 0;}
+  .note b{color:#000;}
+  .tag{display:inline-block; font-size:11px; font-weight:700; padding:3px 10px; border-radius:12px;}
+  .tag.ok{background:#1a1a1a; color:#fff;}
+  .tag.ng{background:#fff; color:#000; border:1px solid #1a1a1a;}
+  .tag.def{background:#e8e8e8; color:#000;}
+  td.tagcell{text-align:center; vertical-align:middle; padding:10px 12px;}
+  td.tagcell .tag{margin:2px 0;}
+  .footer-note{color:var(--sub); font-size:12px; margin-top:50px; text-align:center;}
+  .toc{font-size:13px; display:flex; flex-direction:column; gap:6px; color:var(--sub);}
+  .toc a{color:#000; text-decoration:underline;}
+
+  /* 타워 계열 헤더 카드 */
+  .towerhead{display:flex; align-items:center; gap:10px; margin:26px 0 8px;}
+  .towerhead .ic{font-size:20px;}
+  .towerhead .nm{font-weight:800; font-size:14.5px; color:#000;}
+  .towerhead .sub{font-size:11.5px; color:#666;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="doc-tag">GAME DESIGN DOC · v0.5 (드래프트 · 검토 대기)</span>
+  <h1>타워디펜스 코어 룰 기획서 — 킹덤러쉬 베이스</h1>
+  <div class="meta">장르: 탑다운 타워디펜스(코어 룰 단독) · 작성일: 2026-08-01 · 상위 문서: <a href="1.타워디펜스x주식투자 게임 기획서.html">1.타워디펜스x주식투자 게임 기획서</a> · 레퍼런스: 킹덤러쉬(Kingdom Rush) 1편</div>
+  <div class="card" style="margin-top:16px;">
+    <div class="note" style="margin-top:0;"><b>이 문서의 위치</b> — 본 문서는 <b>주식(상단 시세) 투자 연동을 뺀, 타워디펜스 코어 룰만</b> 다룬다. 지시에 따라 <b>킹덤러쉬 1편의 시스템 구조를 최대한 그대로 가져와</b> 우리 게임의 이름·세계관으로 리스킨한 <b>초안</b>이며, 지시사항에 맞춰 계속 조정 중이다. 영웅 시스템은 두지 않고, 사령관 스킬은 현재 보류(차후 추가 예정), 별점 평가는 제거했다.</div>
+    <div class="toc">
+      <a href="#s1">1. 기본 규칙 (페이싱·생명력·골드)</a>
+      <a href="#s2">2. 타워 시스템 (4계열, Lv1~4 단순 강화)</a>
+      <a href="#s3">3. 적(몬스터) 분류</a>
+      <a href="#s4">4. 맵 · 경로 규칙</a>
+      <a href="#s5">5. 난이도 모드</a>
+    </div>
+  </div>
+</header>
+
+<!-- ================= 1 ================= -->
+<h2 id="s1"><span class="num">1.</span> 기본 규칙 (페이싱 · 생명력 · 골드)</h2>
+<div class="card">
+  <h3>1.1 스테이지 페이싱</h3>
+  <table style="table-layout:fixed;"><colgroup><col style="width:170px;"><col></colgroup>
+    <tbody>
+    <tr><th>1스테이지(1턴) 길이</th><td class="tagcell"><span class="tag def">약 5분</span></td></tr>
+    <tr><th>웨이브 수</th><td class="tagcell"><span class="tag def">10웨이브</span></td></tr>
+    <tr><th>평균 웨이브 간격</th><td class="tagcell"><span class="tag def">약 30초/웨이브</span> (5분 ÷ 10웨이브, 자동 진행 기준)</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>참고.</b> 실제로는 초반 웨이브가 짧고 후반(보스 웨이브 포함)이 길어지는 <b>비균등 분배</b>가 자연스러우며, 세부 배분은 밸런싱 단계에서 조정한다. 조기소환(아래 표)을 자주 쓰면 실제 플레이 시간은 5분보다 짧아질 수 있다.</div>
+
+  <h3>1.2 생명력 · 골드 · 조기소환 · 판매</h3>
+  <table style="table-layout:fixed;"><colgroup><col style="width:170px;"><col></colgroup>
+    <tbody>
+    <tr><th>생명력(목숨)</th><td>스테이지 시작 시 <b>20</b>으로 시작. 몬스터가 경로 끝(출구)에 도달할 때마다 1(또는 몬스터별 지정 수치)씩 감소. <b>0이 되면 패배.</b></td></tr>
+    <tr><th>골드 획득</th><td>몬스터 처치 시 개체별 지정 골드 획득. 웨이브를 조기 소환(다음 웨이브를 미리 부름)할수록 <b>추가 보너스 골드</b>를 받는다.</td></tr>
+    <tr><th>웨이브 조기소환</th><td>대기 중인 다음 웨이브를 유저가 원할 때 앞당겨 부를 수 있다. <b>일찍 부를수록 보너스 골드가 크다.</b> 총 10웨이브를 다 앞당기면 5분보다 짧게 클리어할 수 있다. (사령관 스킬 쿨다운 단축 연동은 해당 시스템이 재도입되면 함께 적용 예정)</td></tr>
+    <tr><th>타워 판매</th><td>건설된 타워는 언제든 판매(철거) 가능. <b>누적 투자 비용의 90%</b>를 골드로 환급한다.</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>정책:</b> 생명력·골드·환급률 수치는 킹덤러쉬 기준값을 그대로 가져왔다. 우리 게임의 스테이지 난이도 곡선이 확정되면 재조정한다.</div>
+</div>
+
+<!-- ================= 2 ================= -->
+<h2 id="s2"><span class="num">2.</span> 타워 시스템 (4계열, Lv1~4 단순 강화)</h2>
+<div class="card">
+  <p style="font-size:13.3px; margin-top:0;">모든 타워 계열은 <b>Lv1 → Lv2 → Lv3 → Lv4의 단순 선형 강화</b>를 따른다. 레벨이 오를수록 비용을 내고 성능이 오르기만 할 뿐, <b>분기·특화 선택은 아직 없다.</b> 계열-섹터 매핑은 상위 문서(1번 §3.2·§5) 기준을 그대로 따른다.</p>
+  <div class="note"><b>단순화 원칙:</b> 지금은 뼈대만 잡는 단계라 <b>레벨마다 성능만 올라가는 구조</b>로 둔다. 레벨3 분기, 타워별 고유 스킬 등 복잡한 구조는 <b>차후 별도 지시로 확장</b>한다.</div>
+
+  <div class="towerhead"><span class="ic">🛡️</span><span class="nm">보병</span><span class="sub">근접 저지형 · 킹덤러쉬 "배럭" 계열 대응</span></div>
+  <table style="table-layout:fixed;"><colgroup><col style="width:90px;"><col style="width:180px;"><col style="width:90px;"><col></colgroup>
+    <tbody>
+    <tr><th>단계</th><th>명칭</th><th>비용</th><th>효과</th></tr>
+    <tr><td>Lv1</td><td>민병대 초소</td><td>70G</td><td>경로에 근접 병사 2명을 소환해 몬스터를 막아선다.</td></tr>
+    <tr><td>Lv2</td><td>정예 보병대</td><td>110G</td><td>병사 체력·공격력 상승.</td></tr>
+    <tr><td>Lv3</td><td>중장 보병대</td><td>160G</td><td>병사 체력·공격력 추가 상승, 병사 1명 증원.</td></tr>
+    <tr><td>Lv4</td><td>왕실 근위대</td><td>240G</td><td>병사 체력·공격력 최종 강화.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="towerhead"><span class="ic">🏹</span><span class="nm">궁병</span><span class="sub">원거리 지속딜 · 킹덤러쉬 "아처" 계열 대응</span></div>
+  <table style="table-layout:fixed;"><colgroup><col style="width:90px;"><col style="width:180px;"><col style="width:90px;"><col></colgroup>
+    <tbody>
+    <tr><th>단계</th><th>명칭</th><th>비용</th><th>효과</th></tr>
+    <tr><td>Lv1</td><td>궁수 초소</td><td>70G</td><td>사거리 내 단일 표적을 자동 조준해 화살 공격.</td></tr>
+    <tr><td>Lv2</td><td>장궁병 부대</td><td>110G</td><td>공격력·사거리 소폭 상승.</td></tr>
+    <tr><td>Lv3</td><td>정예 궁병대</td><td>160G</td><td>공격 속도 상승.</td></tr>
+    <tr><td>Lv4</td><td>왕실 궁병단</td><td>240G</td><td>공격력·공격 속도 최종 강화.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="towerhead"><span class="ic">🔮</span><span class="nm">마도</span><span class="sub">광역 마법 · 킹덤러쉬 "메이지" 계열 대응</span></div>
+  <table style="table-layout:fixed;"><colgroup><col style="width:90px;"><col style="width:180px;"><col style="width:90px;"><col></colgroup>
+    <tbody>
+    <tr><th>단계</th><th>명칭</th><th>비용</th><th>효과</th></tr>
+    <tr><td>Lv1</td><td>견습 마법사 탑</td><td>100G</td><td>사거리 내 적에게 마법 피해 + 이동속도 감소(슬로우).</td></tr>
+    <tr><td>Lv2</td><td>상급 마법사 탑</td><td>160G</td><td>피해량 상승, 슬로우 지속시간 증가.</td></tr>
+    <tr><td>Lv3</td><td>대마법사 탑</td><td>240G</td><td>피해량 추가 상승, 슬로우 범위 확대.</td></tr>
+    <tr><td>Lv4</td><td>대현자 탑</td><td>360G</td><td>피해량·슬로우 최종 강화.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="towerhead"><span class="ic">💣</span><span class="nm">포병</span><span class="sub">설치형 폭발 · 킹덤러쉬 "아티전트" 계열 대응</span></div>
+  <table style="table-layout:fixed;"><colgroup><col style="width:90px;"><col style="width:180px;"><col style="width:90px;"><col></colgroup>
+    <tbody>
+    <tr><th>단계</th><th>명칭</th><th>비용</th><th>효과</th></tr>
+    <tr><td>Lv1</td><td>화포 진지</td><td>125G</td><td>착탄 지점 소범위 광역 물리 피해, 장갑 관통 보너스.</td></tr>
+    <tr><td>Lv2</td><td>중포 진지</td><td>220G</td><td>피해량·광역 범위 상승.</td></tr>
+    <tr><td>Lv3</td><td>공성포 진지</td><td>320G</td><td>피해량·광역 범위 추가 상승.</td></tr>
+    <tr><td>Lv4</td><td>왕실 공성단</td><td>480G</td><td>피해량·광역 범위 최종 강화.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ================= 3 ================= -->
+<h2 id="s3"><span class="num">3.</span> 적(몬스터) 분류</h2>
+<div class="card">
+  <div class="note" style="margin-top:0;"><b>몬스터 종류:</b> <b>지상형·공중형·마법·보스 4타입, 총 9종</b>으로 정한다. 개별 유닛(보병·궁병·탱크·전투기 및 그 마법 버전, 보스)은 별도 문서 <a href="3.몬스터 유닛 리스트 기획서.html">3.몬스터 유닛 리스트 기획서</a>에서 다룬다. 본 절은 그 유닛들이 따르는 공통 규칙(피해 유형·방어등급·유닛 특성)만 정의한다.</div>
+  <h3>3.1 공격/피해 유형</h3>
+  <table style="table-layout:fixed;"><colgroup><col style="width:130px;"><col></colgroup>
+    <tbody>
+    <tr><th>물리 피해</th><td>보병·궁병·포병 계열 기본 공격. 대상의 <b>물리 방어</b> 등급만큼 감소 적용.</td></tr>
+    <tr><th>마법 피해</th><td>마도 계열 기본 공격. 대상의 <b>마법 방어</b> 등급만큼 감소 적용(물리 방어와 별개, 독립 수치).</td></tr>
+    <tr><th>고정 피해(트루 데미지)</th><td>물리·마법 방어 모두 <b>무시</b>. 일부 특수 효과에만 적용(사령관 스킬 재도입 시 확장).</td></tr>
+    </tbody>
+  </table>
+
+  <h3>3.2 방어 등급 (물리 · 마법)</h3>
+  <p style="font-size:13.3px; margin-top:0;">모든 몬스터는 <b>물리 방어</b>와 <b>마법 방어</b>를 각각 독립적으로 가진다(같은 유닛이라도 두 값이 다를 수 있다). 등급 단계와 피해 감소율은 물리·마법 공통으로 아래 5단계를 쓴다. 개별 유닛의 실제 값은 3번 문서(몬스터 유닛 리스트)에서 정의한다.</p>
+  <table style="table-layout:fixed;"><colgroup><col style="width:130px;"><col style="width:140px;"><col></colgroup>
+    <tbody>
+    <tr><th>등급</th><th>피해 감소</th><th>비고</th></tr>
+    <tr><td>낮음(Low)</td><td>1~30%</td><td>포병/마도 없이도 무리 없이 처리</td></tr>
+    <tr><td>보통(Medium)</td><td>31~60%</td><td>&nbsp;</td></tr>
+    <tr><td>높음(High)</td><td>61~90%</td><td>물리는 포병(장갑 관통), 마법은 마도 집중 대응 권장</td></tr>
+    <tr><td>매우 높음(Great)</td><td>91~99%</td><td>해당 피해 유형은 고정피해 없이는 비효율적</td></tr>
+    <tr><td>면역(Immune)</td><td>100%</td><td>해당 유형 완전 무효 — 다른 피해 유형이나 고정피해로만 처치</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>설계 의도:</b> 물리 방어가 높아도 마법 방어가 낮으면 마도가 유효하고, 반대라면 포병(장갑 관통)이 유효하다 — <b>어떤 몬스터도 모든 타워 계열에 동시에 강하지 않게</b> 설계한다.</div>
+
+  <h3>3.3 유닛 특성</h3>
+  <table style="table-layout:fixed;"><colgroup><col style="width:130px;"><col></colgroup>
+    <tbody>
+    <tr><th>지상형</th><td>일반 경로 이동. 모든 타워로 대응 가능.</td></tr>
+    <tr><th>공중형</th><td>경로 위를 날아서 이동. <b>근접(보병)·포병으로는 공격 불가</b> — 궁병·마도로만 요격 가능.</td></tr>
+    <tr><th>마법</th><td>기본 유닛(지상형/공중형)이 마법의 힘으로 강화된 버전(재생·가속 등 마법 부여 행동 보유) — 챕터 후반부 등장, 세부는 챕터별 확정.</td></tr>
+    <tr><th>보스</th><td>체력·방어력이 매우 높음. 웨이브 최후반 등장.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ================= 4 ================= -->
+<h2 id="s4"><span class="num">4.</span> 맵 · 경로 규칙</h2>
+<div class="card">
+  <p style="font-size:13.3px; margin-top:0;">상위 문서(1번 §3.1·§7.1)에서 정의한 규칙을 그대로 따른다. 지금은 <b>가장 단순한 구조</b>만 쓴다.</p>
+  <table style="table-layout:fixed;"><colgroup><col style="width:170px;"><col></colgroup>
+    <tbody>
+    <tr><th>길(경로)</th><td>몬스터가 처음부터 끝까지 따라 이동하는 하나의 길. 이 길만 존재한다.</td></tr>
+    <tr><th>타워 슬롯</th><td>길 옆 고정된 위치에만 타워 건설 가능(자유 배치 아님).</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>단순화:</b> 갈림길/합류, 고지대(언덕) 슬롯, 대공 전용 슬롯 등은 <b>현재 두지 않는다</b>. 맵은 길과 타워 슬롯 두 가지 요소로만 구성하며, 복잡한 지형 규칙은 차후 별도 지시로 확장한다.</div>
+</div>
+
+<!-- ================= 5 ================= -->
+<h2 id="s5"><span class="num">5.</span> 난이도 모드</h2>
+<div class="card">
+  <table style="table-layout:fixed;"><colgroup><col style="width:150px;"><col></colgroup>
+    <tbody>
+    <tr><th>캐주얼(쉬움)</th><td>적 체력 -20%, 아군 병사(보병) 체력 +20%</td></tr>
+    <tr><th>노멀(보통)</th><td>기본 설정값</td></tr>
+    <tr><th>베테랑(어려움)</th><td>적 체력 +20%, 아군 병사 체력 -20%</td></tr>
+    </tbody>
+  </table>
+  <div class="note">특수 챌린지 모드(강철 챌린지 등)는 <b>일단 제외</b>한다(차후 추가 예정).</div>
+  <div class="warn"><b>⚠ 검토 대기.</b> 본 문서의 수치·명칭은 <b>킹덤러쉬 구조를 그대로 가져왔다</b>. 검토 후 추가 지시사항에 맞춰 타워 성능·비용·적 구성 등을 조정한다.</div>
+</div>
+
+<div class="footer-note">타워디펜스 코어 룰 기획서 · 2026-08-01 · 킹덤러쉬 베이스 드래프트 · 검토 대기</div>
+
+</div>
+</body></html>
