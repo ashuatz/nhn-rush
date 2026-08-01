@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>기획서 에디터</title>
+<style>
+  :root{
+    --bg:#ffffff; --card:#ffffff; --border:#d9d9d9; --text:#1a1a1a; --sub:#666666;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{margin:0; background:var(--bg); color:var(--text); font-family:"Pretendard","Malgun Gothic",-apple-system,sans-serif; display:flex; flex-direction:column;}
+
+  /* 상단 툴바 */
+  #toolbar{display:flex; align-items:center; gap:8px; padding:10px 16px; border-bottom:1px solid var(--border); background:#fff; flex-wrap:wrap;}
+  #toolbar .title{font-weight:800; font-size:14px; margin-right:8px;}
+  #toolbar .filename{font-size:13px; color:var(--sub); margin-right:auto; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:320px;}
+  #toolbar .filename.dirty::after{content:" •"; color:#000; font-weight:800;}
+  #toolbar button{font-family:inherit; font-size:12.5px; font-weight:700; padding:7px 12px; border-radius:6px; border:1px solid var(--border); background:#fff; color:#1a1a1a; cursor:pointer;}
+  #toolbar button:hover{background:#f2f2f2;}
+  #toolbar button:disabled{opacity:.4; cursor:not-allowed;}
+  #toolbar button.primary{background:#1a1a1a; color:#fff; border-color:#1a1a1a;}
+  #toolbar button.primary:hover{background:#000;}
+  #toolbar .sep{width:1px; height:20px; background:var(--border); margin:0 4px;}
+  #status{font-size:11.5px; color:var(--sub); padding:5px 16px; border-bottom:1px solid var(--border); background:#f5f5f5;}
+  #status.err{color:#000; background:#eee; font-weight:700;}
+
+  /* 드롭존 */
+  #dropzone{flex:1; display:flex; align-items:center; justify-content:center; margin:24px; border:2px dashed var(--border); border-radius:12px; color:var(--sub); font-size:14px; text-align:center; transition:background .15s, border-color .15s;}
+  #dropzone.hover{background:#f5f5f5; border-color:#1a1a1a; color:#000;}
+  #dropzone .inner{display:flex; flex-direction:column; align-items:center; gap:14px;}
+  #dropzone .icon{font-size:34px;}
+  #dropzone .hint{font-size:12px; color:#999;}
+  #dropzone button{margin-top:6px; font-family:inherit; font-size:13px; font-weight:700; padding:9px 18px; border-radius:6px; border:1px solid #1a1a1a; background:#1a1a1a; color:#fff; cursor:pointer;}
+  #dropzone button:hover{background:#000;}
+
+  /* 편집 영역 */
+  #editorFrame{flex:1; width:100%; border:none; display:none; background:#fff;}
+  #editorFrame.show{display:block;}
+</style>
+</head>
+<body>
+
+  <div id="toolbar">
+    <span class="title">기획서 에디터</span>
+    <span class="filename" id="filenameLabel">파일 없음</span>
+
+    <button id="btnOpen">파일 열기</button>
+    <div class="sep"></div>
+    <button id="btnBold" disabled title="굵게 (Ctrl+B)"><b>B</b></button>
+    <button id="btnItalic" disabled title="기울임 (Ctrl+I)"><i>I</i></button>
+    <button id="btnUnderline" disabled title="밑줄 (Ctrl+U)"><u>U</u></button>
+    <div class="sep"></div>
+    <button id="btnUndo" disabled title="실행 취소 (Ctrl+Z)">↶ 실행취소</button>
+    <button id="btnRedo" disabled title="다시 실행 (Ctrl+Y)">↷ 다시실행</button>
+    <div class="sep"></div>
+    <button id="btnSave" class="primary" disabled title="저장 (Ctrl+S)">저장</button>
+    <button id="btnSaveAs" disabled>다른 이름으로 저장</button>
+    <button id="btnClose" disabled>닫기</button>
+  </div>
+
+  <div id="status">기획서 HTML 파일을 아래 영역에 드래그하거나 "파일 열기"를 눌러 불러오세요.</div>
+
+  <div id="dropzone">
+    <div class="inner">
+      <div class="icon">📄</div>
+      <div>기획서 HTML 파일을 여기로 드래그 &amp; 드롭</div>
+      <div class="hint">또는</div>
+      <button id="btnOpenCenter">파일 선택</button>
+    </div>
+  </div>
+
+  <iframe id="editorFrame"></iframe>
+  <input type="file" id="fileInput" accept=".html,.htm" style="display:none;">
+
+<script>
+(function(){
+  var frame = document.getElementById('editorFrame');
+  var dropzone = document.getElementById('dropzone');
+  var fileInput = document.getElementById('fileInput');
+  var filenameLabel = document.getElementById('filenameLabel');
+  var statusBar = document.getElementById('status');
+
+  var btnOpen = document.getElementById('btnOpen');
+  var btnOpenCenter = document.getElementById('btnOpenCenter');
+  var btnSave = document.getElementById('btnSave');
+  var btnSaveAs = document.getElementById('btnSaveAs');
+  var btnClose = document.getElementById('btnClose');
+  var btnBold = document.getElementById('btnBold');
+  var btnItalic = document.getElementById('btnItalic');
+  var btnUnderline = document.getElementById('btnUnderline');
+  var btnUndo = document.getElementById('btnUndo');
+  var btnRedo = document.getElementById('btnRedo');
+
+  var fileHandle = null;   // FileSystemFileHandle (지원 브라우저에서 직접 저장용)
+  var fileName = '';
+  var dirty = false;
+  var canDirectSave = false;
+
+  var editButtons = [btnBold, btnItalic, btnUnderline, btnUndo, btnRedo, btnSave, btnSaveAs, btnClose];
+
+  function setStatus(msg, isErr){
+    statusBar.textContent = msg;
+    statusBar.className = isErr ? 'err' : '';
+  }
+
+  function setDirty(v){
+    dirty = v;
+    filenameLabel.classList.toggle('dirty', dirty);
+  }
+
+  function updateFilenameLabel(){
+    filenameLabel.textContent = fileName ? fileName + (canDirectSave ? '' : ' (다운로드 저장)') : '파일 없음';
+  }
+
+  function setEditingEnabled(v){
+    editButtons.forEach(function(b){ b.disabled = !v; });
+  }
+
+  // ---------- 파일 불러오기 ----------
+
+  function readAsText(file){
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onload = function(){ resolve(reader.result); };
+      reader.onerror = function(){ reject(reader.error); };
+      reader.readAsText(file, 'UTF-8');
+    });
+  }
+
+  function loadContent(html, name, handle){
+    fileHandle = handle || null;
+    fileName = name;
+    canDirectSave = !!fileHandle;
+
+    dropzone.style.display = 'none';
+    frame.classList.add('show');
+    frame.srcdoc = html;
+
+    frame.onload = function(){
+      try {
+        frame.contentDocument.designMode = 'on';
+      } catch(e){
+        setStatus('편집 모드를 켤 수 없습니다: ' + e.message, true);
+        return;
+      }
+      attachFrameListeners();
+      setDirty(false);
+      setEditingEnabled(true);
+      updateFilenameLabel();
+      setStatus(canDirectSave
+        ? '불러옴: ' + fileName + ' — 저장 시 원본 파일에 직접 덮어씁니다.'
+        : '불러옴: ' + fileName + ' — 이 브라우저는 직접 저장을 지원하지 않아, 저장하면 파일을 새로 다운로드합니다.');
+    };
+  }
+
+  function attachFrameListeners(){
+    var doc = frame.contentDocument;
+    doc.addEventListener('input', function(){ setDirty(true); });
+    doc.addEventListener('keydown', function(e){
+      var mod = e.ctrlKey || e.metaKey;
+      if (mod && (e.key === 's' || e.key === 'S')){
+        e.preventDefault();
+        saveFile();
+      }
+    });
+  }
+
+  async function openWithFileSystemHandle(handle){
+    var file = await handle.getFile();
+    var text = await readAsText(file);
+    loadContent(text, file.name, handle);
+  }
+
+  async function openWithFileObject(file){
+    var text = await readAsText(file);
+    loadContent(text, file.name, null);
+  }
+
+  function isHtmlFile(name){
+    return /\.html?$/i.test(name || '');
+  }
+
+  // 파일 열기 버튼: File System Access API가 있으면 handle까지 확보(직접 저장 가능)
+  async function openFilePicker(){
+    if (window.showOpenFilePicker){
+      try {
+        var handles = await window.showOpenFilePicker({
+          multiple: false,
+          types: [{ description: 'HTML 기획서', accept: { 'text/html': ['.html', '.htm'] } }]
+        });
+        await openWithFileSystemHandle(handles[0]);
+      } catch(err){
+        if (err.name !== 'AbortError') setStatus('파일 열기 실패: ' + err.message, true);
+      }
+      return;
+    }
+    fileInput.click();
+  }
+
+  fileInput.addEventListener('change', function(){
+    var file = fileInput.files[0];
+    if (!file) return;
+    if (!isHtmlFile(file.name)){
+      setStatus('HTML 파일(.html)만 열 수 있습니다.', true);
+      return;
+    }
+    openWithFileObject(file);
+    fileInput.value = '';
+  });
+
+  btnOpen.addEventListener('click', openFilePicker);
+  btnOpenCenter.addEventListener('click', openFilePicker);
+
+  // ---------- 드래그 & 드롭 ----------
+
+  ['dragenter', 'dragover'].forEach(function(evt){
+    dropzone.addEventListener(evt, function(e){
+      e.preventDefault();
+      dropzone.classList.add('hover');
+    });
+  });
+  ['dragleave', 'dragend'].forEach(function(evt){
+    dropzone.addEventListener(evt, function(e){
+      e.preventDefault();
+      dropzone.classList.remove('hover');
+    });
+  });
+
+  dropzone.addEventListener('drop', async function(e){
+    e.preventDefault();
+    dropzone.classList.remove('hover');
+
+    var items = e.dataTransfer.items;
+    if (!items || !items.length) return;
+    var item = items[0];
+
+    if (item.getAsFileSystemHandle){
+      try {
+        var handle = await item.getAsFileSystemHandle();
+        if (handle && handle.kind === 'file'){
+          if (!isHtmlFile(handle.name)){
+            setStatus('HTML 파일(.html)만 열 수 있습니다.', true);
+            return;
+          }
+          await openWithFileSystemHandle(handle);
+          return;
+        }
+      } catch(err){
+        // 지원하지 않거나 실패하면 아래 폴백으로 진행
+      }
+    }
+
+    var file = item.getAsFile();
+    if (!file){ setStatus('파일을 읽을 수 없습니다.', true); return; }
+    if (!isHtmlFile(file.name)){
+      setStatus('HTML 파일(.html)만 열 수 있습니다.', true);
+      return;
+    }
+    openWithFileObject(file);
+  });
+
+  // 페이지 전체에서 기본 드롭 동작(새 탭에서 파일 열림) 방지
+  ['dragover', 'drop'].forEach(function(evt){
+    window.addEventListener(evt, function(e){
+      if (e.target === dropzone || dropzone.contains(e.target)) return;
+      e.preventDefault();
+    });
+  });
+
+  // ---------- 저장 ----------
+
+  function serializeDoc(){
+    return '<!DOCTYPE html>\n' + frame.contentDocument.documentElement.outerHTML;
+  }
+
+  function downloadFile(content, name){
+    var blob = new Blob([content], { type: 'text/html;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = name || 'untitled.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async function saveFile(){
+    if (!frame.contentDocument) return;
+    var html = serializeDoc();
+
+    if (fileHandle){
+      try {
+        var opts = { mode: 'readwrite' };
+        var perm = await fileHandle.queryPermission(opts);
+        if (perm !== 'granted'){
+          perm = await fileHandle.requestPermission(opts);
+        }
+        if (perm !== 'granted') throw new Error('쓰기 권한이 거부되었습니다.');
+
+        var writable = await fileHandle.createWritable();
+        await writable.write(html);
+        await writable.close();
+        setDirty(false);
+        setStatus('저장됨: ' + fileName);
+        return;
+      } catch(err){
+        setStatus('원본 파일에 직접 저장하지 못했습니다(' + err.message + '). 다운로드로 저장합니다.', true);
+      }
+    }
+    downloadFile(html, fileName || 'untitled.html');
+    setDirty(false);
+    setStatus('다운로드로 저장함: ' + (fileName || 'untitled.html') + ' (다운로드 폴더에서 원본 위치로 옮겨주세요)');
+  }
+
+  async function saveAsFile(){
+    if (!frame.contentDocument) return;
+    var html = serializeDoc();
+
+    if (window.showSaveFilePicker){
+      try {
+        var handle = await window.showSaveFilePicker({
+          suggestedName: fileName || 'untitled.html',
+          types: [{ description: 'HTML 기획서', accept: { 'text/html': ['.html', '.htm'] } }]
+        });
+        var writable = await handle.createWritable();
+        await writable.write(html);
+        await writable.close();
+        fileHandle = handle;
+        fileName = handle.name;
+        canDirectSave = true;
+        updateFilenameLabel();
+        setDirty(false);
+        setStatus('다른 이름으로 저장됨: ' + fileName);
+        return;
+      } catch(err){
+        if (err.name === 'AbortError') return;
+        setStatus('저장 실패: ' + err.message, true);
+        return;
+      }
+    }
+    downloadFile(html, fileName || 'untitled.html');
+  }
+
+  function closeFile(){
+    if (dirty && !confirm('저장하지 않은 변경사항이 있습니다. 닫으시겠습니까?')) return;
+    fileHandle = null;
+    fileName = '';
+    dirty = false;
+    frame.classList.remove('show');
+    frame.srcdoc = '';
+    dropzone.style.display = 'flex';
+    setEditingEnabled(false);
+    updateFilenameLabel();
+    setStatus('기획서 HTML 파일을 아래 영역에 드래그하거나 "파일 열기"를 눌러 불러오세요.');
+  }
+
+  btnSave.addEventListener('click', saveFile);
+  btnSaveAs.addEventListener('click', saveAsFile);
+  btnClose.addEventListener('click', closeFile);
+
+  function execCmd(cmd){
+    if (!frame.contentDocument) return;
+    frame.contentDocument.execCommand(cmd, false, null);
+    frame.contentWindow.focus();
+  }
+  btnBold.addEventListener('click', function(){ execCmd('bold'); });
+  btnItalic.addEventListener('click', function(){ execCmd('italic'); });
+  btnUnderline.addEventListener('click', function(){ execCmd('underline'); });
+  btnUndo.addEventListener('click', function(){ execCmd('undo'); });
+  btnRedo.addEventListener('click', function(){ execCmd('redo'); });
+
+  // 부모 문서에서도 Ctrl+S 대응 (포커스가 툴바에 있을 때)
+  window.addEventListener('keydown', function(e){
+    var mod = e.ctrlKey || e.metaKey;
+    if (mod && (e.key === 's' || e.key === 'S')){
+      e.preventDefault();
+      if (!btnSave.disabled) saveFile();
+    }
+  });
+
+  window.addEventListener('beforeunload', function(e){
+    if (dirty){
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+})();
+</script>
+</body>
+</html>
