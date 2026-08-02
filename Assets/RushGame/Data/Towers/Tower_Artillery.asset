@@ -1,0 +1,77 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4da6c76b4c34d7e40a3aac992e6a05da, type: 3}
+  m_Name: Tower_Artillery
+  m_EditorClassIdentifier: Assembly-CSharp::Rush.Data.TowerData
+  Type: 3
+  DamageType: 0
+  TowerPrefab: {fileID: 420212985829044609, guid: 64b75850c81d2a144bfaa1d4fe211999, type: 3}
+  ProjectilePrefab: {fileID: 3256140307864509061, guid: da1585b7f9e9d95479c5e54776786d94, type: 3}
+  SoldierPrefab: {fileID: 0}
+  ProjectileSpeed: 8
+  Levels:
+  - DisplayName: "\uD654\uD3EC \uC9C4\uC9C0"
+    Cost: 125
+    Damage: 18
+    Range: 4.5
+    AttackInterval: 2.5
+    SlowPercent: 0
+    SlowDuration: 0
+    SplashRadius: 1.2
+    ArmorPierce: 0.5
+    SoldierCount: 0
+    SoldierHp: 0
+    SoldierDamage: 0
+    SoldierAttackInterval: 0
+    SoldierRespawnSeconds: 0
+  - DisplayName: "\uC911\uD3EC \uC9C4\uC9C0"
+    Cost: 220
+    Damage: 28
+    Range: 4.5
+    AttackInterval: 2.5
+    SlowPercent: 0
+    SlowDuration: 0
+    SplashRadius: 1.4
+    ArmorPierce: 0.5
+    SoldierCount: 0
+    SoldierHp: 0
+    SoldierDamage: 0
+    SoldierAttackInterval: 0
+    SoldierRespawnSeconds: 0
+  - DisplayName: "\uACF5\uC131\uD3EC \uC9C4\uC9C0"
+    Cost: 320
+    Damage: 40
+    Range: 5
+    AttackInterval: 2.5
+    SlowPercent: 0
+    SlowDuration: 0
+    SplashRadius: 1.6
+    ArmorPierce: 0.5
+    SoldierCount: 0
+    SoldierHp: 0
+    SoldierDamage: 0
+    SoldierAttackInterval: 0
+    SoldierRespawnSeconds: 0
+  - DisplayName: "\uC655\uC2E4 \uACF5\uC131\uB2E8"
+    Cost: 480
+    Damage: 56
+    Range: 5
+    AttackInterval: 2.5
+    SlowPercent: 0
+    SlowDuration: 0
+    SplashRadius: 1.8
+    ArmorPierce: 0.5
+    SoldierCount: 0
+    SoldierHp: 0
+    SoldierDamage: 0
+    SoldierAttackInterval: 0
+    SoldierRespawnSeconds: 0

@@ -1,0 +1,77 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4da6c76b4c34d7e40a3aac992e6a05da, type: 3}
+  m_Name: Tower_Archer
+  m_EditorClassIdentifier: Assembly-CSharp::Rush.Data.TowerData
+  Type: 1
+  DamageType: 0
+  TowerPrefab: {fileID: 2570879035659625985, guid: 31f2278aa5e1a7240916fe7a7db98c81, type: 3}
+  ProjectilePrefab: {fileID: 7214232823805019696, guid: e93f7f4f569d8e84083a14d6dd4f7226, type: 3}
+  SoldierPrefab: {fileID: 0}
+  ProjectileSpeed: 14
+  Levels:
+  - DisplayName: "\uAD81\uC218 \uCD08\uC18C"
+    Cost: 70
+    Damage: 8
+    Range: 5
+    AttackInterval: 0.9
+    SlowPercent: 0
+    SlowDuration: 0
+    SplashRadius: 0
+    ArmorPierce: 0
+    SoldierCount: 0
+    SoldierHp: 0
+    SoldierDamage: 0
+    SoldierAttackInterval: 0
+    SoldierRespawnSeconds: 0
+  - DisplayName: "\uC7A5\uAD81\uBCD1 \uBD80\uB300"
+    Cost: 110
+    Damage: 12
+    Range: 5.5
+    AttackInterval: 0.9
+    SlowPercent: 0
+    SlowDuration: 0
+    SplashRadius: 0
+    ArmorPierce: 0
+    SoldierCount: 0
+    SoldierHp: 0
+    SoldierDamage: 0
+    SoldierAttackInterval: 0
+    SoldierRespawnSeconds: 0
+  - DisplayName: "\uC815\uC608 \uAD81\uBCD1\uB300"
+    Cost: 160
+    Damage: 16
+    Range: 5.5
+    AttackInterval: 0.7
+    SlowPercent: 0
+    SlowDuration: 0
+    SplashRadius: 0
+    ArmorPierce: 0
+    SoldierCount: 0
+    SoldierHp: 0
+    SoldierDamage: 0
+    SoldierAttackInterval: 0
+    SoldierRespawnSeconds: 0
+  - DisplayName: "\uC655\uC2E4 \uAD81\uBCD1\uB2E8"
+    Cost: 240
+    Damage: 22
+    Range: 6
+    AttackInterval: 0.6
+    SlowPercent: 0
+    SlowDuration: 0
+    SplashRadius: 0
+    ArmorPierce: 0
+    SoldierCount: 0
+    SoldierHp: 0
+    SoldierDamage: 0
+    SoldierAttackInterval: 0
+    SoldierRespawnSeconds: 0

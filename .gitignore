@@ -113,3 +113,8 @@ InitTestScene*.unity*
 
 # Embedded git repo (codex skill) - reinstall per machine
 .claude/skills/codex/
+
+# Debug/QA screenshots captured during play tests
+/[Aa]ssets/[Ss]creenshots/
+/[Aa]ssets/[Ss]creenshots.meta
+/[Pp]rofiler[Cc]aptures/
