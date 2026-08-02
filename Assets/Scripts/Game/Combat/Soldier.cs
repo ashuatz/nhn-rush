@@ -20,6 +20,10 @@ namespace Rush.Combat
         /// <summary>집결지에서 이만큼 벗어난 표적은 놓고 복귀한다 (무한 추격 방지).</summary>
         const float LeashMargin = 2.5f;
 
+        /// <summary>공격할 때 앞으로 찔러 넣는 연출 (비주얼 자식만 움직인다).</summary>
+        const float LungeDuration = 0.18f;
+        const float LungeDistance = 0.45f;
+
         static readonly List<Soldier> _active = new List<Soldier>();
 
         public static IReadOnlyList<Soldier> Active => _active;
@@ -34,6 +38,11 @@ namespace Rush.Combat
         Monster _target;
         bool _isBlocking;
         float _attackTimer;
+
+        Transform _visual;
+        Vector3 _visualBaseLocal;
+        Vector3 _lungeDirection;
+        float _lungeTimer;
 
         public float Hp { get; private set; }
 
@@ -82,6 +91,11 @@ namespace Rush.Combat
 
             transform.position = rallyPoint;
 
+            _visual = transform.Find("Visual");
+
+            if (_visual != null)
+                _visualBaseLocal = _visual.localPosition;
+
             _active.Add(this);
         }
 
@@ -94,6 +108,8 @@ namespace Rush.Combat
         {
             if (!IsAlive)
                 return;
+
+            TickLunge();
 
             // 표적이 죽었거나 사라졌으면 저지를 풀고 재탐색으로 넘어간다
             if (_target != null && !_target.IsAlive)
@@ -152,7 +168,32 @@ namespace Rush.Combat
                 return;
 
             _attackTimer = _attackInterval;
+            _lungeDirection = toTarget.normalized;
+            _lungeTimer = LungeDuration;
+
             DamageResolver.Apply(_target, _damage, DamageType.Physical, 0f, "병사");
+        }
+
+        /// <summary>공격 순간 비주얼만 앞으로 찔렀다가 되돌아온다.</summary>
+        void TickLunge()
+        {
+            if (_visual == null)
+                return;
+
+            if (_lungeTimer <= 0f)
+                return;
+
+            _lungeTimer -= Time.deltaTime;
+
+            if (_lungeTimer <= 0f)
+            {
+                _visual.localPosition = _visualBaseLocal;
+                return;
+            }
+
+            float pulse = Mathf.Sin(Mathf.PI * (1f - _lungeTimer / LungeDuration));
+
+            _visual.localPosition = _visualBaseLocal + _lungeDirection * (LungeDistance * pulse);
         }
 
         void ReturnToRally()

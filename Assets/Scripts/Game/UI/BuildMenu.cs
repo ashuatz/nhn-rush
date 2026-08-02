@@ -339,6 +339,9 @@ namespace Rush.UI
             var tower = _selected.Occupant;
             int refund = tower.SellRefund;
 
+            // Destroy는 프레임 끝에 반영되므로, 그 사이 남은 발사 요청을 먼저 끊는다
+            tower.MarkSold();
+
             _selected.Occupant = null;
             Destroy(tower.gameObject);
 

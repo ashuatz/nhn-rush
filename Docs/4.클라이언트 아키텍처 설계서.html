@@ -55,6 +55,8 @@
       <a href="#s6">6. 폴더 구조</a>
       <a href="#s7">7. 구현 순서 (마일스톤)</a>
       <a href="#s8">8. 플레이 가독성 (경로 · 사거리 · 배속)</a>
+      <a href="#s9">9. 공격 연출 (궤적 · 연발 · 추가 발사)</a>
+      <a href="#s10">10. 밸런스 미조정 항목</a>
     </div>
   </div>
 </header>
@@ -415,6 +417,59 @@ Assets/Scripts/Editor/
   </table>
   <div class="note"><b>슬롯 구조 주의.</b> 슬롯 루트는 <b>항상 스케일 1</b>을 유지하고 납작한 판은 자식 <code>Visual</code>이 담당한다. 루트가 비균등 스케일이면 그 위에 세운 타워와 병사가 세로로 찌그러진다. 검증에서 이 조건을 확인한다.</div>
   <div class="note"><b>디버그 대시보드.</b> 경로 시작 구간을 가리지 않도록 기본은 접힘 상태이고 좌하단에 <code>[F1] 디버그</code> 안내만 남긴다. F1로 열면 페이즈·웨이브·골드·생명·몬스터/병사 수·FPS와 최근 이벤트 로그를 볼 수 있다.</div>
+</div>
+
+<!-- ================= 9 ================= -->
+<h2 id="s9"><span class="num">9.</span> 공격 연출 (궤적 · 연발 · 추가 발사)</h2>
+<div class="card">
+  <p style="font-size:13.3px; margin-top:0;">직선으로 날아가기만 하던 발사체를 계열마다 다른 곡선으로 바꿨다. 궤적은 두 기법을 하나의 모델로 합쳐 표현한다.</p>
+
+  <h3>9.1 궤적 모델</h3>
+  <table style="table-layout:fixed;"><colgroup><col style="width:170px;"><col></colgroup>
+    <tbody>
+    <tr><th>휘어짐</th><td>시작점과 도착점 사이에 <b>랜덤 제어점</b>을 잡는 2차 베지어. 제어점은 진행축을 중심으로 <code>Random(-N..N) x 15도</code> 굴린 방향으로, <code>Factor / 비행거리</code>를 Min~Max로 clamp한 만큼 밀어낸다. <code>RollSteps</code>가 0이면 항상 위쪽(곡사), 12면 전방향으로 휜다.</td></tr>
+    <tr><th>흔들림</th><td>진행축에 수직인 평면에서의 <b>연속 랜덤 워크</b>. 이전 방향을 랜덤 회전시켜 다음 방향을 만들고, 누산값의 역방향과 보간해 원점에서 멀어지지 않게 잡아 준다. 마지막에 사인 창을 씌워 양끝을 0으로 만든다.</td></tr>
+    <tr><th>표적 추적</th><td>랜덤 성분을 <b>진행축 기준 로컬 좌표</b>로 들고 있어서, 표적이 움직여도 매 프레임 도착점만 갱신하면 궤적 모양이 유지된다.</td></tr>
+    <tr><th>정확도</th><td>t=0에서 총구, t=1에서 표적에 오차 0으로 도달한다(검증 완료). 비행 시간은 직선 거리 / 속도로 잡는다.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>9.2 계열별 프리셋</h3>
+  <table style="table-layout:fixed;"><colgroup><col style="width:100px;"><col style="width:110px;"><col></colgroup>
+    <tbody>
+    <tr><th>계열</th><th>궤적</th><th>연출</th></tr>
+    <tr><td>궁병</td><td>Arc</td><td>얕게 휘는 화살 <b>2연사</b>. 피해는 균등 분배해 DPS를 유지한다. 직선 대비 최대 이탈 약 0.4.</td></tr>
+    <tr><td>마도</td><td>Wander</td><td>사방으로 휘며 흔들리는 마법탄. 후반부 가속. 최대 이탈 약 1.0.</td></tr>
+    <tr><td>포병</td><td>Lob</td><td>높이 솟았다 떨어지는 곡사. 회전하는 포탄 + 흩어지는 착탄. 최대 이탈 약 1.8.</td></tr>
+    <tr><td>보병</td><td>-</td><td>발사체 없음. 병사가 공격할 때 비주얼만 앞으로 찔렀다 돌아오는 런지 모션.</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>가시성.</b> 발사체 큐브만으로는 곡선이 보이지 않아 <b>트레일</b>을 붙였다. 착탄 시 트레일을 떼어 내 잔상이 남게 하고, 반투명 큐브가 한 박자 부풀었다 사라지는 <code>ImpactBurst</code>로 타격감을 준다.</div>
+
+  <h3>9.3 추가 발사</h3>
+  <p style="font-size:13.3px; margin-top:0;">기본 공격 위에 얹는 규칙이다. <b>기본값은 켜짐</b>이며, 어떤 상위 시스템(아이템·특성 등)이 이 값을 제어할지는 아직 정하지 않았다.</p>
+  <table style="table-layout:fixed;"><colgroup><col style="width:150px;"><col></colgroup>
+    <tbody>
+    <tr><th>확률 발사</th><td>공격할 때마다 확률로 추가 발사체가 나간다. 미사일은 크게 솟았다 떨어지는 곡사에 소범위 광역.</td></tr>
+    <tr><th>처치 시 발사</th><td>이 타워가 적을 죽이면 주변 적을 향해 여러 발이 튄다. 사방으로 휘며 회전하는 추격탄.</td></tr>
+    </tbody>
+  </table>
+  <div class="warn"><b>연쇄 차단.</b> 추가 발사로 생긴 발사체는 <code>BonusOwner</code>가 비어 있어 다시 추가 발사를 유발하지 않는다. 무한 연쇄가 생기지 않는다.</div>
+  <div class="note"><b>조작 위치.</b> Stage Command Center의 "추가 발사" 섹션에서 타워별로 켜고 끄거나 확률·발수·피해 배율·탐색 반경을 조정한다. <b>플레이 중에 바꿔도 다음 발사부터 바로 반영</b>되며(이미 날아가는 발사체는 발사 시점 설정 유지), 조정한 값은 플레이를 끝낼 때 에셋에 저장된다. 같은 창의 "공격 연출" 섹션에서 <b>씬 뷰에 궤적을 그려</b> 플레이하지 않고 모양을 확인할 수 있다.</div>
+</div>
+
+<!-- ================= 10 ================= -->
+<h2 id="s10"><span class="num">10.</span> 밸런스 미조정 항목</h2>
+<div class="card">
+  <div class="warn" style="margin-top:0;"><b>수치는 아직 조정 전이다.</b> 기획서 기준값을 그대로 넣은 상태이므로 아래 항목은 플레이 감각을 보고 따로 잡아야 한다.</div>
+  <table style="table-layout:fixed;"><colgroup><col style="width:190px;"><col></colgroup>
+    <tbody>
+    <tr><th>타워 대비 웨이브 강도</th><td>Lv1 타워 4기만으로는 5~7웨이브에서 패배한다. 골드 수급, 웨이브 물량, 타워 비용 중 어디를 손댈지 미정.</td></tr>
+    <tr><th>추가 발사 기여도</th><td>처치 시 발사는 처치당 <code>피해 x 0.6 x 3발</code>이라 실질 DPS 기여가 크다. 확률 발사(15% x 1.5배)와 겹치면 후반 체감이 더 커진다.</td></tr>
+    <tr><th>병사 생존</th><td>Lv1 병사 체력 60에 몬스터 궁병이 누적되면 금방 녹는다. 저지 지속 시간이 짧아 보병 타워의 존재감이 약하다.</td></tr>
+    <tr><th>방어등급 감쇄율</th><td>등급별 대표 감쇄값(15/45/75/95/100%)은 기획서 구간의 중앙값을 쓴 것이다. 실제 구간 내 어디로 잡을지 미확정.</td></tr>
+    </tbody>
+  </table>
 </div>
 
 <div class="footer-note">클라이언트 아키텍처 설계서 · 2026-08-02 · 드래프트</div>

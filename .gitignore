@@ -117,4 +117,5 @@ InitTestScene*.unity*
 # Debug/QA screenshots captured during play tests
 /[Aa]ssets/[Ss]creenshots/
 /[Aa]ssets/[Ss]creenshots.meta
+/[Cc]aptures/
 /[Pp]rofiler[Cc]aptures/

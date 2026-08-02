@@ -17,6 +17,7 @@ MonoBehaviour:
   TowerPrefab: {fileID: 420212985829044609, guid: 64b75850c81d2a144bfaa1d4fe211999, type: 3}
   ProjectilePrefab: {fileID: 3256140307864509061, guid: da1585b7f9e9d95479c5e54776786d94, type: 3}
   SoldierPrefab: {fileID: 0}
+  ImpactPrefab: {fileID: 2503662763899452666, guid: 59b20d2acbf52524ebc8d17298e6655c, type: 3}
   ProjectileSpeed: 8
   Levels:
   - DisplayName: "\uD654\uD3EC \uC9C4\uC9C0"
@@ -75,3 +76,136 @@ MonoBehaviour:
     SoldierDamage: 0
     SoldierAttackInterval: 0
     SoldierRespawnSeconds: 0
+  Motion:
+    Kind: 2
+    ShotCount: 1
+    ShotInterval: 0.12
+    EndScatter: 0.35
+    SpinPerSecond: 540
+    SampleMin: 0.45
+    SampleMax: 0.55
+    BulgeFactor: 9
+    BulgeMin: 1.8
+    BulgeMax: 3.5
+    BulgeWorldUp: 1
+    RollSteps: 0
+    WanderAmplitude: 0
+    WanderTurn: 0.6
+    TimeCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 1
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 1
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+  Extras:
+    ProcEnabled: 1
+    ProcChance: 0.15
+    ProcCount: 1
+    ProcDamageScale: 1.5
+    ProcSplashRadius: 1
+    ProcSpeed: 9
+    ProcPrefab: {fileID: 7675878982900900642, guid: 39ff5e66b7b596e47976be717b636590, type: 3}
+    ProcImpactPrefab: {fileID: 2675685383340812572, guid: b59ec20fdff9b72499af4fac0cbdb544, type: 3}
+    ProcMotion:
+      Kind: 2
+      ShotCount: 1
+      ShotInterval: 0.08
+      EndScatter: 0.25
+      SpinPerSecond: 0
+      SampleMin: 0.4
+      SampleMax: 0.6
+      BulgeFactor: 12
+      BulgeMin: 2
+      BulgeMax: 4.5
+      BulgeWorldUp: 1
+      RollSteps: 0
+      WanderAmplitude: 0
+      WanderTurn: 0.6
+      TimeCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+    OnKillEnabled: 1
+    OnKillCount: 3
+    OnKillDamageScale: 0.6
+    OnKillSearchRadius: 5
+    OnKillSpeed: 11
+    OnKillPrefab: {fileID: 3758343949168038464, guid: a62d70252eb0c064fb49ad9c90685ec7, type: 3}
+    OnKillImpactPrefab: {fileID: 8629975486746337776, guid: fa2479b76c9d4b0499d85d05707a5f16, type: 3}
+    OnKillMotion:
+      Kind: 3
+      ShotCount: 1
+      ShotInterval: 0.05
+      EndScatter: 0.12
+      SpinPerSecond: 720
+      SampleMin: 0.1
+      SampleMax: 0.5
+      BulgeFactor: 3.5
+      BulgeMin: 0.5
+      BulgeMax: 1.8
+      BulgeWorldUp: 0
+      RollSteps: 12
+      WanderAmplitude: 0.35
+      WanderTurn: 0.8
+      TimeCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 2
+          outSlope: 2
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4

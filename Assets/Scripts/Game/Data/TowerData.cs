@@ -38,8 +38,15 @@ namespace Rush.Data
         public GameObject TowerPrefab;
         public GameObject ProjectilePrefab;
         public GameObject SoldierPrefab;
+        public GameObject ImpactPrefab;
         public float ProjectileSpeed = 12f;
         public TowerLevelStat[] Levels = new TowerLevelStat[4];
+
+        [Header("공격 연출")]
+        public ProjectileMotion Motion = new ProjectileMotion();
+
+        [Header("추가 발사 규칙 (개발자 실험용, 기본 꺼짐)")]
+        public AttackExtras Extras = new AttackExtras();
 
         /// <summary>공중 유닛 공격 가능 여부. 근접(보병)/포병은 불가. 기획서(코어 룰) 3.3.</summary>
         public bool CanTargetFlying

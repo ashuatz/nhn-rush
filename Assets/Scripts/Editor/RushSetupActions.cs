@@ -134,6 +134,24 @@ namespace Rush.EditorTools
             EnsureProjectilePrefab("Projectile_Magic", EnsureMaterial("Mat_ProjMagic", new Color(0.75f, 0.4f, 1f)));
             EnsureProjectilePrefab("Projectile_Shell", EnsureMaterial("Mat_ProjShell", new Color(0.3f, 0.3f, 0.3f)));
 
+            // 착탄 연출 (반투명 큐브가 한 박자 부풀었다 사라진다)
+            EnsureImpactPrefab("Impact_Arrow", EnsureTranslucentMaterial("Mat_ImpactArrow", new Color(1f, 0.95f, 0.7f, 0.55f)));
+            EnsureImpactPrefab("Impact_Magic", EnsureTranslucentMaterial("Mat_ImpactMagic", new Color(0.75f, 0.45f, 1f, 0.55f)));
+            EnsureImpactPrefab("Impact_Shell", EnsureTranslucentMaterial("Mat_ImpactShell", new Color(1f, 0.6f, 0.25f, 0.5f)));
+
+            // 추가 발사(실험 옵션)용 발사체
+            EnsureProjectilePrefab("Projectile_Missile", EnsureMaterial("Mat_ProjMissile", new Color(1f, 0.5f, 0.15f)));
+            EnsureProjectilePrefab("Projectile_Dagger", EnsureMaterial("Mat_ProjDagger", new Color(0.45f, 0.95f, 1f)));
+            EnsureImpactPrefab("Impact_Missile", EnsureTranslucentMaterial("Mat_ImpactMissile", new Color(1f, 0.45f, 0.15f, 0.55f)));
+            EnsureImpactPrefab("Impact_Dagger", EnsureTranslucentMaterial("Mat_ImpactDagger", new Color(0.45f, 0.95f, 1f, 0.5f)));
+
+            // 궤적이 눈에 보이도록 발사체에 트레일을 붙인다 (곡선 연출의 핵심)
+            EnsureProjectileTrail("Projectile_Arrow", new Color(1f, 0.97f, 0.8f), 0.18f, 0.1f);
+            EnsureProjectileTrail("Projectile_Magic", new Color(0.8f, 0.5f, 1f), 0.4f, 0.22f);
+            EnsureProjectileTrail("Projectile_Shell", new Color(1f, 0.65f, 0.3f), 0.35f, 0.16f);
+            EnsureProjectileTrail("Projectile_Missile", new Color(1f, 0.55f, 0.2f), 0.5f, 0.18f);
+            EnsureProjectileTrail("Projectile_Dagger", new Color(0.5f, 0.95f, 1f), 0.45f, 0.14f);
+
             // 몬스터 9종
             EnsureUnitPrefab("Monster_Infantry", typeof(Monster), EnsureMaterial("Mat_MonInfantry", new Color(0.8f, 0.3f, 0.3f)), 0.75f, 0.4f);
             EnsureUnitPrefab("Monster_Archer", typeof(Monster), EnsureMaterial("Mat_MonArcher", new Color(0.9f, 0.55f, 0.3f)), 0.65f, 0.35f);
@@ -197,6 +215,91 @@ namespace Rush.EditorTools
             visual.transform.localPosition = new Vector3(0f, yCenter, 0f);
             visual.transform.localScale = new Vector3(size, size, size);
             visual.GetComponent<MeshRenderer>().sharedMaterial = mat;
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
+            UnityEngine.Object.DestroyImmediate(root);
+
+            return prefab;
+        }
+
+        /// <summary>
+        /// 발사체 프리팹에 트레일 자식이 없으면 추가한다. 이미 있으면 손대지 않는다.
+        /// 착탄 시 Projectile이 이 자식을 떼어 내 잔상이 남게 한다.
+        /// </summary>
+        static void EnsureProjectileTrail(string prefabName, Color color, float time, float width)
+        {
+            string path = $"{PrefabDir}/{prefabName}.prefab";
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+
+            if (prefab == null)
+                return;
+
+            if (prefab.GetComponentInChildren<TrailRenderer>(true) != null)
+                return;
+
+            var contents = PrefabUtility.LoadPrefabContents(path);
+
+            var trailGo = new GameObject("Trail");
+            trailGo.transform.SetParent(contents.transform);
+            trailGo.transform.localPosition = Vector3.zero;
+
+            var trail = trailGo.AddComponent<TrailRenderer>();
+            trail.time = time;
+            trail.startWidth = width;
+            trail.endWidth = 0f;
+            trail.minVertexDistance = 0.03f;
+            trail.numCapVertices = 2;
+            trail.alignment = LineAlignment.View;
+            trail.textureMode = LineTextureMode.Stretch;
+            trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            trail.receiveShadows = false;
+            trail.sharedMaterial = EnsureTrailMaterial();
+
+            var gradient = new Gradient();
+            gradient.SetKeys(
+                new[] { new GradientColorKey(color, 0f), new GradientColorKey(color, 1f) },
+                new[] { new GradientAlphaKey(0.85f, 0f), new GradientAlphaKey(0f, 1f) });
+            trail.colorGradient = gradient;
+
+            PrefabUtility.SaveAsPrefabAsset(contents, path);
+            PrefabUtility.UnloadPrefabContents(contents);
+        }
+
+        /// <summary>트레일용 머티리얼. 정점 색을 그대로 쓰는 셰이더가 필요하다.</summary>
+        static Material EnsureTrailMaterial()
+        {
+            string path = $"{MaterialDir}/Mat_Trail.mat";
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+
+            if (existing != null)
+                return existing;
+
+            var shader = Shader.Find("Sprites/Default");
+
+            if (shader == null)
+                shader = Shader.Find("Universal Render Pipeline/Unlit");
+
+            var mat = new Material(shader);
+            AssetDatabase.CreateAsset(mat, path);
+
+            return mat;
+        }
+
+        static GameObject EnsureImpactPrefab(string name, Material mat)
+        {
+            string path = $"{PrefabDir}/{name}.prefab";
+            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+
+            if (existing != null)
+                return existing;
+
+            var root = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            root.name = name;
+            UnityEngine.Object.DestroyImmediate(root.GetComponent<Collider>());
+
+            root.transform.localScale = Vector3.one * 0.2f;
+            root.GetComponent<MeshRenderer>().sharedMaterial = mat;
+            root.AddComponent<ImpactBurst>();
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
             UnityEngine.Object.DestroyImmediate(root);
@@ -288,17 +391,20 @@ namespace Rush.EditorTools
             });
 
             // 프리팹 참조는 비어 있을 때만 채운다 (수동 교체 존중)
-            WireTowerPrefabs(infantry, "Tower_Infantry", null, "Soldier");
-            WireTowerPrefabs(archer, "Tower_Archer", "Projectile_Arrow", null);
-            WireTowerPrefabs(mage, "Tower_Mage", "Projectile_Magic", null);
-            WireTowerPrefabs(artillery, "Tower_Artillery", "Projectile_Shell", null);
+            WireTowerPrefabs(infantry, "Tower_Infantry", null, "Soldier", null);
+            WireTowerPrefabs(archer, "Tower_Archer", "Projectile_Arrow", null, "Impact_Arrow");
+            WireTowerPrefabs(mage, "Tower_Mage", "Projectile_Magic", null, "Impact_Magic");
+            WireTowerPrefabs(artillery, "Tower_Artillery", "Projectile_Shell", null, "Impact_Shell");
+
+            ApplyMotionPresets(force: false);
 
             AssetDatabase.SaveAssets();
 
             Report("타워 데이터 4종 생성 완료");
         }
 
-        static void WireTowerPrefabs(TowerData data, string towerPrefab, string projectilePrefab, string soldierPrefab)
+        static void WireTowerPrefabs(TowerData data, string towerPrefab, string projectilePrefab,
+            string soldierPrefab, string impactPrefab)
         {
             bool dirty = false;
 
@@ -320,8 +426,203 @@ namespace Rush.EditorTools
                 dirty = true;
             }
 
+            if (impactPrefab != null && data.ImpactPrefab == null)
+            {
+                data.ImpactPrefab = LoadPrefab(impactPrefab);
+                dirty = true;
+            }
+
             if (dirty)
                 EditorUtility.SetDirty(data);
+        }
+
+        // ---------- 3-1. 공격 연출 프리셋 ----------
+
+        /// <summary>
+        /// 계열마다 다른 발사 연출을 채운다.
+        /// force가 false면 아직 설정되지 않은(ShotCount 0) 데이터만 채워 수동 조정을 존중한다.
+        /// </summary>
+        public static void ApplyMotionPresets(bool force)
+        {
+            int applied = 0;
+
+            applied += ApplyMotion("Tower_Archer", force, motion =>
+            {
+                // 궁병: 얕게 휘는 화살 2연사. 빠르고 가볍게 읽히도록.
+                motion.Kind = MotionKind.Arc;
+                motion.ShotCount = 2;
+                motion.ShotInterval = 0.07f;
+                motion.EndScatter = 0.18f;
+                motion.SpinPerSecond = 0f;
+                motion.SampleMin = 0.3f;
+                motion.SampleMax = 0.5f;
+                motion.BulgeFactor = 1.6f;
+                motion.BulgeMin = 0.15f;
+                motion.BulgeMax = 0.6f;
+                motion.BulgeWorldUp = false;
+                motion.RollSteps = 2;
+                motion.WanderAmplitude = 0f;
+                motion.TimeCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
+            });
+
+            applied += ApplyMotion("Tower_Mage", force, motion =>
+            {
+                // 마도: 사방으로 휘며 흔들리는 마법탄. 후반부에 가속한다.
+                motion.Kind = MotionKind.Wander;
+                motion.ShotCount = 1;
+                motion.ShotInterval = 0.1f;
+                motion.EndScatter = 0.1f;
+                motion.SpinPerSecond = 0f;
+                motion.SampleMin = 0.15f;
+                motion.SampleMax = 0.45f;
+                motion.BulgeFactor = 2.2f;
+                motion.BulgeMin = 0.3f;
+                motion.BulgeMax = 1.1f;
+                motion.BulgeWorldUp = false;
+                motion.RollSteps = 12;
+                motion.WanderAmplitude = 0.45f;
+                motion.WanderTurn = 0.75f;
+                motion.TimeCurve = new AnimationCurve(new Keyframe(0f, 0f, 0f, 0f), new Keyframe(1f, 1f, 2f, 2f));
+            });
+
+            applied += ApplyMotion("Tower_Artillery", force, motion =>
+            {
+                // 포병: 높이 떠서 떨어지는 곡사. 회전하는 포탄 + 넓게 흩어지는 착탄.
+                motion.Kind = MotionKind.Lob;
+                motion.ShotCount = 1;
+                motion.ShotInterval = 0.12f;
+                motion.EndScatter = 0.35f;
+                motion.SpinPerSecond = 540f;
+                motion.SampleMin = 0.45f;
+                motion.SampleMax = 0.55f;
+                motion.BulgeFactor = 9f;
+                motion.BulgeMin = 1.8f;
+                motion.BulgeMax = 3.5f;
+                motion.BulgeWorldUp = true;
+                motion.RollSteps = 0;
+                motion.WanderAmplitude = 0f;
+                motion.TimeCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
+            });
+
+            foreach (var name in new[] { "Tower_Archer", "Tower_Mage", "Tower_Artillery" })
+            {
+                var data = AssetDatabase.LoadAssetAtPath<TowerData>($"{DataTowers}/{name}.asset");
+
+                if (data != null)
+                    ConfigureExtras(data, force);
+            }
+
+            AssetDatabase.SaveAssets();
+
+            Report($"공격 연출 프리셋 적용: {applied}건");
+        }
+
+        /// <summary>추가 발사(확률 발사 / 처치 시 발사)의 기본값을 채운다. 기본은 켜짐.</summary>
+        static void ConfigureExtras(TowerData data, bool force)
+        {
+            if (data.Extras == null)
+                data.Extras = new AttackExtras();
+
+            var extras = data.Extras;
+            bool dirty = false;
+
+            // 참조는 비어 있으면 언제나 보충한다 (일부만 지워진 상태도 셋업 재실행으로 복구)
+            dirty |= FillPrefabSlot(ref extras.ProcPrefab, "Projectile_Missile");
+            dirty |= FillPrefabSlot(ref extras.ProcImpactPrefab, "Impact_Missile");
+            dirty |= FillPrefabSlot(ref extras.OnKillPrefab, "Projectile_Dagger");
+            dirty |= FillPrefabSlot(ref extras.OnKillImpactPrefab, "Impact_Dagger");
+
+            if (extras.ProcMotion == null)
+                extras.ProcMotion = new ProjectileMotion();
+
+            if (extras.OnKillMotion == null)
+                extras.OnKillMotion = new ProjectileMotion();
+
+            // 두 궤적 프리셋은 각각 독립적으로 판정한다. 프리셋을 새로 넣을 때는 켜진 상태로 둔다.
+            if (force || !extras.ProcMotion.IsConfigured)
+            {
+                ApplyMissileMotion(extras.ProcMotion);
+                extras.ProcEnabled = true;
+                dirty = true;
+            }
+
+            if (force || !extras.OnKillMotion.IsConfigured)
+            {
+                ApplyDaggerMotion(extras.OnKillMotion);
+                extras.OnKillEnabled = true;
+                dirty = true;
+            }
+
+            if (dirty)
+                EditorUtility.SetDirty(data);
+        }
+
+        static bool FillPrefabSlot(ref GameObject slot, string prefabName)
+        {
+            if (slot != null)
+                return false;
+
+            slot = LoadPrefab(prefabName);
+
+            return slot != null;
+        }
+
+        static void ApplyMissileMotion(ProjectileMotion proc)
+        {
+            // 미사일: 높이 솟았다가 떨어지는 곡사
+            proc.Kind = MotionKind.Lob;
+            proc.ShotCount = 1;
+            proc.ShotInterval = 0.08f;
+            proc.EndScatter = 0.25f;
+            proc.SpinPerSecond = 0f;
+            proc.SampleMin = 0.4f;
+            proc.SampleMax = 0.6f;
+            proc.BulgeFactor = 12f;
+            proc.BulgeMin = 2f;
+            proc.BulgeMax = 4.5f;
+            proc.BulgeWorldUp = true;
+            proc.RollSteps = 0;
+            proc.WanderAmplitude = 0f;
+            proc.TimeCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+        }
+
+        static void ApplyDaggerMotion(ProjectileMotion onKill)
+        {
+            // 단검: 사방으로 크게 휘며 쫓아가는 궤적
+            onKill.Kind = MotionKind.Wander;
+            onKill.ShotCount = 1;
+            onKill.ShotInterval = 0.05f;
+            onKill.EndScatter = 0.12f;
+            onKill.SpinPerSecond = 720f;
+            onKill.SampleMin = 0.1f;
+            onKill.SampleMax = 0.5f;
+            onKill.BulgeFactor = 3.5f;
+            onKill.BulgeMin = 0.5f;
+            onKill.BulgeMax = 1.8f;
+            onKill.BulgeWorldUp = false;
+            onKill.RollSteps = 12;
+            onKill.WanderAmplitude = 0.35f;
+            onKill.WanderTurn = 0.8f;
+            onKill.TimeCurve = new AnimationCurve(new Keyframe(0f, 0f, 0f, 0f), new Keyframe(1f, 1f, 2f, 2f));
+        }
+
+        static int ApplyMotion(string assetName, bool force, Action<ProjectileMotion> setup)
+        {
+            var data = AssetDatabase.LoadAssetAtPath<TowerData>($"{DataTowers}/{assetName}.asset");
+
+            if (data == null)
+                return 0;
+
+            if (data.Motion == null)
+                data.Motion = new ProjectileMotion();
+
+            if (!force && data.Motion.IsConfigured)
+                return 0;
+
+            setup(data.Motion);
+            EditorUtility.SetDirty(data);
+
+            return 1;
         }
 
         static GameObject LoadPrefab(string name)
@@ -803,10 +1104,16 @@ namespace Rush.EditorTools
             range.SetActive(false);
         }
 
-        /// <summary>사거리 원판용 반투명 머티리얼 (URP Unlit 트랜스페어런트).</summary>
+        /// <summary>사거리 원판용 반투명 머티리얼.</summary>
         static Material EnsureRangeMaterial()
         {
-            string path = $"{MaterialDir}/Mat_Range.mat";
+            return EnsureTranslucentMaterial("Mat_Range", new Color(0.35f, 0.8f, 1f, 0.22f));
+        }
+
+        /// <summary>반투명 머티리얼 (URP Unlit 트랜스페어런트).</summary>
+        static Material EnsureTranslucentMaterial(string name, Color color)
+        {
+            string path = $"{MaterialDir}/{name}.mat";
             var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
 
             if (existing != null)
@@ -818,7 +1125,6 @@ namespace Rush.EditorTools
                 shader = Shader.Find("Unlit/Color");
 
             var mat = new Material(shader);
-            var color = new Color(0.35f, 0.8f, 1f, 0.22f);
 
             if (mat.HasProperty("_BaseColor"))
                 mat.SetColor("_BaseColor", color);
@@ -1011,6 +1317,15 @@ namespace Rush.EditorTools
 
                 if (needsProjectile && data.ProjectilePrefab == null)
                     issues.Add($"[데이터] {name}: ProjectilePrefab 비어 있음");
+
+                if (needsProjectile && data.ImpactPrefab == null)
+                    issues.Add($"[데이터] {name}: ImpactPrefab 비어 있음 (착탄 연출 없음)");
+
+                if (needsProjectile && (data.Motion == null || !data.Motion.IsConfigured))
+                    issues.Add($"[데이터] {name}: 공격 연출 미설정 - 프리셋 적용 필요");
+
+                if (needsProjectile && data.ProjectileSpeed <= 0f)
+                    issues.Add($"[데이터] {name}: ProjectileSpeed가 0 이하");
 
                 if (data.Type == TowerType.Infantry && data.SoldierPrefab == null)
                     issues.Add($"[데이터] {name}: SoldierPrefab 비어 있음");

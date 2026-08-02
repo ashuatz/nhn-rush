@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.Generic;
 using Rush.Data;
 using Rush.Stage;
 using UnityEngine;
@@ -12,12 +14,17 @@ namespace Rush.Combat
     {
         const string VisualName = "Visual";
 
+        static readonly List<Monster> _bonusTargets = new List<Monster>(8);
+
         float _cooldown;
         Transform _visual;
 
         public TowerData Data { get; private set; }
         public int LevelIndex { get; private set; }
         public int TotalInvested { get; private set; }
+
+        /// <summary>판매 확정 여부. Destroy는 프레임 끝에 반영되므로 그 사이의 추가 발사를 막는다.</summary>
+        public bool IsSold { get; private set; }
 
         protected StageController Stage { get; private set; }
 
@@ -38,6 +45,9 @@ namespace Rush.Combat
 
         /// <summary>판매 환급: 누적 투자 비용의 90%. 기획서(코어 룰) 1.2.</summary>
         public int SellRefund => Mathf.RoundToInt(TotalInvested * 0.9f);
+
+        /// <summary>발사체가 나가는 위치 (더미 큐브 기준 총구 높이).</summary>
+        public Vector3 MuzzlePosition => transform.position + Vector3.up * 1.2f;
 
         public virtual void Initialize(TowerData data, StageController stage)
         {
@@ -75,9 +85,20 @@ namespace Rush.Combat
             _visual.localScale = new Vector3(scale, scale, scale);
         }
 
+        /// <summary>판매 직전에 호출한다. 남은 코루틴을 끊고 이후 발사 요청을 전부 무시한다.</summary>
+        public void MarkSold()
+        {
+            IsSold = true;
+
+            StopAllCoroutines();
+        }
+
         protected virtual void Update()
         {
             if (Data == null)
+                return;
+
+            if (IsSold)
                 return;
 
             _cooldown -= Time.deltaTime;
@@ -91,7 +112,9 @@ namespace Rush.Combat
 
         protected abstract bool TryAttack();
 
-        /// <summary>원거리 계열(궁병/마도/포병) 공용 공격 루틴.</summary>
+        // ---------- 기본 공격 ----------
+
+        /// <summary>원거리 계열(궁병/마도/포병) 공용 공격 루틴. 연출 설정에 따라 단발 또는 연발.</summary>
         protected bool TryRangedAttack()
         {
             var stat = CurrentStat;
@@ -106,18 +129,172 @@ namespace Rush.Combat
                 return false;
             }
 
-            Vector3 muzzle = transform.position + Vector3.up * 1.2f;
-            var go = Instantiate(Data.ProjectilePrefab, muzzle, Quaternion.identity);
+            int shots = 1;
+
+            if (Data.Motion != null && Data.Motion.ShotCount > 1)
+                shots = Data.Motion.ShotCount;
+
+            if (shots == 1)
+            {
+                FireOne(target, stat, stat.Damage);
+            }
+            else
+            {
+                // 연발은 피해를 균등 분배해 DPS를 유지한다
+                StartCoroutine(FireVolley(stat, shots));
+            }
+
+            // 확률 판정은 발사체 수와 무관하게 "공격 1회"당 한 번만 한다
+            TryProcShot(target, stat);
+
+            return true;
+        }
+
+        IEnumerator FireVolley(TowerLevelStat stat, int shots)
+        {
+            float perShot = stat.Damage / shots;
+            var wait = new WaitForSeconds(Data.Motion.ShotInterval);
+
+            for (int i = 0; i < shots; i++)
+            {
+                var target = MonsterRegistry.FindTarget(transform.position, stat.Range, Data.CanTargetFlying);
+
+                if (target == null)
+                    yield break;
+
+                FireOne(target, stat, perShot);
+
+                if (i < shots - 1)
+                    yield return wait;
+            }
+        }
+
+        void FireOne(Monster target, TowerLevelStat stat, float damage)
+        {
+            var config = new ProjectileConfig
+            {
+                Motion = Data.Motion,
+                ImpactPrefab = Data.ImpactPrefab,
+                DamageType = Data.DamageType,
+                Speed = Data.ProjectileSpeed,
+                Damage = damage,
+                ArmorPierce = stat.ArmorPierce,
+                SplashRadius = stat.SplashRadius,
+                SlowPercent = stat.SlowPercent,
+                SlowDuration = stat.SlowDuration,
+                SourceLabel = stat.DisplayName,
+                BonusOwner = this,
+            };
+
+            Spawn(Data.ProjectilePrefab, config, target, MuzzlePosition);
+        }
+
+        // ---------- 추가 발사 (개발자 실험용) ----------
+
+        /// <summary>공격할 때마다 확률로 추가 발사체를 쏜다.</summary>
+        void TryProcShot(Monster target, TowerLevelStat stat)
+        {
+            if (IsSold)
+                return;
+
+            var extras = Data.Extras;
+
+            if (extras == null || !extras.ProcEnabled)
+                return;
+
+            if (extras.ProcPrefab == null)
+            {
+                GameLog.Warn("Build", $"{Data.name}: 확률 발사 프리팹이 비어 있음");
+                return;
+            }
+
+            if (Random.value > extras.ProcChance)
+                return;
+
+            var config = new ProjectileConfig
+            {
+                Motion = extras.ProcMotion,
+                ImpactPrefab = extras.ProcImpactPrefab,
+                DamageType = Data.DamageType,
+                Speed = extras.ProcSpeed,
+                Damage = stat.Damage * extras.ProcDamageScale,
+                ArmorPierce = stat.ArmorPierce,
+                SplashRadius = extras.ProcSplashRadius,
+                SlowPercent = 0f,
+                SlowDuration = 0f,
+                SourceLabel = $"{stat.DisplayName} 추가탄",
+                BonusOwner = null,
+            };
+
+            for (int i = 0; i < Mathf.Max(1, extras.ProcCount); i++)
+                Spawn(extras.ProcPrefab, config, target, MuzzlePosition);
+
+            if (GameLog.VerboseCombat)
+                GameLog.Info("Proc", $"{stat.DisplayName} 확률 발사 ({extras.ProcChance:P0})");
+        }
+
+        /// <summary>이 타워가 적을 죽였을 때 주변 적으로 튀는 발사체. Projectile이 호출한다.</summary>
+        public void FireOnKillShots(Vector3 origin, Monster killed)
+        {
+            if (IsSold)
+                return;
+
+            var extras = Data.Extras;
+
+            if (extras == null || !extras.OnKillEnabled)
+                return;
+
+            if (extras.OnKillPrefab == null)
+            {
+                GameLog.Warn("Build", $"{Data.name}: 처치 시 발사 프리팹이 비어 있음");
+                return;
+            }
+
+            MonsterRegistry.CollectNearest(origin, extras.OnKillSearchRadius, Data.CanTargetFlying,
+                extras.OnKillCount, killed, _bonusTargets);
+
+            if (_bonusTargets.Count == 0)
+                return;
+
+            var stat = CurrentStat;
+
+            var config = new ProjectileConfig
+            {
+                Motion = extras.OnKillMotion,
+                ImpactPrefab = extras.OnKillImpactPrefab,
+                DamageType = Data.DamageType,
+                Speed = extras.OnKillSpeed,
+                Damage = stat.Damage * extras.OnKillDamageScale,
+                ArmorPierce = stat.ArmorPierce,
+                SplashRadius = 0f,
+                SlowPercent = 0f,
+                SlowDuration = 0f,
+                SourceLabel = $"{stat.DisplayName} 추격탄",
+                BonusOwner = null,
+            };
+
+            int count = Mathf.Max(1, extras.OnKillCount);
+
+            for (int i = 0; i < count; i++)
+            {
+                var target = _bonusTargets[i % _bonusTargets.Count];
+
+                Spawn(extras.OnKillPrefab, config, target, origin + Vector3.up * 0.5f);
+            }
+
+            if (GameLog.VerboseCombat)
+                GameLog.Info("Proc", $"{stat.DisplayName} 처치 시 발사 {count}발");
+        }
+
+        void Spawn(GameObject prefab, in ProjectileConfig config, Monster target, Vector3 origin)
+        {
+            var go = Instantiate(prefab, origin, Quaternion.identity);
             var projectile = go.GetComponent<Projectile>();
 
             if (projectile == null)
                 projectile = go.AddComponent<Projectile>();
 
-            projectile.Launch(target, Data.ProjectileSpeed, stat.Damage, Data.DamageType,
-                stat.ArmorPierce, stat.SplashRadius, stat.SlowPercent, stat.SlowDuration,
-                stat.DisplayName);
-
-            return true;
+            projectile.Launch(config, target, origin);
         }
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -10,6 +11,17 @@ namespace Rush.Combat
     public static class MonsterRegistry
     {
         static readonly List<Monster> _active = new List<Monster>();
+
+        static Vector3 _sortCenter;
+        static readonly Comparison<Monster> _byDistanceToCenter = CompareByDistanceToCenter;
+
+        static int CompareByDistanceToCenter(Monster a, Monster b)
+        {
+            float da = (a.transform.position - _sortCenter).sqrMagnitude;
+            float db = (b.transform.position - _sortCenter).sqrMagnitude;
+
+            return da.CompareTo(db);
+        }
 
         public static IReadOnlyList<Monster> Active => _active;
 
@@ -105,6 +117,47 @@ namespace Rush.Combat
                 return bestFree;
 
             return bestAny;
+        }
+
+        /// <summary>반경 안에서 가까운 순으로 최대 max마리를 고른다 (처치 시 유도 발사용).</summary>
+        public static void CollectNearest(Vector3 center, float radius, bool includeFlying,
+            int max, Monster exclude, List<Monster> results)
+        {
+            results.Clear();
+
+            if (max <= 0)
+                return;
+
+            float radiusSqr = radius * radius;
+
+            foreach (var monster in _active)
+            {
+                if (monster == null || !monster.IsAlive)
+                    continue;
+
+                if (monster == exclude)
+                    continue;
+
+                if (!includeFlying && monster.Data.IsFlying)
+                    continue;
+
+                if ((monster.transform.position - center).sqrMagnitude > radiusSqr)
+                    continue;
+
+                results.Add(monster);
+            }
+
+            // 후보가 발수보다 적어 순환 배정될 때도 가까운 순서를 지켜야 한다
+            if (results.Count < 2)
+                return;
+
+            _sortCenter = center;
+            results.Sort(_byDistanceToCenter);
+
+            if (results.Count <= max)
+                return;
+
+            results.RemoveRange(max, results.Count - max);
         }
 
         /// <summary>반경 내 몬스터를 전부 수집한다 (포병 광역용).</summary>

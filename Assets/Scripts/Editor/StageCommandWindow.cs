@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Rush.Combat;
+using Rush.Data;
 using Rush.Stage;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -27,10 +28,25 @@ namespace Rush.EditorTools
 
         readonly List<string> _statusLines = new List<string>();
 
+        static readonly string[] PreviewTowers = { "Tower_Archer", "Tower_Mage", "Tower_Artillery" };
+
+        readonly List<Vector3[]> _previewPaths = new List<Vector3[]>();
+
         Label _statusLabel;
         VisualElement _assetSection;
         VisualElement _sceneSection;
         VisualElement _validationList;
+        Label _previewInfo;
+        VisualElement _extrasBody;
+        string _previewTower = PreviewTowers[0];
+        bool _previewEnabled;
+        bool _extrasPendingSave;
+
+        /// <summary>
+        /// UI를 만드는 동안 컨트롤이 초기값을 잡으며 변경 콜백을 쏘는 경우가 있다.
+        /// 그대로 두면 사용자가 만지지도 않은 값이 에셋에 저장되므로 구성 중에는 콜백을 막는다.
+        /// </summary>
+        bool _buildingExtrasUI;
         Label _runtimeStats;
         Button _playButton;
         VisualElement _runtimeControls;
@@ -53,6 +69,11 @@ namespace Rush.EditorTools
         {
             RushSetupActions.Reported -= OnReported;
             EditorApplication.playModeStateChanged -= OnPlayModeChanged;
+
+            // 창을 닫아도 씬 뷰 콜백이 남지 않게 반드시 해제한다
+            SceneView.duringSceneGui -= OnSceneGui;
+            _previewEnabled = false;
+            _previewPaths.Clear();
         }
 
         void OnReported(string message)
@@ -70,6 +91,12 @@ namespace Rush.EditorTools
         {
             RefreshPlayButton();
             RefreshSetupEnabled();
+
+            if (change == PlayModeStateChange.EnteredEditMode)
+            {
+                SavePendingExtras();
+                RebuildExtrasUI();
+            }
         }
 
         /// <summary>플레이 중에는 에셋/씬 셋업을 막는다 (씬 교체가 플레이를 깨뜨린다).</summary>
@@ -102,6 +129,8 @@ namespace Rush.EditorTools
 
             scroll.Add(_assetSection);
             scroll.Add(_sceneSection);
+            scroll.Add(BuildMotionSection());
+            scroll.Add(BuildExtrasSection());
             scroll.Add(BuildValidationSection());
             scroll.Add(BuildRuntimeSection());
             scroll.Add(BuildStatusSection());
@@ -214,6 +243,389 @@ namespace Rush.EditorTools
             }
 
             EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+        }
+
+        // ---------- 섹션: 공격 연출 ----------
+
+        VisualElement BuildMotionSection()
+        {
+            var section = CreateSectionShell("공격 연출", "MOTION", out var body);
+
+            body.Add(MakeDescription("발사체 궤적을 씬 뷰에 그려서 플레이하지 않고 확인한다. 슬롯을 선택하면 그 위치에서, 아니면 첫 슬롯에서 경로까지 쏜다."));
+
+            var picker = new DropdownField("타워", new List<string>(PreviewTowers), 0);
+            picker.style.marginBottom = 6f;
+            picker.RegisterValueChangedCallback(evt =>
+            {
+                _previewTower = evt.newValue;
+                RebuildPreview();
+                RebuildExtrasUI();
+            });
+            body.Add(picker);
+
+            var toggle = new Toggle("씬 뷰 궤적 미리보기");
+            toggle.style.marginBottom = 6f;
+            toggle.RegisterValueChangedCallback(evt => SetPreviewEnabled(evt.newValue));
+            body.Add(toggle);
+
+            var row = MakeButtonRow();
+            row.Add(MakeButton("궤적 다시 뽑기", RebuildPreview));
+            row.Add(MakeButton("연출 프리셋 덮어쓰기", () =>
+            {
+                RushSetupActions.ApplyMotionPresets(force: true);
+                RebuildPreview();
+            }));
+            body.Add(row);
+
+            _previewInfo = new Label("미리보기 꺼짐");
+            _previewInfo.style.color = subtleTextColor;
+            _previewInfo.style.fontSize = 11;
+            _previewInfo.style.whiteSpace = WhiteSpace.Normal;
+            _previewInfo.style.marginTop = 6f;
+            body.Add(_previewInfo);
+
+            return section;
+        }
+
+        // ---------- 섹션: 추가 발사 (개발자 옵션) ----------
+
+        VisualElement BuildExtrasSection()
+        {
+            var section = CreateSectionShell("추가 발사", "EXTRA", out var body);
+
+            body.Add(MakeDescription("위 '공격 연출'에서 고른 타워에 적용된다. 기본은 켜짐이며, 나중에 어떤 시스템이 이 값을 제어할지는 아직 정하지 않았다."));
+            body.Add(MakeDescription("플레이 중에 바꿔도 다음 발사부터 바로 반영된다 (이미 날아가는 발사체는 발사 시점 설정 유지). 플레이 중 조정한 값은 플레이를 끝낼 때 에셋에 저장된다. 단, 플레이 도중 스크립트가 재컴파일되면 디스크 값으로 되돌아간다."));
+
+            _extrasBody = new VisualElement();
+            body.Add(_extrasBody);
+
+            RebuildExtrasUI();
+
+            return section;
+        }
+
+        void RebuildExtrasUI()
+        {
+            if (_extrasBody == null)
+                return;
+
+            _buildingExtrasUI = true;
+
+            try
+            {
+                BuildExtrasControls();
+            }
+            finally
+            {
+                _buildingExtrasUI = false;
+            }
+        }
+
+        void BuildExtrasControls()
+        {
+            _extrasBody.Clear();
+
+            var data = LoadPreviewTowerData();
+
+            if (data == null)
+            {
+                _extrasBody.Add(new Label($"{_previewTower} 데이터를 찾을 수 없음"));
+                return;
+            }
+
+            if (data.Extras == null)
+                data.Extras = new AttackExtras();
+
+            var extras = data.Extras;
+
+            _extrasBody.Add(MakeSubHeader("확률 발사 (공격 시 확률로 추가탄)"));
+
+            AddToggle(_extrasBody, "사용", extras.ProcEnabled, value =>
+            {
+                extras.ProcEnabled = value;
+                MarkExtrasDirty(data);
+            });
+
+            AddSlider(_extrasBody, "발동 확률", extras.ProcChance, 0f, 1f, value =>
+            {
+                extras.ProcChance = value;
+                MarkExtrasDirty(data);
+            });
+
+            AddSliderInt(_extrasBody, "발수", extras.ProcCount, 1, 5, value =>
+            {
+                extras.ProcCount = value;
+                MarkExtrasDirty(data);
+            });
+
+            AddSlider(_extrasBody, "피해 배율", extras.ProcDamageScale, 0.2f, 4f, value =>
+            {
+                extras.ProcDamageScale = value;
+                MarkExtrasDirty(data);
+            });
+
+            _extrasBody.Add(MakeSubHeader("처치 시 발사 (주변 적으로 튀는 추격탄)"));
+
+            AddToggle(_extrasBody, "사용", extras.OnKillEnabled, value =>
+            {
+                extras.OnKillEnabled = value;
+                MarkExtrasDirty(data);
+            });
+
+            AddSliderInt(_extrasBody, "발수", extras.OnKillCount, 1, 6, value =>
+            {
+                extras.OnKillCount = value;
+                MarkExtrasDirty(data);
+            });
+
+            AddSlider(_extrasBody, "피해 배율", extras.OnKillDamageScale, 0.1f, 2f, value =>
+            {
+                extras.OnKillDamageScale = value;
+                MarkExtrasDirty(data);
+            });
+
+            AddSlider(_extrasBody, "탐색 반경", extras.OnKillSearchRadius, 2f, 10f, value =>
+            {
+                extras.OnKillSearchRadius = value;
+                MarkExtrasDirty(data);
+            });
+        }
+
+        TowerData LoadPreviewTowerData()
+        {
+            return AssetDatabase.LoadAssetAtPath<TowerData>($"Assets/RushGame/Data/Towers/{_previewTower}.asset");
+        }
+
+        /// <summary>
+        /// ScriptableObject 값은 플레이 중에 바꿔도 다음 발사부터 바로 반영된다
+        /// (Tower가 매 공격마다 Data.Extras를 다시 읽는다).
+        /// 플레이 중에는 디스크 저장이 무시되므로 표시만 해 두고, 플레이가 끝날 때 한 번에 쓴다.
+        /// </summary>
+        void MarkExtrasDirty(TowerData data)
+        {
+            // UI 구성 중 발생한 콜백은 사용자 조작이 아니므로 무시한다
+            if (_buildingExtrasUI)
+                return;
+
+            EditorUtility.SetDirty(data);
+
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                _extrasPendingSave = true;
+                return;
+            }
+
+            AssetDatabase.SaveAssetIfDirty(data);
+        }
+
+        /// <summary>플레이 중에 조정한 실험 옵션을 플레이 종료 시점에 디스크로 넘긴다.</summary>
+        void SavePendingExtras()
+        {
+            if (!_extrasPendingSave)
+                return;
+
+            _extrasPendingSave = false;
+
+            foreach (var name in PreviewTowers)
+            {
+                var data = AssetDatabase.LoadAssetAtPath<TowerData>($"Assets/RushGame/Data/Towers/{name}.asset");
+
+                if (data == null)
+                    continue;
+
+                AssetDatabase.SaveAssetIfDirty(data);
+            }
+
+            OnReported("플레이 중 조정한 실험 옵션을 에셋에 저장함");
+        }
+
+        static Label MakeSubHeader(string text)
+        {
+            var label = new Label(text);
+            label.style.color = Color.white;
+            label.style.fontSize = 11;
+            label.style.unityFontStyleAndWeight = FontStyle.Bold;
+            label.style.marginTop = 8f;
+            label.style.marginBottom = 4f;
+
+            return label;
+        }
+
+        static void AddToggle(VisualElement parent, string label, bool value, System.Action<bool> onChanged)
+        {
+            var toggle = new Toggle(label);
+            toggle.value = value;
+            toggle.style.marginBottom = 2f;
+            toggle.RegisterValueChangedCallback(evt => onChanged(evt.newValue));
+
+            parent.Add(toggle);
+        }
+
+        static void AddSlider(VisualElement parent, string label, float value, float min, float max,
+            System.Action<float> onChanged)
+        {
+            var slider = new Slider(label, min, max);
+            slider.value = value;
+            slider.showInputField = true;
+            slider.style.marginBottom = 2f;
+            slider.RegisterValueChangedCallback(evt => onChanged(evt.newValue));
+
+            parent.Add(slider);
+        }
+
+        static void AddSliderInt(VisualElement parent, string label, int value, int min, int max,
+            System.Action<int> onChanged)
+        {
+            var slider = new SliderInt(label, min, max);
+            slider.value = value;
+            slider.showInputField = true;
+            slider.style.marginBottom = 2f;
+            slider.RegisterValueChangedCallback(evt => onChanged(evt.newValue));
+
+            parent.Add(slider);
+        }
+
+        void SetPreviewEnabled(bool enabled)
+        {
+            if (_previewEnabled == enabled)
+                return;
+
+            _previewEnabled = enabled;
+
+            if (enabled)
+            {
+                SceneView.duringSceneGui += OnSceneGui;
+                RebuildPreview();
+                return;
+            }
+
+            SceneView.duringSceneGui -= OnSceneGui;
+            _previewPaths.Clear();
+            _previewInfo.text = "미리보기 꺼짐";
+
+            SceneView.RepaintAll();
+        }
+
+        /// <summary>런타임 Projectile과 같은 MotionTrajectory로 궤적을 뽑아 둔다 (매 리페인트마다 다시 뽑으면 깜빡인다).</summary>
+        void RebuildPreview()
+        {
+            if (!_previewEnabled)
+                return;
+
+            _previewPaths.Clear();
+
+            var data = AssetDatabase.LoadAssetAtPath<TowerData>($"Assets/RushGame/Data/Towers/{_previewTower}.asset");
+
+            if (data == null || data.Motion == null)
+            {
+                _previewInfo.text = $"{_previewTower} 데이터를 찾을 수 없음";
+                return;
+            }
+
+            if (!TryGetPreviewEndpoints(out var start, out var end))
+            {
+                _previewInfo.text = "씬에 TowerSlot 또는 PathRoute가 없음 - 씬 셋업 먼저 실행";
+                return;
+            }
+
+            const int Steps = 40;
+            int lines = Mathf.Max(1, data.Motion.ShotCount) * 3;
+
+            for (int line = 0; line < lines; line++)
+            {
+                var trajectory = new MotionTrajectory();
+                trajectory.Sample(data.Motion);
+
+                Vector3 scatteredEnd = end + trajectory.EndScatterOffset;
+                var points = new Vector3[Steps + 1];
+
+                for (int i = 0; i <= Steps; i++)
+                {
+                    float t = (float)i / Steps;
+                    points[i] = trajectory.Evaluate(start, scatteredEnd, data.Motion.EvaluateTime(t));
+                }
+
+                _previewPaths.Add(points);
+            }
+
+            float distance = Vector3.Distance(start, end);
+            float flight = distance / Mathf.Max(0.1f, data.ProjectileSpeed);
+
+            _previewInfo.text =
+                $"{_previewTower} · {data.Motion.Kind} · {Mathf.Max(1, data.Motion.ShotCount)}발" +
+                $"\n비행거리 {distance:0.0} / 비행시간 {flight:0.00}초 · 궤적 {lines}개 표시";
+
+            SceneView.RepaintAll();
+        }
+
+        bool TryGetPreviewEndpoints(out Vector3 start, out Vector3 end)
+        {
+            start = Vector3.zero;
+            end = Vector3.zero;
+
+            var slot = GetPreviewSlot();
+
+            if (slot == null)
+                return false;
+
+            var route = FindFirstObjectByType<PathRoute>();
+
+            if (route == null || route.PointCount < 2)
+                return false;
+
+            // 타워 총구 높이는 Tower.MuzzlePosition과 같게 맞춘다
+            start = slot.BuildPosition + Vector3.up * 1.2f;
+
+            Vector3 origin = slot.transform.position;
+            float bestSqr = float.MaxValue;
+
+            for (int i = 0; i < route.PointCount; i++)
+            {
+                Vector3 candidate = route.GetPoint(i);
+                float distSqr = (candidate - origin).sqrMagnitude;
+
+                if (distSqr >= bestSqr)
+                    continue;
+
+                bestSqr = distSqr;
+                end = candidate + Vector3.up * 0.4f;
+            }
+
+            return true;
+        }
+
+        static TowerSlot GetPreviewSlot()
+        {
+            if (Selection.activeGameObject != null)
+            {
+                var selected = Selection.activeGameObject.GetComponentInParent<TowerSlot>();
+
+                if (selected != null)
+                    return selected;
+            }
+
+            return FindFirstObjectByType<TowerSlot>();
+        }
+
+        void OnSceneGui(SceneView view)
+        {
+            if (!_previewEnabled)
+                return;
+
+            if (_previewPaths.Count == 0)
+                return;
+
+            foreach (var points in _previewPaths)
+            {
+                Handles.color = new Color(0.4f, 0.85f, 1f, 0.9f);
+                Handles.DrawAAPolyLine(3f, points);
+
+                Handles.color = new Color(1f, 0.8f, 0.3f, 1f);
+                Handles.SphereHandleCap(0, points[points.Length - 1], Quaternion.identity, 0.12f, EventType.Repaint);
+            }
+
+            Handles.color = new Color(0.3f, 1f, 0.5f, 1f);
+            Handles.SphereHandleCap(0, _previewPaths[0][0], Quaternion.identity, 0.18f, EventType.Repaint);
         }
 
         // ---------- 섹션: 검증 ----------
