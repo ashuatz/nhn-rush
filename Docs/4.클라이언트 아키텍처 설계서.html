@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+<meta charset="UTF-8">
+<title>클라이언트 아키텍처 설계서 — 타워디펜스 코어</title>
+<style>
+  :root{
+    --bg:#ffffff; --card:#ffffff; --border:#d9d9d9; --accent:#000000; --accent-dark:#000000;
+    --text:#1a1a1a; --sub:#666666; --warn-bg:#f5f5f5; --warn-border:#cccccc;
+    --ok:#000000; --ng:#000000; --code-bg:#f5f5f5;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; padding:40px 24px; background:var(--bg); color:var(--text); font-family:"Pretendard","Malgun Gothic",-apple-system,sans-serif; line-height:1.65;}
+  .wrap{max-width:1080px; margin:0 auto;}
+  header{margin-bottom:36px;}
+  .doc-tag{display:inline-block; background:#1a1a1a; color:#fff; font-size:12px; font-weight:700; padding:4px 10px; border-radius:4px;}
+  h1{font-size:27px; margin:12px 0 6px; color:#000;}
+  .meta{color:var(--sub); font-size:13px;}
+  h2{font-size:19px; margin:46px 0 14px; padding-bottom:8px; border-bottom:2px solid #1a1a1a; display:flex; align-items:center; gap:8px; color:#000;}
+  h2 .num{color:#000; font-weight:800;}
+  h3{font-size:15px; margin:26px 0 10px; color:#000; font-weight:700;}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:8px; padding:22px 24px; margin-bottom:16px;}
+  table{width:100%; border-collapse:collapse; font-size:13.3px; margin:10px 0;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:#f2f2f2; color:#000; font-weight:700;}
+  tr:nth-child(even) td{background:#fafafa;}
+  code{background:#f0f0f0; color:#1a1a1a; padding:1px 6px; border-radius:4px; font-size:12.3px; font-family:"Consolas","Menlo",monospace;}
+  pre{background:var(--code-bg); color:#1a1a1a; padding:16px 18px; border-radius:6px; font-size:12.5px; overflow-x:auto; line-height:1.6; border:1px solid #e0e0e0; font-family:"Consolas","Menlo",monospace;}
+  .warn{background:var(--warn-bg); border:1px solid var(--warn-border); border-left:3px solid #1a1a1a; border-radius:6px; padding:14px 16px; font-size:13.3px; margin:14px 0;}
+  .warn b{color:#000;}
+  .note{background:#f5f5f5; border:1px solid #d9d9d9; border-left:3px solid #999; border-radius:6px; padding:14px 16px; font-size:13.3px; margin:14px 0;}
+  .note b{color:#000;}
+  .footer-note{color:var(--sub); font-size:12px; margin-top:50px; text-align:center;}
+  .toc{font-size:13px; display:flex; flex-direction:column; gap:6px; color:var(--sub);}
+  .toc a{color:#000; text-decoration:underline;}
+  .diagram{display:flex; justify-content:center; margin:18px 0;}
+  .diagram svg{max-width:100%; height:auto;}
+  .caption{font-size:12.5px; color:var(--sub); text-align:center; margin:-6px 0 10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="doc-tag">TECH DESIGN DOC · v0.1 (드래프트)</span>
+  <h1>클라이언트 아키텍처 설계서 — 타워디펜스 코어</h1>
+  <div class="meta">대상: Unity 6000.3 클라이언트 · 작성일: 2026-08-01 · 근거 문서: <a href="1.타워디펜스 코어 룰 기획서.html">1.타워디펜스 코어 룰 기획서</a>, <a href="3.몬스터 유닛 리스트 기획서.html">3.몬스터 유닛 리스트 기획서</a></div>
+  <div class="card" style="margin-top:16px;">
+    <div class="note" style="margin-top:0;"><b>이 문서의 위치</b> — 코어 룰 기획서(타워 4계열 x Lv4, 몬스터 9종, 10웨이브, 단일 경로 + 고정 슬롯)를 구현하기 위한 <b>클라이언트 클래스 구조와 흐름</b>을 정의한다. 해커톤(48시간) 규모에 맞춰 <b>최소 클래스 구성</b>을 원칙으로 한다.</div>
+    <div class="toc">
+      <a href="#s1">1. 설계 원칙</a>
+      <a href="#s2">2. 레이어 구조 (데이터 / 씬 / 런타임)</a>
+      <a href="#s3">3. 클래스 목록과 책임</a>
+      <a href="#s4">4. 클래스 연결 관계</a>
+      <a href="#s5">5. 게임플레이 루프 흐름</a>
+      <a href="#s6">6. 폴더 구조</a>
+      <a href="#s7">7. 구현 순서 (마일스톤)</a>
+      <a href="#s8">8. 플레이 가독성 (경로 · 사거리 · 배속)</a>
+      <a href="#s9">9. 공격 연출 (궤적 · 연발 · 추가 발사)</a>
+      <a href="#s10">10. 밸런스 미조정 항목</a>
+    </div>
+  </div>
+</header>
+
+<!-- ================= 1 ================= -->
+<h2 id="s1"><span class="num">1.</span> 설계 원칙</h2>
+<div class="card">
+  <table style="table-layout:fixed;"><colgroup><col style="width:190px;"><col></colgroup>
+    <tbody>
+    <tr><th>최소 구현</th><td>기획서에 있는 것만 만든다. 분기 강화, 사령관 스킬, 갈림길 등 "차후 확장" 항목을 위한 추상화를 미리 만들지 않는다.</td></tr>
+    <tr><th>부트스트랩 회피</th><td>런타임 최초 1회 오브젝트 생성(RuntimeInitializeOnLoad, DontDestroyOnLoad 매니저) 방식을 쓰지 않는다. 컨트롤러·UI는 전부 <b>씬에 미리 배치</b>하고 인스펙터로 참조를 연결한다.</td></tr>
+    <tr><th>데이터 베이크</th><td>타워/몬스터/웨이브 수치는 전부 ScriptableObject로 에디트 타임에 확정한다. 경로(웨이포인트)와 타워 슬롯은 씬에 배치하고 기즈모로 에디트 모드에서 확인한다.</td></tr>
+    <tr><th>오류 트래킹</th><td>피해 계산은 <code>DamageResolver</code> 단일 창구로 모으고, 스폰·처치·도달·건설 등 핵심 이벤트는 <code>DebugDashboard</code>(런타임 오버레이)에 로그로 남긴다.</td></tr>
+    <tr><th>이벤트 방향 고정</th><td>전투 개체(몬스터/타워)는 <code>StageController</code>의 존재만 알고 이벤트로 보고한다. UI는 <code>StageController</code> 이벤트를 구독만 한다. 역방향 참조를 만들지 않는다.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ================= 2 ================= -->
+<h2 id="s2"><span class="num">2.</span> 레이어 구조 (데이터 / 씬 / 런타임)</h2>
+<div class="card">
+  <p style="font-size:13.3px; margin-top:0;">전체 구조는 4개 층이다. 위에서 아래로 <b>"에디터에서 만들고 → 데이터로 굳히고 → 씬에 배치하고 → 플레이 중에는 프리팹 인스턴스만 생성"</b>하는 한 방향 흐름을 가진다.</p>
+
+  <div class="diagram">
+  <svg viewBox="0 0 680 600" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+    <defs>
+      <marker id="arrowA" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="#3A3A3A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+    </defs>
+
+    <!-- band 1: editor -->
+    <rect x="40" y="40" width="600" height="100" rx="12" fill="#fafafa" stroke="#cccccc"/>
+    <text x="340" y="64" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="700" fill="#2D2D2D">에디터 (Edit Mode 셋업)</text>
+    <rect x="140" y="84" width="190" height="40" rx="6" fill="#ffffff" stroke="#999999"/>
+    <text x="235" y="104" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#2D2D2D">StageSetupWindow</text>
+    <rect x="350" y="84" width="190" height="40" rx="6" fill="#ffffff" stroke="#999999"/>
+    <text x="445" y="104" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#2D2D2D">씬 기즈모 (경로/슬롯)</text>
+
+    <line x1="340" y1="148" x2="340" y2="172" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowA)"/>
+    <text x="356" y="160" text-anchor="start" dominant-baseline="central" font-size="11" fill="#555555">셋업 / 수치 베이크</text>
+
+    <!-- band 2: data -->
+    <rect x="40" y="180" width="600" height="100" rx="12" fill="#fafafa" stroke="#cccccc"/>
+    <text x="340" y="204" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="700" fill="#2D2D2D">데이터 (ScriptableObject)</text>
+    <rect x="60" y="224" width="130" height="40" rx="6" fill="#ffffff" stroke="#999999"/>
+    <text x="125" y="244" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#2D2D2D">TowerData</text>
+    <rect x="204" y="224" width="130" height="40" rx="6" fill="#ffffff" stroke="#999999"/>
+    <text x="269" y="244" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#2D2D2D">MonsterData</text>
+    <rect x="348" y="224" width="130" height="40" rx="6" fill="#ffffff" stroke="#999999"/>
+    <text x="413" y="244" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#2D2D2D">StageData</text>
+    <rect x="492" y="224" width="130" height="40" rx="6" fill="#ffffff" stroke="#999999"/>
+    <text x="557" y="244" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#2D2D2D">DifficultyPreset</text>
+
+    <line x1="340" y1="288" x2="340" y2="312" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowA)"/>
+    <text x="356" y="300" text-anchor="start" dominant-baseline="central" font-size="11" fill="#555555">인스펙터에서 에셋 참조</text>
+
+    <!-- band 3: scene -->
+    <rect x="40" y="320" width="600" height="100" rx="12" fill="#fafafa" stroke="#cccccc"/>
+    <text x="340" y="344" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="700" fill="#2D2D2D">씬 배치 (플레이 전부터 존재)</text>
+    <rect x="60" y="364" width="130" height="40" rx="6" fill="#1a1a1a" stroke="#1a1a1a"/>
+    <text x="125" y="384" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="700" fill="#ffffff">StageController</text>
+    <rect x="204" y="364" width="130" height="40" rx="6" fill="#ffffff" stroke="#999999"/>
+    <text x="269" y="384" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#2D2D2D">PathRoute</text>
+    <rect x="348" y="364" width="130" height="40" rx="6" fill="#ffffff" stroke="#999999"/>
+    <text x="413" y="384" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#2D2D2D">TowerSlot (N개)</text>
+    <rect x="492" y="364" width="130" height="40" rx="6" fill="#ffffff" stroke="#999999"/>
+    <text x="557" y="384" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#2D2D2D">UI (HUD/메뉴/로그)</text>
+
+    <line x1="340" y1="428" x2="340" y2="452" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowA)"/>
+    <text x="356" y="440" text-anchor="start" dominant-baseline="central" font-size="11" fill="#555555">플레이 중 Instantiate (부트스트랩 없음)</text>
+
+    <!-- band 4: runtime -->
+    <rect x="40" y="460" width="600" height="100" rx="12" fill="#f0f0f0" stroke="#cccccc"/>
+    <text x="340" y="484" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="700" fill="#2D2D2D">런타임 인스턴스 (프리팹)</text>
+    <rect x="60" y="504" width="130" height="40" rx="6" fill="#ffffff" stroke="#999999"/>
+    <text x="125" y="524" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#2D2D2D">Tower (4계열)</text>
+    <rect x="204" y="504" width="130" height="40" rx="6" fill="#ffffff" stroke="#999999"/>
+    <text x="269" y="524" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#2D2D2D">Monster (9종)</text>
+    <rect x="348" y="504" width="130" height="40" rx="6" fill="#ffffff" stroke="#999999"/>
+    <text x="413" y="524" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#2D2D2D">Soldier</text>
+    <rect x="492" y="504" width="130" height="40" rx="6" fill="#ffffff" stroke="#999999"/>
+    <text x="557" y="524" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#2D2D2D">Projectile</text>
+  </svg>
+  </div>
+  <div class="caption">그림 1. 레이어 구조 — 에디터에서 셋업, 데이터로 베이크, 씬에 배치, 플레이 중에는 프리팹 인스턴스만 생성</div>
+
+  <div class="note"><b>핵심:</b> 씬을 열면 <code>StageController</code>, 경로, 슬롯, UI가 이미 다 있다. 플레이 버튼을 누른 뒤 생기는 것은 <b>몬스터·타워·병사·발사체 네 종류의 프리팹 인스턴스뿐</b>이다.</div>
+</div>
+
+<!-- ================= 3 ================= -->
+<h2 id="s3"><span class="num">3.</span> 클래스 목록과 책임</h2>
+<div class="card">
+  <h3>3.1 데이터 (ScriptableObject)</h3>
+  <table style="table-layout:fixed;"><colgroup><col style="width:160px;"><col><col style="width:130px;"></colgroup>
+    <tbody>
+    <tr><th>클래스</th><th>책임</th><th>근거</th></tr>
+    <tr><td><code>TowerData</code></td><td>타워 계열 1개의 정의. 계열(<code>TowerType</code>: 보병/궁병/마도/포병), 프리팹, 레벨별 스탯 배열 4칸(명칭, 비용, 피해량, 사거리, 공격 간격, 피해 유형, 슬로우/광역/병사 수 등 계열 고유값). 안 쓰는 필드는 0으로 둔다 — 계열별 데이터 클래스를 나누지 않는다.</td><td>코어 룰 §2</td></tr>
+    <tr><td><code>MonsterData</code></td><td>몬스터 1종의 정의. 체력, 이동속도, 물리/마법 방어등급(<code>DefenseGrade</code> 5단계), 공중 여부, 처치 골드, 도달 시 생명 피해, 마법 특성(재생량 등), 원거리 공격치(몬스터 궁병용).</td><td>코어 룰 §3 · 몬스터 문서</td></tr>
+    <tr><td><code>StageData</code></td><td>스테이지 1개의 정의. 시작 생명(20)·시작 골드, 웨이브 10개(각 웨이브 = 스폰 항목 목록 + 간격 + 조기소환 보너스 골드).</td><td>코어 룰 §1</td></tr>
+    <tr><td><code>DifficultyPreset</code></td><td>난이도 배율(적 체력 배율, 아군 병사 체력 배율). 캐주얼/노멀/베테랑 3개 에셋.</td><td>코어 룰 §5</td></tr>
+    </tbody>
+  </table>
+
+  <h3>3.2 씬 배치 (스테이지 골격)</h3>
+  <table style="table-layout:fixed;"><colgroup><col style="width:160px;"><col><col style="width:130px;"></colgroup>
+    <tbody>
+    <tr><th>클래스</th><th>책임</th><th>근거</th></tr>
+    <tr><td><code>StageController</code></td><td>스테이지의 중심. 골드·생명 보유, 웨이브 진행 상태머신(준비 → 진행 → 승리/패배), 조기소환 요청 처리(보너스 골드 지급), 몬스터의 처치/도달 이벤트 수신. UI와 디버그가 구독하는 <b>유일한 이벤트 허브</b>.</td><td>코어 룰 §1</td></tr>
+    <tr><td><code>WaveSpawner</code></td><td><code>StageData</code>의 웨이브 정보를 받아 몬스터 프리팹을 순서대로 Instantiate. 진행 중 웨이브의 잔여 스폰 관리.</td><td>코어 룰 §1.1</td></tr>
+    <tr><td><code>PathRoute</code></td><td>웨이포인트(Transform 자식) 목록. 몬스터가 따라가는 단일 경로. 에디트 모드 기즈모로 경로를 그려서 확인.</td><td>코어 룰 §4</td></tr>
+    <tr><td><code>TowerSlot</code></td><td>고정 건설 위치 1칸. 점유 중인 타워 참조, 클릭 시 <code>BuildMenu</code> 호출.</td><td>코어 룰 §4</td></tr>
+    <tr><td><code>MonsterRegistry</code></td><td>활성 몬스터 목록(등록/해제). 타워 타겟 탐색은 물리 캐스트 대신 이 목록 순회로 처리 — 단순하고 디버그가 쉽다.</td><td>구현 편의</td></tr>
+    </tbody>
+  </table>
+
+  <h3>3.3 전투 개체 (런타임 인스턴스)</h3>
+  <table style="table-layout:fixed;"><colgroup><col style="width:160px;"><col><col style="width:130px;"></colgroup>
+    <tbody>
+    <tr><th>클래스</th><th>책임</th><th>근거</th></tr>
+    <tr><td><code>Tower</code> (추상)</td><td>공통: 현재 레벨, 스탯 조회, 업그레이드/판매(누적 비용 90% 환급), 타겟 탐색(사거리 + 공중 가능 여부 필터). 계열별 공격 동작만 하위 클래스가 구현.</td><td>코어 룰 §2</td></tr>
+    <tr><td>&nbsp;&nbsp;<code>InfantryTower</code></td><td>병사 2~3명 소환·유지(사망 시 리스폰). 공중 공격 불가.</td><td>§2 보병</td></tr>
+    <tr><td>&nbsp;&nbsp;<code>ArcherTower</code></td><td>단일 표적에 물리 발사체.</td><td>§2 궁병</td></tr>
+    <tr><td>&nbsp;&nbsp;<code>MageTower</code></td><td>마법 피해 + 슬로우 부여.</td><td>§2 마도</td></tr>
+    <tr><td>&nbsp;&nbsp;<code>ArtilleryTower</code></td><td>착탄 지점 광역 물리 피해 + 장갑 관통 보너스. 공중 공격 불가.</td><td>§2 포병</td></tr>
+    <tr><td><code>Monster</code></td><td>경로 이동, 체력/방어등급 보유, 슬로우 등 상태 처리, 마법 특성(재생) 처리. 사망 시 "처치(골드)" 이벤트, 출구 도달 시 "도달(생명 감소)" 이벤트를 <code>StageController</code>로 보고. 몬스터 궁병은 사거리 내 아군 <code>Soldier</code>를 원거리 공격.</td><td>§3 · 몬스터 문서</td></tr>
+    <tr><td><code>Soldier</code></td><td>보병 타워가 소환하는 근접 유닛. 지상 몬스터를 저지(블로킹)하고 근접전. 몬스터 궁병의 표적이 된다.</td><td>§2 보병 · 몬스터 문서 §2</td></tr>
+    <tr><td><code>Projectile</code></td><td>발사체 이동과 착탄. 착탄 시 <code>DamageResolver</code> 호출(단일/광역).</td><td>§2</td></tr>
+    <tr><td><code>DamageResolver</code> (static)</td><td><b>모든 피해가 지나가는 단일 창구.</b> 피해유형(물리/마법/고정) x 방어등급(5단계 감쇄) 계산, 포병 관통 보정, 난이도 배율 적용. 전투 로그를 남기는 지점.</td><td>§3.1 · §3.2</td></tr>
+    </tbody>
+  </table>
+
+  <h3>3.4 UI · 디버그 · 에디터</h3>
+  <table style="table-layout:fixed;"><colgroup><col style="width:160px;"><col><col style="width:130px;"></colgroup>
+    <tbody>
+    <tr><th>클래스</th><th>책임</th><th>근거</th></tr>
+    <tr><td><code>GameHUD</code></td><td>골드/생명/웨이브 표시, 조기소환 버튼(보너스 골드 표기), 승패 화면. <code>StageController</code> 이벤트 구독만 한다.</td><td>코어 룰 §1</td></tr>
+    <tr><td><code>BuildMenu</code></td><td>슬롯 클릭 시 건설(4계열)/강화/판매 메뉴. 비용 지불 가능 여부는 <code>StageController</code>에 질의.</td><td>코어 룰 §2·§4</td></tr>
+    <tr><td><code>DebugDashboard</code></td><td>런타임 오버레이. 스폰/처치/도달/건설/피해 이벤트 로그와 현재 상태(웨이브, 활성 몬스터 수, 골드) 표시. 릴리즈에서 토글 오프.</td><td>작업 규칙</td></tr>
+    <tr><td><code>StageSetupWindow</code> (Editor)</td><td>에디터 윈도우. 경로 웨이포인트/슬롯 배치 보조, 웨이브 구성 미리보기(총 몬스터 수, 예상 골드 수입), StageData 검증(빈 참조, 웨이브 수).</td><td>작업 규칙</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note"><b>공용 enum:</b> <code>TowerType</code>(보병/궁병/마도/포병), <code>DamageType</code>(물리/마법/고정), <code>DefenseGrade</code>(낮음/보통/높음/매우높음/면역). 전부 <code>Data</code> 폴더에 둔다.</div>
+</div>
+
+<!-- ================= 4 ================= -->
+<h2 id="s4"><span class="num">4.</span> 클래스 연결 관계</h2>
+<div class="card">
+  <p style="font-size:13.3px; margin-top:0;">누가 누구를 만들고(생성), 누가 누구를 참조하며(호출), 결과가 어디로 보고되는지(이벤트)를 한 장으로 나타냈다. <b>왼쪽 세로줄이 타워(플레이어) 라인, 오른쪽 세로줄이 몬스터 라인</b>이고, 두 줄은 가운데 "타겟 탐색/공격"과 아래쪽 <code>DamageResolver</code>에서 만난다.</p>
+
+  <div class="diagram">
+  <svg viewBox="0 0 680 660" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+    <defs>
+      <marker id="arrowB" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="#3A3A3A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+    </defs>
+
+    <!-- monster -> stagecontroller event line (routed on top) -->
+    <polyline points="615,315 648,315 648,18 340,18 340,32" fill="none" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowB)"/>
+    <text x="494" y="30" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#555555">처치/도달 이벤트 (골드+ / 생명-)</text>
+
+    <!-- row A -->
+    <rect x="40" y="44" width="140" height="48" rx="8" fill="#f0f0f0" stroke="#cccccc"/>
+    <text x="110" y="68" text-anchor="middle" dominant-baseline="central" font-size="12.5" font-weight="600" fill="#2D2D2D">StageData</text>
+    <line x1="184" y1="68" x2="228" y2="68" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowB)"/>
+
+    <rect x="240" y="40" width="200" height="56" rx="8" fill="#1a1a1a" stroke="#1a1a1a"/>
+    <text x="340" y="57" text-anchor="middle" dominant-baseline="central" font-size="13.5" font-weight="700" fill="#ffffff">StageController</text>
+    <text x="340" y="79" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#CCCCCC">골드 · 생명 · 웨이브 상태머신</text>
+
+    <line x1="444" y1="68" x2="492" y2="68" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowB)"/>
+    <rect x="500" y="44" width="140" height="48" rx="8" fill="#f0f0f0" stroke="#cccccc"/>
+    <text x="570" y="68" text-anchor="middle" dominant-baseline="central" font-size="12.5" font-weight="600" fill="#2D2D2D">GameHUD · UI</text>
+
+    <!-- stagecontroller -> wavespawner -->
+    <polyline points="400,96 400,128 530,128 530,152" fill="none" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowB)"/>
+    <text x="465" y="116" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#555555">웨이브 구동 / 조기소환</text>
+
+    <!-- row B -->
+    <rect x="75" y="160" width="150" height="48" rx="8" fill="#f0f0f0" stroke="#cccccc"/>
+    <text x="150" y="184" text-anchor="middle" dominant-baseline="central" font-size="12.5" font-weight="600" fill="#2D2D2D">BuildMenu</text>
+
+    <rect x="455" y="160" width="150" height="48" rx="8" fill="#f0f0f0" stroke="#cccccc"/>
+    <text x="530" y="184" text-anchor="middle" dominant-baseline="central" font-size="12.5" font-weight="600" fill="#2D2D2D">WaveSpawner</text>
+
+    <line x1="150" y1="212" x2="150" y2="292" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowB)"/>
+    <text x="162" y="252" text-anchor="start" dominant-baseline="central" font-size="11" fill="#555555">TowerSlot 위 건설/강화/판매</text>
+
+    <line x1="530" y1="212" x2="530" y2="292" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowB)"/>
+    <text x="542" y="252" text-anchor="start" dominant-baseline="central" font-size="11" fill="#555555">스폰(생성)</text>
+
+    <!-- row C -->
+    <rect x="65" y="300" width="170" height="64" rx="8" fill="#f0f0f0" stroke="#cccccc"/>
+    <text x="150" y="321" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="700" fill="#2D2D2D">Tower (4계열)</text>
+    <text x="150" y="343" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#555555">보병 / 궁병 / 마도 / 포병</text>
+
+    <line x1="239" y1="332" x2="441" y2="332" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowB)"/>
+    <text x="340" y="318" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#555555">타겟 탐색 (MonsterRegistry)</text>
+
+    <rect x="445" y="300" width="170" height="64" rx="8" fill="#f0f0f0" stroke="#cccccc"/>
+    <text x="530" y="321" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="700" fill="#2D2D2D">Monster (9종)</text>
+    <text x="530" y="343" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#555555">경로 이동 · 체력 · 방어등급</text>
+
+    <line x1="150" y1="368" x2="150" y2="432" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowB)"/>
+    <text x="162" y="400" text-anchor="start" dominant-baseline="central" font-size="11" fill="#555555">발사체/병사 생성</text>
+
+    <line x1="530" y1="368" x2="530" y2="432" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowB)"/>
+    <text x="542" y="400" text-anchor="start" dominant-baseline="central" font-size="11" fill="#555555">경로 참조</text>
+
+    <!-- row D -->
+    <rect x="65" y="440" width="170" height="48" rx="8" fill="#f0f0f0" stroke="#cccccc"/>
+    <text x="150" y="464" text-anchor="middle" dominant-baseline="central" font-size="12.5" font-weight="600" fill="#2D2D2D">Projectile · Soldier</text>
+
+    <rect x="455" y="440" width="150" height="48" rx="8" fill="#f0f0f0" stroke="#cccccc"/>
+    <text x="530" y="464" text-anchor="middle" dominant-baseline="central" font-size="12.5" font-weight="600" fill="#2D2D2D">PathRoute</text>
+
+    <!-- projectile -> damageresolver -->
+    <polyline points="150,492 150,588 242,588" fill="none" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowB)"/>
+    <text x="196" y="574" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#555555">명중</text>
+
+    <!-- damageresolver -->
+    <rect x="250" y="560" width="180" height="56" rx="8" fill="#1a1a1a" stroke="#1a1a1a"/>
+    <text x="340" y="577" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="700" fill="#ffffff">DamageResolver</text>
+    <text x="340" y="599" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#CCCCCC">피해유형 x 방어등급 계산</text>
+
+    <!-- damageresolver -> monster -->
+    <polyline points="434,588 630,588 630,352 619,352" fill="none" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowB)"/>
+    <text x="532" y="574" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#555555">피해 적용</text>
+  </svg>
+  </div>
+  <div class="caption">그림 2. 클래스 연결 관계 — 실선 화살표는 "참조/호출/생성" 방향. StageData → StageController는 설정 로드, StageController → GameHUD는 상태 이벤트 통지.</div>
+
+  <div class="note"><b>읽는 법.</b> (1) <code>StageController</code>가 <code>StageData</code>를 읽어 <code>WaveSpawner</code>를 구동하면 몬스터가 생성되어 <code>PathRoute</code>를 따라 걷는다. (2) 플레이어는 <code>BuildMenu</code>로 슬롯에 타워를 세우고, 타워는 <code>MonsterRegistry</code>에서 표적을 찾아 발사체나 병사로 공격한다. (3) 모든 피해는 <code>DamageResolver</code> 한 곳을 지나 몬스터에 적용되고, 몬스터의 죽음/도달은 이벤트로 <code>StageController</code>에 돌아와 골드와 생명이 바뀐다. UI는 그 결과를 구독해서 갱신할 뿐이다.</div>
+</div>
+
+<!-- ================= 5 ================= -->
+<h2 id="s5"><span class="num">5.</span> 게임플레이 루프 흐름</h2>
+<div class="card">
+  <p style="font-size:13.3px; margin-top:0;">한 스테이지(10웨이브, 약 5분)가 도는 순서다. 웨이브 하나가 끝날 때마다 종료 판정으로 내려갔다가, 남은 웨이브가 있으면 오른쪽 선을 타고 처음으로 돌아간다.</p>
+
+  <div class="diagram">
+  <svg viewBox="0 0 680 650" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+    <defs>
+      <marker id="arrowC" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="#3A3A3A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+    </defs>
+
+    <!-- loop back line -->
+    <polyline points="474,488 640,488 640,64 478,64" fill="none" stroke="#3A3A3A" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrowC)"/>
+    <text x="557" y="50" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#555555">다음 웨이브 (생존 + 웨이브 남음)</text>
+
+    <!-- S1 -->
+    <rect x="210" y="40" width="260" height="48" rx="8" fill="#f0f0f0" stroke="#cccccc"/>
+    <text x="340" y="53" text-anchor="middle" dominant-baseline="central" font-size="12.5" font-weight="700" fill="#2D2D2D">웨이브 시작</text>
+    <text x="340" y="75" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#555555">약 30초 자동 진행 / 조기소환 시 보너스 골드</text>
+    <line x1="340" y1="92" x2="340" y2="112" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowC)"/>
+
+    <!-- S2 -->
+    <rect x="210" y="116" width="260" height="48" rx="8" fill="#f0f0f0" stroke="#cccccc"/>
+    <text x="340" y="140" text-anchor="middle" dominant-baseline="central" font-size="12.5" font-weight="600" fill="#2D2D2D">몬스터 스폰 (WaveSpawner)</text>
+    <line x1="340" y1="168" x2="340" y2="188" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowC)"/>
+
+    <!-- S3 -->
+    <rect x="210" y="192" width="260" height="48" rx="8" fill="#f0f0f0" stroke="#cccccc"/>
+    <text x="340" y="216" text-anchor="middle" dominant-baseline="central" font-size="12.5" font-weight="600" fill="#2D2D2D">경로 이동 (PathRoute 웨이포인트)</text>
+    <line x1="340" y1="244" x2="340" y2="264" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowC)"/>
+
+    <!-- S4 -->
+    <rect x="210" y="268" width="260" height="48" rx="8" fill="#1a1a1a" stroke="#1a1a1a"/>
+    <text x="340" y="281" text-anchor="middle" dominant-baseline="central" font-size="12.5" font-weight="700" fill="#ffffff">타워 전투</text>
+    <text x="340" y="303" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#CCCCCC">타겟팅 - 공격 - DamageResolver 피해 계산</text>
+
+    <!-- split -->
+    <polyline points="340,316 340,336 180,336 180,352" fill="none" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowC)"/>
+    <polyline points="340,336 500,336 500,352" fill="none" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowC)"/>
+
+    <!-- branch boxes -->
+    <rect x="80" y="360" width="200" height="56" rx="8" fill="#f0f0f0" stroke="#cccccc"/>
+    <text x="180" y="377" text-anchor="middle" dominant-baseline="central" font-size="12.5" font-weight="700" fill="#2D2D2D">몬스터 처치</text>
+    <text x="180" y="399" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#555555">개체별 골드 획득</text>
+
+    <rect x="400" y="360" width="200" height="56" rx="8" fill="#f0f0f0" stroke="#cccccc"/>
+    <text x="500" y="377" text-anchor="middle" dominant-baseline="central" font-size="12.5" font-weight="700" fill="#2D2D2D">출구 도달</text>
+    <text x="500" y="399" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#555555">생명 20에서 차감</text>
+
+    <!-- merge -->
+    <polyline points="180,420 180,436 332,436" fill="none" stroke="#3A3A3A" stroke-width="1.5"/>
+    <polyline points="500,420 500,436 348,436" fill="none" stroke="#3A3A3A" stroke-width="1.5"/>
+    <line x1="340" y1="436" x2="340" y2="456" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowC)"/>
+
+    <!-- S5 -->
+    <rect x="210" y="464" width="260" height="48" rx="8" fill="#f0f0f0" stroke="#cccccc"/>
+    <text x="340" y="488" text-anchor="middle" dominant-baseline="central" font-size="12.5" font-weight="600" fill="#2D2D2D">웨이브 / 스테이지 종료 판정</text>
+
+    <!-- outcome split -->
+    <polyline points="340,512 340,532 180,532 180,548" fill="none" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowC)"/>
+    <polyline points="340,532 500,532 500,548" fill="none" stroke="#3A3A3A" stroke-width="1.5" marker-end="url(#arrowC)"/>
+
+    <!-- outcomes -->
+    <rect x="80" y="556" width="200" height="56" rx="8" fill="#1a1a1a" stroke="#1a1a1a"/>
+    <text x="180" y="573" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="700" fill="#ffffff">승리</text>
+    <text x="180" y="595" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#CCCCCC">10웨이브 모두 방어</text>
+
+    <rect x="400" y="556" width="200" height="56" rx="8" fill="#1a1a1a" stroke="#1a1a1a"/>
+    <text x="500" y="573" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="700" fill="#ffffff">패배</text>
+    <text x="500" y="595" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#CCCCCC">생명 0</text>
+  </svg>
+  </div>
+  <div class="caption">그림 3. 게임플레이 루프 — 점선이 웨이브 반복 경로. 승패 판정은 StageController 상태머신이 담당.</div>
+</div>
+
+<!-- ================= 6 ================= -->
+<h2 id="s6"><span class="num">6.</span> 폴더 구조</h2>
+<div class="card">
+<pre>Assets/Scripts/Game/
+  Data/      TowerData.cs  MonsterData.cs  StageData.cs  DifficultyPreset.cs
+             GameEnums.cs  (TowerType, DamageType, DefenseGrade)
+  Stage/     StageController.cs  WaveSpawner.cs  PathRoute.cs
+             TowerSlot.cs  MonsterRegistry.cs
+  Combat/    Tower.cs  InfantryTower.cs  ArcherTower.cs  MageTower.cs  ArtilleryTower.cs
+             Monster.cs  Soldier.cs  Projectile.cs  DamageResolver.cs
+  UI/        GameHUD.cs  BuildMenu.cs  DebugDashboard.cs
+Assets/Scripts/Editor/
+             StageSetupWindow.cs</pre>
+  <div class="note"><b>어셈블리:</b> 기존 <code>Scavenger.Game</code> asmdef 아래에 두거나, 규모가 작으므로 Assembly-CSharp 직속도 허용. 팀 착수 시 결정.</div>
+</div>
+
+<!-- ================= 7 ================= -->
+<h2 id="s7"><span class="num">7.</span> 구현 순서 (마일스톤)</h2>
+<div class="card">
+  <table style="table-layout:fixed;"><colgroup><col style="width:80px;"><col style="width:250px;"><col></colgroup>
+    <tbody>
+    <tr><th>단계</th><th>내용</th><th>완료 기준</th></tr>
+    <tr><td>M1</td><td>데이터 정의 + 씬 골격</td><td>SO 4종과 enum 작성, PathRoute 기즈모로 경로가 씬에 보임, TowerSlot 배치</td></tr>
+    <tr><td>M2</td><td>몬스터 파이프라인</td><td>웨이브 스폰 - 경로 이동 - 출구 도달 시 생명 감소 - 생명 0 패배까지 동작</td></tr>
+    <tr><td>M3</td><td>전투 파이프라인 (궁병 1계열)</td><td>건설 - 타겟팅 - 발사체 - DamageResolver - 처치 골드 획득까지 한 사이클 동작</td></tr>
+    <tr><td>M4</td><td>나머지 3계열 + 병사</td><td>마도(슬로우), 포병(광역/관통/대공 불가), 보병(블로킹), 몬스터 궁병의 병사 공격</td></tr>
+    <tr><td>M5</td><td>UI + 규칙 마감</td><td>HUD/BuildMenu/조기소환 보너스/판매 90% 환급/난이도 배율/DebugDashboard</td></tr>
+    </tbody>
+  </table>
+  <div class="warn"><b>주의.</b> M3까지가 게임의 척추다. M3가 끝나기 전에는 4계열 분화·UI 폴리싱에 손대지 않는다.</div>
+</div>
+
+<!-- ================= 8 ================= -->
+<h2 id="s8"><span class="num">8.</span> 플레이 가독성 (경로 · 사거리 · 배속)</h2>
+<div class="card">
+  <p style="font-size:13.3px; margin-top:0;">플레이어가 판단하는 데 필요한 세 가지 정보를 화면에 드러낸다. 셋 다 <b>런타임 오브젝트 생성 없이</b> 처리한다.</p>
+  <table style="table-layout:fixed;"><colgroup><col style="width:150px;"><col><col style="width:150px;"></colgroup>
+    <tbody>
+    <tr><th>기능</th><th>구현</th><th>담당</th></tr>
+    <tr><td>몬스터 경로</td><td>웨이포인트 사이를 바닥 타일(큐브)로 <b>에디트 타임에 베이크</b>한다. 시작점은 녹색, 출구는 적색 마커. 웨이포인트를 옮기면 총괄 윈도우에서 다시 베이크한다.</td><td><code>RushSetupActions.BakePathVisual</code></td></tr>
+    <tr><td>타워 사거리</td><td>슬롯마다 반투명 원판(<code>RangeIndicator</code>)을 <b>자식으로 미리 배치</b>하고 평소에는 꺼 둔다. 런타임에는 스케일과 활성만 바꾼다.<br>- 건설된 타워: 슬롯 선택(포커스) 시 현재 레벨 사거리<br>- 건설 예정: 건설 버튼에 마우스를 올리면 해당 타워 Lv1 사거리<br>- 강화 예정: 강화 버튼에 올리면 다음 레벨 사거리</td><td><code>TowerSlot.ShowRange</code><br><code>BuildMenu</code></td></tr>
+    <tr><td>배속</td><td>1x / 2x / 4x 순환. <code>Time.timeScale</code>을 직접 만지는 곳은 <code>StageController</code> 한 곳뿐이며, 선택한 배속은 재시작 후에도 유지된다. HUD 버튼과 에디터 윈도우 양쪽에서 전환 가능.</td><td><code>StageController.CycleSpeed</code></td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>슬롯 구조 주의.</b> 슬롯 루트는 <b>항상 스케일 1</b>을 유지하고 납작한 판은 자식 <code>Visual</code>이 담당한다. 루트가 비균등 스케일이면 그 위에 세운 타워와 병사가 세로로 찌그러진다. 검증에서 이 조건을 확인한다.</div>
+  <div class="note"><b>디버그 대시보드.</b> 경로 시작 구간을 가리지 않도록 기본은 접힘 상태이고 좌하단에 <code>[F1] 디버그</code> 안내만 남긴다. F1로 열면 페이즈·웨이브·골드·생명·몬스터/병사 수·FPS와 최근 이벤트 로그를 볼 수 있다.</div>
+</div>
+
+<!-- ================= 9 ================= -->
+<h2 id="s9"><span class="num">9.</span> 공격 연출 (궤적 · 연발 · 추가 발사)</h2>
+<div class="card">
+  <p style="font-size:13.3px; margin-top:0;">직선으로 날아가기만 하던 발사체를 계열마다 다른 곡선으로 바꿨다. 궤적은 두 기법을 하나의 모델로 합쳐 표현한다.</p>
+
+  <h3>9.1 궤적 모델</h3>
+  <table style="table-layout:fixed;"><colgroup><col style="width:170px;"><col></colgroup>
+    <tbody>
+    <tr><th>휘어짐</th><td>시작점과 도착점 사이에 <b>랜덤 제어점</b>을 잡는 2차 베지어. 제어점은 진행축을 중심으로 <code>Random(-N..N) x 15도</code> 굴린 방향으로, <code>Factor / 비행거리</code>를 Min~Max로 clamp한 만큼 밀어낸다. <code>RollSteps</code>가 0이면 항상 위쪽(곡사), 12면 전방향으로 휜다.</td></tr>
+    <tr><th>흔들림</th><td>진행축에 수직인 평면에서의 <b>연속 랜덤 워크</b>. 이전 방향을 랜덤 회전시켜 다음 방향을 만들고, 누산값의 역방향과 보간해 원점에서 멀어지지 않게 잡아 준다. 마지막에 사인 창을 씌워 양끝을 0으로 만든다.</td></tr>
+    <tr><th>표적 추적</th><td>랜덤 성분을 <b>진행축 기준 로컬 좌표</b>로 들고 있어서, 표적이 움직여도 매 프레임 도착점만 갱신하면 궤적 모양이 유지된다.</td></tr>
+    <tr><th>정확도</th><td>t=0에서 총구, t=1에서 표적에 오차 0으로 도달한다(검증 완료). 비행 시간은 직선 거리 / 속도로 잡는다.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>9.2 계열별 프리셋</h3>
+  <table style="table-layout:fixed;"><colgroup><col style="width:100px;"><col style="width:110px;"><col></colgroup>
+    <tbody>
+    <tr><th>계열</th><th>궤적</th><th>연출</th></tr>
+    <tr><td>궁병</td><td>Arc</td><td>얕게 휘는 화살 <b>2연사</b>. 피해는 균등 분배해 DPS를 유지한다. 직선 대비 최대 이탈 약 0.4.</td></tr>
+    <tr><td>마도</td><td>Wander</td><td>사방으로 휘며 흔들리는 마법탄. 후반부 가속. 최대 이탈 약 1.0.</td></tr>
+    <tr><td>포병</td><td>Lob</td><td>높이 솟았다 떨어지는 곡사. 회전하는 포탄 + 흩어지는 착탄. 최대 이탈 약 1.8.</td></tr>
+    <tr><td>보병</td><td>-</td><td>발사체 없음. 병사가 공격할 때 비주얼만 앞으로 찔렀다 돌아오는 런지 모션.</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>가시성.</b> 발사체 큐브만으로는 곡선이 보이지 않아 <b>트레일</b>을 붙였다. 착탄 시 트레일을 떼어 내 잔상이 남게 하고, 반투명 큐브가 한 박자 부풀었다 사라지는 <code>ImpactBurst</code>로 타격감을 준다.</div>
+
+  <h3>9.3 추가 발사</h3>
+  <p style="font-size:13.3px; margin-top:0;">기본 공격 위에 얹는 규칙이다. <b>기본값은 켜짐</b>이며, 어떤 상위 시스템(아이템·특성 등)이 이 값을 제어할지는 아직 정하지 않았다.</p>
+  <table style="table-layout:fixed;"><colgroup><col style="width:150px;"><col></colgroup>
+    <tbody>
+    <tr><th>확률 발사</th><td>공격할 때마다 확률로 추가 발사체가 나간다. 미사일은 크게 솟았다 떨어지는 곡사에 소범위 광역.</td></tr>
+    <tr><th>처치 시 발사</th><td>이 타워가 적을 죽이면 주변 적을 향해 여러 발이 튄다. 사방으로 휘며 회전하는 추격탄.</td></tr>
+    </tbody>
+  </table>
+  <div class="warn"><b>연쇄 차단.</b> 추가 발사로 생긴 발사체는 <code>BonusOwner</code>가 비어 있어 다시 추가 발사를 유발하지 않는다. 무한 연쇄가 생기지 않는다.</div>
+  <div class="note"><b>조작 위치.</b> Stage Command Center의 "추가 발사" 섹션에서 타워별로 켜고 끄거나 확률·발수·피해 배율·탐색 반경을 조정한다. <b>플레이 중에 바꿔도 다음 발사부터 바로 반영</b>되며(이미 날아가는 발사체는 발사 시점 설정 유지), 조정한 값은 플레이를 끝낼 때 에셋에 저장된다. 같은 창의 "공격 연출" 섹션에서 <b>씬 뷰에 궤적을 그려</b> 플레이하지 않고 모양을 확인할 수 있다.</div>
+</div>
+
+<!-- ================= 10 ================= -->
+<h2 id="s10"><span class="num">10.</span> 밸런스 미조정 항목</h2>
+<div class="card">
+  <div class="warn" style="margin-top:0;"><b>수치는 아직 조정 전이다.</b> 기획서 기준값을 그대로 넣은 상태이므로 아래 항목은 플레이 감각을 보고 따로 잡아야 한다.</div>
+  <table style="table-layout:fixed;"><colgroup><col style="width:190px;"><col></colgroup>
+    <tbody>
+    <tr><th>타워 대비 웨이브 강도</th><td>Lv1 타워 4기만으로는 5~7웨이브에서 패배한다. 골드 수급, 웨이브 물량, 타워 비용 중 어디를 손댈지 미정.</td></tr>
+    <tr><th>추가 발사 기여도</th><td>처치 시 발사는 처치당 <code>피해 x 0.6 x 3발</code>이라 실질 DPS 기여가 크다. 확률 발사(15% x 1.5배)와 겹치면 후반 체감이 더 커진다.</td></tr>
+    <tr><th>병사 생존</th><td>Lv1 병사 체력 60에 몬스터 궁병이 누적되면 금방 녹는다. 저지 지속 시간이 짧아 보병 타워의 존재감이 약하다.</td></tr>
+    <tr><th>방어등급 감쇄율</th><td>등급별 대표 감쇄값(15/45/75/95/100%)은 기획서 구간의 중앙값을 쓴 것이다. 실제 구간 내 어디로 잡을지 미확정.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="footer-note">클라이언트 아키텍처 설계서 · 2026-08-02 · 드래프트</div>
+
+</div>
+</body></html>

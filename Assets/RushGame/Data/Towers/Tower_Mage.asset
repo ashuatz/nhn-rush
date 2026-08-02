@@ -1,0 +1,211 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4da6c76b4c34d7e40a3aac992e6a05da, type: 3}
+  m_Name: Tower_Mage
+  m_EditorClassIdentifier: Assembly-CSharp::Rush.Data.TowerData
+  Type: 2
+  DamageType: 1
+  TowerPrefab: {fileID: 7417555685092824609, guid: a479657a22dc1e048869f3657fcd876d, type: 3}
+  ProjectilePrefab: {fileID: 7163386626409054761, guid: 33f7c20e978179c468eb45a40e167e6f, type: 3}
+  SoldierPrefab: {fileID: 0}
+  ImpactPrefab: {fileID: 5883734786819255152, guid: 4ffc407ce6c051e45b6a966eba691102, type: 3}
+  ProjectileSpeed: 10
+  Levels:
+  - DisplayName: "\uACAC\uC2B5 \uB9C8\uBC95\uC0AC \uD0D1"
+    Cost: 100
+    Damage: 12
+    Range: 4.5
+    AttackInterval: 1.4
+    SlowPercent: 0.25
+    SlowDuration: 2
+    SplashRadius: 0
+    ArmorPierce: 0
+    SoldierCount: 0
+    SoldierHp: 0
+    SoldierDamage: 0
+    SoldierAttackInterval: 0
+    SoldierRespawnSeconds: 0
+  - DisplayName: "\uC0C1\uAE09 \uB9C8\uBC95\uC0AC \uD0D1"
+    Cost: 160
+    Damage: 18
+    Range: 4.5
+    AttackInterval: 1.4
+    SlowPercent: 0.25
+    SlowDuration: 2.5
+    SplashRadius: 0
+    ArmorPierce: 0
+    SoldierCount: 0
+    SoldierHp: 0
+    SoldierDamage: 0
+    SoldierAttackInterval: 0
+    SoldierRespawnSeconds: 0
+  - DisplayName: "\uB300\uB9C8\uBC95\uC0AC \uD0D1"
+    Cost: 240
+    Damage: 26
+    Range: 5
+    AttackInterval: 1.4
+    SlowPercent: 0.3
+    SlowDuration: 2.5
+    SplashRadius: 0
+    ArmorPierce: 0
+    SoldierCount: 0
+    SoldierHp: 0
+    SoldierDamage: 0
+    SoldierAttackInterval: 0
+    SoldierRespawnSeconds: 0
+  - DisplayName: "\uB300\uD604\uC790 \uD0D1"
+    Cost: 360
+    Damage: 36
+    Range: 5
+    AttackInterval: 1.4
+    SlowPercent: 0.35
+    SlowDuration: 3
+    SplashRadius: 0
+    ArmorPierce: 0
+    SoldierCount: 0
+    SoldierHp: 0
+    SoldierDamage: 0
+    SoldierAttackInterval: 0
+    SoldierRespawnSeconds: 0
+  Motion:
+    Kind: 3
+    ShotCount: 1
+    ShotInterval: 0.1
+    EndScatter: 0.1
+    SpinPerSecond: 0
+    SampleMin: 0.15
+    SampleMax: 0.45
+    BulgeFactor: 2.2
+    BulgeMin: 0.3
+    BulgeMax: 1.1
+    BulgeWorldUp: 0
+    RollSteps: 12
+    WanderAmplitude: 0.45
+    WanderTurn: 0.75
+    TimeCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 2
+        outSlope: 2
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+  Extras:
+    ProcEnabled: 1
+    ProcChance: 0.15
+    ProcCount: 1
+    ProcDamageScale: 1.5
+    ProcSplashRadius: 1
+    ProcSpeed: 9
+    ProcPrefab: {fileID: 7675878982900900642, guid: 39ff5e66b7b596e47976be717b636590, type: 3}
+    ProcImpactPrefab: {fileID: 2675685383340812572, guid: b59ec20fdff9b72499af4fac0cbdb544, type: 3}
+    ProcMotion:
+      Kind: 2
+      ShotCount: 1
+      ShotInterval: 0.08
+      EndScatter: 0.25
+      SpinPerSecond: 0
+      SampleMin: 0.4
+      SampleMax: 0.6
+      BulgeFactor: 12
+      BulgeMin: 2
+      BulgeMax: 4.5
+      BulgeWorldUp: 1
+      RollSteps: 0
+      WanderAmplitude: 0
+      WanderTurn: 0.6
+      TimeCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+    OnKillEnabled: 1
+    OnKillCount: 3
+    OnKillDamageScale: 0.6
+    OnKillSearchRadius: 5
+    OnKillSpeed: 11
+    OnKillPrefab: {fileID: 3758343949168038464, guid: a62d70252eb0c064fb49ad9c90685ec7, type: 3}
+    OnKillImpactPrefab: {fileID: 8629975486746337776, guid: fa2479b76c9d4b0499d85d05707a5f16, type: 3}
+    OnKillMotion:
+      Kind: 3
+      ShotCount: 1
+      ShotInterval: 0.05
+      EndScatter: 0.12
+      SpinPerSecond: 720
+      SampleMin: 0.1
+      SampleMax: 0.5
+      BulgeFactor: 3.5
+      BulgeMin: 0.5
+      BulgeMax: 1.8
+      BulgeWorldUp: 0
+      RollSteps: 12
+      WanderAmplitude: 0.35
+      WanderTurn: 0.8
+      TimeCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 2
+          outSlope: 2
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4

@@ -1,0 +1,102 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9a304f7e73cbc944899a8969e95224e, type: 3}
+  m_Name: Stage01
+  m_EditorClassIdentifier: Assembly-CSharp::Rush.Data.StageData
+  StartLife: 20
+  StartGold: 260
+  FirstWaveDelay: 15
+  WaveInterval: 30
+  EarlyCallGoldPerSecond: 2
+  Waves:
+  - Entries:
+    - Monster: {fileID: 11400000, guid: cda843e3a7df6734eb2615ddfaf78a06, type: 2}
+      Count: 6
+      Interval: 1.2
+      StartDelay: 0
+  - Entries:
+    - Monster: {fileID: 11400000, guid: cda843e3a7df6734eb2615ddfaf78a06, type: 2}
+      Count: 9
+      Interval: 1
+      StartDelay: 0
+  - Entries:
+    - Monster: {fileID: 11400000, guid: cda843e3a7df6734eb2615ddfaf78a06, type: 2}
+      Count: 6
+      Interval: 1.2
+      StartDelay: 0
+    - Monster: {fileID: 11400000, guid: 0aff643cbf34f584ea53629ef1d3744c, type: 2}
+      Count: 4
+      Interval: 1.5
+      StartDelay: 3
+  - Entries:
+    - Monster: {fileID: 11400000, guid: cda843e3a7df6734eb2615ddfaf78a06, type: 2}
+      Count: 8
+      Interval: 1
+      StartDelay: 0
+    - Monster: {fileID: 11400000, guid: 0aff643cbf34f584ea53629ef1d3744c, type: 2}
+      Count: 6
+      Interval: 1.2
+      StartDelay: 2
+  - Entries:
+    - Monster: {fileID: 11400000, guid: a3e2bb5c8a599784086d7902a91edddf, type: 2}
+      Count: 3
+      Interval: 3
+      StartDelay: 0
+    - Monster: {fileID: 11400000, guid: f72bbb241fef40c4387f092127ec6371, type: 2}
+      Count: 4
+      Interval: 1.5
+      StartDelay: 4
+  - Entries:
+    - Monster: {fileID: 11400000, guid: a3e2bb5c8a599784086d7902a91edddf, type: 2}
+      Count: 4
+      Interval: 2.5
+      StartDelay: 0
+    - Monster: {fileID: 11400000, guid: f72bbb241fef40c4387f092127ec6371, type: 2}
+      Count: 6
+      Interval: 1.2
+      StartDelay: 3
+    - Monster: {fileID: 11400000, guid: cda843e3a7df6734eb2615ddfaf78a06, type: 2}
+      Count: 6
+      Interval: 1
+      StartDelay: 6
+  - Entries:
+    - Monster: {fileID: 11400000, guid: 656014a0abe6d484090c2ab742a82b59, type: 2}
+      Count: 8
+      Interval: 1.2
+      StartDelay: 0
+    - Monster: {fileID: 11400000, guid: cf7ffe127fc99094abd27aae428c2e72, type: 2}
+      Count: 4
+      Interval: 1.5
+      StartDelay: 4
+  - Entries:
+    - Monster: {fileID: 11400000, guid: 656014a0abe6d484090c2ab742a82b59, type: 2}
+      Count: 10
+      Interval: 1
+      StartDelay: 0
+    - Monster: {fileID: 11400000, guid: cf7ffe127fc99094abd27aae428c2e72, type: 2}
+      Count: 6
+      Interval: 1.2
+      StartDelay: 3
+  - Entries:
+    - Monster: {fileID: 11400000, guid: 0c002336e94ed6049a9df820f8e3c420, type: 2}
+      Count: 3
+      Interval: 4
+      StartDelay: 0
+    - Monster: {fileID: 11400000, guid: 88d435a28a1fd5f45a6524ef1380a855, type: 2}
+      Count: 5
+      Interval: 1.5
+      StartDelay: 5
+  - Entries:
+    - Monster: {fileID: 11400000, guid: af5542e0b27258e42973266e285a9410, type: 2}
+      Count: 1
+      Interval: 1
+      StartDelay: 0
