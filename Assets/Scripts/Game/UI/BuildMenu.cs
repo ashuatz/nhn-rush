@@ -194,7 +194,7 @@ namespace Rush.UI
                 return;
             }
 
-            _selected.ShowRange(_selected.Occupant.CurrentStat.Range);
+            _selected.ShowRange(_selected.Occupant.EffectiveRange);
         }
 
         /// <summary>버튼에 마우스를 올리는 동안 해당 사거리를 미리 보여준다.</summary>
@@ -231,7 +231,8 @@ namespace Rush.UI
                 button.style.marginBottom = 4;
                 button.SetEnabled(_stage.Gold >= stat.Cost);
 
-                AttachRangePreview(button, stat.Range);
+                float previewRange = stat.Range * RewardSystem.GetStatMods(data.Type).RangeMul;
+                AttachRangePreview(button, previewRange);
 
                 _buttonArea.Add(button);
             }
@@ -244,7 +245,7 @@ namespace Rush.UI
 
             _titleLabel.text = $"{stat.DisplayName} (Lv{tower.LevelIndex + 1})";
 
-            var rangeLabel = new Label($"사거리 {stat.Range:0.#}");
+            var rangeLabel = new Label($"사거리 {tower.EffectiveRange:0.#}");
             rangeLabel.style.color = new Color(0.75f, 0.75f, 0.75f, 1f);
             rangeLabel.style.fontSize = 11;
             rangeLabel.style.marginBottom = 6;
@@ -259,7 +260,8 @@ namespace Rush.UI
                 upgrade.style.marginBottom = 4;
                 upgrade.SetEnabled(_stage.Gold >= tower.UpgradeCost);
 
-                AttachRangePreview(upgrade, next.Range);
+                float nextRange = next.Range * RewardSystem.GetStatMods(tower.Data.Type).RangeMul;
+                AttachRangePreview(upgrade, nextRange);
 
                 _buttonArea.Add(upgrade);
             }

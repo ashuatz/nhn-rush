@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8fa6bc1d58367543bcc8dd543e82086, type: 3}
+  m_Name: Reward_F02
+  m_EditorClassIdentifier: Assembly-CSharp::Rush.Data.RewardDefinition
+  Id: F02
+  DisplayName: "\uB9C8\uB825 \uC9D1\uC911"
+  Category: 0
+  Rarity: 0
+  Description: "\uB9C8\uBC95\uC0AC \uD0C0\uC6CC \uD53C\uD574 +12%"
+  ConditionNote: 
+  TowerFilter: 2
+  Tag: 0
+  Effect: 1
+  Value: 0.12
+  Value2: 0
+  Chance: 0
+  Duration: 0
+  StackLimit: 3
+  Enabled: 1
+  DisabledReason: 

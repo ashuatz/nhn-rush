@@ -30,6 +30,7 @@ namespace Rush.Stage
         [SerializeField] DifficultyPreset _difficulty;
         [SerializeField] PathRoute _path;
         [SerializeField] WaveSpawner _spawner;
+        [SerializeField] RewardSystem _rewards;
 
         bool _setupValid;
         int _waveIndex = -1;
@@ -224,6 +225,21 @@ namespace Rush.Stage
             if (AllWavesStarted)
                 return;
 
+            // 보상 시스템이 웨이브 시작을 가로챌 수 있다 (디밍 -> 카드 선택 -> 재개)
+            if (_rewards != null && _rewards.TryInterceptWaveStart(WaveNumber + 1, StartWaveNow))
+            {
+                _nextWaveTimer = _stageData.WaveInterval;
+                return;
+            }
+
+            StartWaveNow();
+        }
+
+        void StartWaveNow()
+        {
+            if (AllWavesStarted)
+                return;
+
             _waveIndex++;
             _nextWaveTimer = _stageData.WaveInterval;
             Phase = StagePhase.Running;
@@ -232,6 +248,15 @@ namespace Rush.Stage
             _spawner.StartWave(wave, EnemyHpMultiplier);
 
             GameLog.Info("Wave", $"웨이브 {WaveNumber}/{TotalWaves} 시작");
+
+            // 보상: 웨이브 시작 수입 (이자/채권)
+            int rewardGold = RewardSystem.WaveStartGold(Gold);
+
+            if (rewardGold > 0)
+            {
+                AddGold(rewardGold);
+                GameLog.Info("Reward", $"웨이브 수입 +{rewardGold}G");
+            }
 
             Notify();
         }
@@ -253,6 +278,10 @@ namespace Rush.Stage
             get
             {
                 if (!IsPlayable)
+                    return false;
+
+                // 보상 선택 중에는 웨이브를 앞당길 수 없다
+                if (_rewards != null && _rewards.OfferActive)
                     return false;
 
                 return !AllWavesStarted;
@@ -294,8 +323,16 @@ namespace Rush.Stage
 
         public void HandleMonsterDied(Monster monster)
         {
-            AddGold(monster.Data.GoldReward);
-            GameLog.Info("Kill", $"{monster.Data.DisplayName} 처치 (+{monster.Data.GoldReward}G)");
+            // 보상: 막타 귀속/상태 기반 처치 보너스
+            int bonus = RewardSystem.KillGoldBonus(monster);
+            int total = monster.Data.GoldReward + bonus;
+
+            AddGold(total);
+
+            if (bonus > 0)
+                GameLog.Info("Kill", $"{monster.Data.DisplayName} 처치 (+{monster.Data.GoldReward}G, 보너스 +{bonus}G)");
+            else
+                GameLog.Info("Kill", $"{monster.Data.DisplayName} 처치 (+{monster.Data.GoldReward}G)");
 
             Notify();
         }
@@ -335,6 +372,12 @@ namespace Rush.Stage
         void ApplySpeed()
         {
             Time.timeScale = SpeedSteps[_speedIndex];
+        }
+
+        /// <summary>보상 선택 등으로 timeScale을 0으로 만들었던 쪽이 원래 배속으로 되돌릴 때 호출.</summary>
+        public void ReapplySpeed()
+        {
+            ApplySpeed();
         }
 
         public void RestartStage()

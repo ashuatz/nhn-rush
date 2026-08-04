@@ -232,7 +232,8 @@ namespace Rush.UI
             if (_countdownLabel == null)
                 return;
 
-            if (!_stage.CanCallEarly)
+            // "없음" 표기는 정말 웨이브가 다 나왔을 때만. 보상 선택 등으로 잠시 막힌 상태와 구분한다.
+            if (_stage.AllWavesStarted)
             {
                 _countdownLabel.text = "남은 웨이브 없음";
                 _earlyCallButton.style.display = DisplayStyle.None;
@@ -240,6 +241,13 @@ namespace Rush.UI
             }
 
             _countdownLabel.text = $"다음 웨이브까지 {Mathf.CeilToInt(_stage.NextWaveIn)}초";
+
+            if (!_stage.CanCallEarly)
+            {
+                _earlyCallButton.style.display = DisplayStyle.None;
+                return;
+            }
+
             _earlyCallButton.style.display = DisplayStyle.Flex;
             _earlyCallButton.text = $"조기소환 (+{_stage.EarlyCallBonus}G)";
         }

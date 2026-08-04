@@ -57,6 +57,7 @@
       <a href="#s8">8. 플레이 가독성 (경로 · 사거리 · 배속)</a>
       <a href="#s9">9. 공격 연출 (궤적 · 연발 · 추가 발사)</a>
       <a href="#s10">10. 밸런스 미조정 항목</a>
+      <a href="#s11">11. 로그라이트 보상 시스템</a>
     </div>
   </div>
 </header>
@@ -472,7 +473,46 @@ Assets/Scripts/Editor/
   </table>
 </div>
 
-<div class="footer-note">클라이언트 아키텍처 설계서 · 2026-08-02 · 드래프트</div>
+<!-- ================= 11 ================= -->
+<h2 id="s11"><span class="num">11.</span> 로그라이트 보상 시스템</h2>
+<div class="card">
+  <p style="font-size:13.3px; margin-top:0;">스프레드시트 "로그라이트 보상 시트" 54종을 시스템으로 옮겼다. <b>기획 시트가 원본</b>이고 코드의 카탈로그가 ID 기준으로 에셋을 동기화하며, 수치는 전부 에셋에 있어 Balance Board에서 조절한다.</p>
+
+  <h3>11.1 플로우</h3>
+  <table style="table-layout:fixed;"><colgroup><col style="width:170px;"><col></colgroup>
+    <tbody>
+    <tr><th>제시 시점</th><td><b>웨이브 시작 직전</b>에 가로챈다(기본 2웨이브부터 매 웨이브). 자동 진행이든 조기소환이든 같은 지점을 지나므로 웨이브당 정확히 1회. 선택이 끝나면 그 웨이브가 시작된다.</td></tr>
+    <tr><th>디밍/정지</th><td>제시 중 <code>timeScale 0</code>으로 완전 정지(스폰 코루틴 포함). 닫히면 선택했던 배속으로 복원.</td></tr>
+    <tr><th>선택지</th><td>등급 가중치(기본 60/25/11/4)로 3장 제시. <b>다시뽑기</b>(기본 1회, 비용 0) · <b>건너뛰기</b>(+40G). 중첩 상한 찬 카드는 후보에서 빠진다.</td></tr>
+    <tr><th>미구현 카드</th><td>P05(정밀 시전)는 피해 최소~최대 범위 시스템이 없어 <b>비활성</b>으로 생성된다. 활성인데 미구현 효과면 검증이 잡아낸다.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>11.2 구조</h3>
+  <table style="table-layout:fixed;"><colgroup><col style="width:190px;"><col></colgroup>
+    <tbody>
+    <tr><th><code>RewardDefinition</code> x54</th><td>시트 한 행 = 에셋 하나 (Id/이름/등급/계통/효과 종류/Value/Value2/확률/지속/중첩 상한/활성). 카탈로그 재실행 시 텍스트·분류는 시트 기준으로 갱신하고 <b>수치는 조정값을 존중</b>한다.</td></tr>
+    <tr><th><code>RewardFlowConfig</code></th><td>제시 시점/카드 수/다시뽑기/건너뛰기 골드/등급 가중치.</td></tr>
+    <tr><th><code>RewardSystem</code></th><td>씬 배치. 덱/제시/선택 처리 + 전투 코드가 읽는 <b>static 쿼리 창구</b>(스탯 배율, 조건부 피해, 확률 관통, 처치 골드, 착탄 부가효과 등). 매 판정마다 에셋을 읽으므로 <b>플레이 중 수치 변경이 즉시 반영</b>된다.</td></tr>
+    <tr><th><code>RewardOverlay</code></th><td>UI Toolkit 오버레이. RewardSystem 이벤트 구독만.</td></tr>
+    <tr><th>Balance Board</th><td>전용 에디터 윈도우 (Rush &gt; Balance Board). 플로우 수치 + 카드 54종 일람 편집(활성/V/V2/확률/지속/중첩) + 등급/검색 필터 + 시트 기본값 초기화. 플레이 중 조정분은 플레이 종료 시 저장.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>11.3 보상을 위해 확장한 전투 기반</h3>
+  <table style="table-layout:fixed;"><colgroup><col style="width:190px;"><col></colgroup>
+    <tbody>
+    <tr><th>런타임 저항 단계</th><td>방어등급을 스폰 시 개체별 단계(0=없음~5=면역)로 복사. 마력 침투류가 <b>영구 하락</b> 가능. 감쇄표는 0/15/45/75/95/100%.</td></tr>
+    <tr><th>거리 기반 경로 이동</th><td>몬스터가 경로 누적 거리로 이동 - 진행도가 정확해지고 <b>넉백</b>이 "거리 되돌리기"로 깔끔해진다.</td></tr>
+    <tr><th>기절</th><td>이동/공격 정지 + 종료 후 면역 시간(B2A).</td></tr>
+    <tr><th>다중 저지</th><td>병사가 여러 기를 저지할 수 있는 구조(B1A). 기본 1기.</td></tr>
+    <tr><th>피해 출처 구조체</th><td>모든 피해에 출처(타워 종류/태그/병사/연쇄 여부)가 붙어 막타 귀속 골드와 태그 보너스가 정확히 판정된다. 연쇄 폭발은 재연쇄 금지 플래그.</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>검증.</b> 셋업 검증에 보상 항목이 추가됐고(구성/가중치/미구현 활성 감지), 자동 플레이로 10웨이브 전 구간에서 오퍼 7회·카드 7종 획득·콘솔 오류 0을 확인했다.</div>
+</div>
+
+<div class="footer-note">클라이언트 아키텍처 설계서 · 2026-08-04 · 드래프트</div>
 
 </div>
 </body></html>
