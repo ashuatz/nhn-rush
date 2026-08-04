@@ -106,7 +106,6 @@ namespace Rush.Combat
             }
 
             var stat = CurrentStat;
-            var mods = RewardSystem.GetStatMods(Data.Type);
 
             // 집결지 주변으로 살짝 흩어서 배치
             float angle = _soldiers.Count * 120f * Mathf.Deg2Rad;
@@ -118,12 +117,11 @@ namespace Rush.Combat
             if (soldier == null)
                 soldier = go.AddComponent<Soldier>();
 
-            float hp = stat.SoldierHp * Stage.SoldierHpMultiplier * mods.SoldierHpMul;
-            float damage = stat.SoldierDamage * mods.SoldierDamageMul;
-            float engageRange = stat.Range * mods.RallyRangeMul;
+            // 기본값(난이도 포함)만 넘긴다. 보상 배율은 병사가 스스로 조회해 실시간 반영한다.
+            float baseHp = stat.SoldierHp * Stage.SoldierHpMultiplier;
 
-            soldier.Initialize(this, hp, damage, stat.SoldierAttackInterval,
-                _rallyPoint + offset, engageRange);
+            soldier.Initialize(this, baseHp, stat.SoldierDamage, stat.SoldierAttackInterval,
+                _rallyPoint + offset, stat.Range);
 
             _soldiers.Add(soldier);
 

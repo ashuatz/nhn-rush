@@ -413,7 +413,8 @@ Assets/Scripts/Editor/
     <tr><th>기능</th><th>구현</th><th>담당</th></tr>
     <tr><td>몬스터 경로</td><td>웨이포인트 사이를 바닥 타일(큐브)로 <b>에디트 타임에 베이크</b>한다. 시작점은 녹색, 출구는 적색 마커. 웨이포인트를 옮기면 총괄 윈도우에서 다시 베이크한다.</td><td><code>RushSetupActions.BakePathVisual</code></td></tr>
     <tr><td>타워 사거리</td><td>슬롯마다 반투명 원판(<code>RangeIndicator</code>)을 <b>자식으로 미리 배치</b>하고 평소에는 꺼 둔다. 런타임에는 스케일과 활성만 바꾼다.<br>- 건설된 타워: 슬롯 선택(포커스) 시 현재 레벨 사거리<br>- 건설 예정: 건설 버튼에 마우스를 올리면 해당 타워 Lv1 사거리<br>- 강화 예정: 강화 버튼에 올리면 다음 레벨 사거리</td><td><code>TowerSlot.ShowRange</code><br><code>BuildMenu</code></td></tr>
-    <tr><td>배속</td><td>1x / 2x / 4x 순환. <code>Time.timeScale</code>을 직접 만지는 곳은 <code>StageController</code> 한 곳뿐이며, 선택한 배속은 재시작 후에도 유지된다. HUD 버튼과 에디터 윈도우 양쪽에서 전환 가능.</td><td><code>StageController.CycleSpeed</code></td></tr>
+    <tr><td>배속</td><td>1x / 2x / 4x 순환. <code>Time.timeScale</code>을 직접 만지는 곳은 <code>StageController</code> 한 곳뿐이며, 선택한 배속은 재시작 후에도 유지된다. HUD 버튼과 에디터 윈도우 양쪽에서 전환 가능. 보상 선택(정지) 중에는 인덱스만 바뀌고 닫힐 때 반영.</td><td><code>StageController.CycleSpeed</code></td></tr>
+    <tr><td>몬스터 HP</td><td>혼자 있는 몬스터는 머리 위 HP 바. 화면상 겹치는 몬스터들(패널 42px 클러스터)은 <b>옆으로 뺀 리스트</b>(이름 + 바)로 묶고 <b>설명선</b>으로 각 개체와 잇는다. 리스트가 화면을 벗어나면 반대쪽으로 뒤집는다. 요소는 풀로 재사용.</td><td><code>MonsterHealthOverlay</code></td></tr>
     </tbody>
   </table>
   <div class="note"><b>슬롯 구조 주의.</b> 슬롯 루트는 <b>항상 스케일 1</b>을 유지하고 납작한 판은 자식 <code>Visual</code>이 담당한다. 루트가 비균등 스케일이면 그 위에 세운 타워와 병사가 세로로 찌그러진다. 검증에서 이 조건을 확인한다.</div>
