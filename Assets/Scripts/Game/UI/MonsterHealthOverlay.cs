@@ -28,10 +28,15 @@ namespace Rush.UI
         const float BarWidth = 40f;
         const float BarHeight = 5f;
         const float RowHeight = 15f;
-        const float RowWidth = 104f;
         const float HeadOffset = 0.75f;
         const float ListOffsetX = 58f;
         const float StubLength = 8f;
+
+        /// <summary>텍스트와 바 사이 간격.</summary>
+        const float NameBarGap = 5f;
+
+        /// <summary>측정 실패 시(스타일 미해석 첫 프레임 등) 글자당 폭 추정치.</summary>
+        const float FallbackCharWidth = 10f;
 
         static readonly Color BackColor = new Color(0f, 0f, 0f, 0.65f);
         static readonly Color LineColor = new Color(1f, 1f, 1f, 0.5f);
@@ -59,6 +64,16 @@ namespace Rush.UI
             public float ListX;
             public float ListY;
             public float Height;
+
+            /// <summary>그룹 내 가장 넓은 텍스트 폭. 모든 행의 바가 이 폭 뒤에 정렬된다.</summary>
+            public float NameWidth;
+
+            /// <summary>NameWidth + 간격 + 바 폭 = 리스트 전체 폭.</summary>
+            public float Width;
+
+            /// <summary>구성원 화면 좌표의 수평 범위. 리스트를 무리 바깥에 두는 데 쓴다.</summary>
+            public float MinX;
+            public float MaxX;
         }
 
         class BarRow
@@ -75,6 +90,9 @@ namespace Rush.UI
         readonly List<Cluster> _multiClusters = new List<Cluster>(24);
         readonly List<LeaderLine> _lines = new List<LeaderLine>(48);
         readonly List<BarRow> _pool = new List<BarRow>(64);
+        readonly Dictionary<string, float> _textWidthCache = new Dictionary<string, float>(16);
+
+        Label _measureLabel;
 
         UIDocument _doc;
         VisualElement _layer;
@@ -126,7 +144,33 @@ namespace Rush.UI
             _lineLayer.generateVisualContent += DrawLines;
             _layer.Add(_lineLayer);
 
+            // 텍스트 폭 실측용 숨김 라벨 (행 라벨과 같은 폰트 크기)
+            _measureLabel = new Label();
+            _measureLabel.pickingMode = PickingMode.Ignore;
+            _measureLabel.style.position = Position.Absolute;
+            _measureLabel.style.fontSize = 10;
+            _measureLabel.style.visibility = Visibility.Hidden;
+            _layer.Add(_measureLabel);
+
             root.Add(_layer);
+        }
+
+        /// <summary>텍스트 실제 폭을 잰다. 같은 문자열은 캐시하고, 측정 불가 프레임에는 추정치를 쓴다.</summary>
+        float MeasureName(string text)
+        {
+            if (_textWidthCache.TryGetValue(text, out float cached))
+                return cached;
+
+            Vector2 size = _measureLabel.MeasureTextSize(text,
+                0f, VisualElement.MeasureMode.Undefined, 0f, VisualElement.MeasureMode.Undefined);
+
+            if (float.IsNaN(size.x) || size.x <= 0f)
+                return text.Length * FallbackCharWidth;
+
+            float width = Mathf.Ceil(size.x) + 2f;
+            _textWidthCache[text] = width;
+
+            return width;
         }
 
         void DrawLines(MeshGenerationContext ctx)
@@ -257,9 +301,17 @@ namespace Rush.UI
             foreach (var cluster in _clusters)
             {
                 Vector2 sum = Vector2.zero;
+                cluster.MinX = float.MaxValue;
+                cluster.MaxX = float.MinValue;
 
                 foreach (int index in cluster.Members)
-                    sum += _entries[index].PanelPos;
+                {
+                    Vector2 pos = _entries[index].PanelPos;
+                    sum += pos;
+
+                    cluster.MinX = Mathf.Min(cluster.MinX, pos.x);
+                    cluster.MaxX = Mathf.Max(cluster.MaxX, pos.x);
+                }
 
                 cluster.Centroid = sum / cluster.Members.Count;
             }
@@ -295,21 +347,39 @@ namespace Rush.UI
                 // 화면 위쪽 개체가 리스트 위 행이 되도록 정렬 (선 교차 최소화)
                 cluster.Members.Sort((a, b) => _entries[a].PanelPos.y.CompareTo(_entries[b].PanelPos.y));
 
-                int rows = Mathf.Min(cluster.Members.Count, MaxRowsPerList);
+                int shown = Mathf.Min(cluster.Members.Count, MaxRowsPerList);
+                int rows = shown;
 
                 if (cluster.Members.Count > MaxRowsPerList)
                     rows++;
 
+                // 텍스트 폭은 실측 기반: 그룹에서 가장 넓은 텍스트에 모든 행의 바를 정렬한다
+                float nameWidth = 0f;
+
+                for (int i = 0; i < shown; i++)
+                    nameWidth = Mathf.Max(nameWidth, MeasureName(_entries[cluster.Members[i]].Monster.Data.DisplayName));
+
+                if (cluster.Members.Count > MaxRowsPerList)
+                    nameWidth = Mathf.Max(nameWidth, MeasureName($"+{cluster.Members.Count - MaxRowsPerList}"));
+
+                cluster.NameWidth = nameWidth;
+                cluster.Width = nameWidth + NameBarGap + BarWidth;
+
                 cluster.Height = rows * RowHeight;
-                cluster.OnRight = cluster.Centroid.x + ListOffsetX + RowWidth < panelWidth - 4f;
+
+                // 리스트는 무리 "바깥"에 둔다 (무리 위에 그리면 몬스터를 가린다)
+                float rightX = Mathf.Max(cluster.Centroid.x + ListOffsetX, cluster.MaxX + 18f);
+                float leftX = Mathf.Min(cluster.Centroid.x - ListOffsetX, cluster.MinX - 18f) - cluster.Width;
+
+                cluster.OnRight = rightX + cluster.Width < panelWidth - 4f;
 
                 if (cluster.OnRight)
                 {
-                    cluster.ListX = cluster.Centroid.x + ListOffsetX;
+                    cluster.ListX = rightX;
                 }
                 else
                 {
-                    cluster.ListX = cluster.Centroid.x - ListOffsetX - RowWidth;
+                    cluster.ListX = leftX;
                 }
 
                 cluster.ListY = Mathf.Clamp(cluster.Centroid.y - cluster.Height * 0.5f,
@@ -318,7 +388,7 @@ namespace Rush.UI
                 _multiClusters.Add(cluster);
             }
 
-            // 세로 겹침 해소: 위에서 아래로 훑으며 수평으로 겹치는 이전 리스트 아래로 민다
+            // 겹침 해소: 수평으로 가까운 리스트는 같은 컬럼으로 스냅하고 세로로 쌓는다
             _multiClusters.Sort((a, b) => a.ListY.CompareTo(b.ListY));
 
             for (int i = 1; i < _multiClusters.Count; i++)
@@ -329,16 +399,20 @@ namespace Rush.UI
                 {
                     var above = _multiClusters[j];
 
-                    bool horizontalOverlap = current.ListX < above.ListX + RowWidth + 6f
-                        && above.ListX < current.ListX + RowWidth + 6f;
+                    bool horizontalNear = current.ListX < above.ListX + above.Width + 24f
+                        && above.ListX < current.ListX + current.Width + 24f;
 
-                    if (!horizontalOverlap)
+                    if (!horizontalNear)
                         continue;
+
+                    // 같은 쪽 리스트면 컬럼을 맞춰 읽기 쉽게 한다
+                    if (current.OnRight == above.OnRight)
+                        current.ListX = above.ListX;
 
                     float aboveBottom = above.ListY + above.Height;
 
-                    if (current.ListY < aboveBottom + 2f)
-                        current.ListY = aboveBottom + 2f;
+                    if (current.ListY < aboveBottom + 4f)
+                        current.ListY = aboveBottom + 4f;
                 }
             }
         }
@@ -391,10 +465,13 @@ namespace Rush.UI
                 row.Root.style.top = rowY;
                 row.Name.text = entry.Monster.Data.DisplayName;
 
+                // 텍스트는 좌측 정렬, 폭은 그룹 최대 텍스트 폭으로 통일해 바 컬럼을 정렬한다
+                row.Name.style.width = cluster.NameWidth;
+
                 SetFill(row, entry.HpFraction);
 
-                // 설명선: 행 가장자리에서 짧은 스터브를 낸 뒤 몬스터 머리로
-                float rowCenterY = rowY + RowHeight * 0.5f - 1f;
+                // 설명선: 행 좌측(뒤집힌 리스트는 우측) "중간"에서 짧은 스터브를 낸 뒤 몬스터 머리로
+                float rowCenterY = rowY + RowHeight * 0.5f;
                 float anchorX;
                 float elbowX;
 
@@ -405,7 +482,7 @@ namespace Rush.UI
                 }
                 else
                 {
-                    anchorX = cluster.ListX + RowWidth + 2f;
+                    anchorX = cluster.ListX + cluster.Width + 2f;
                     elbowX = anchorX + StubLength;
                 }
 
@@ -425,6 +502,7 @@ namespace Rush.UI
                 row.Root.style.left = cluster.ListX;
                 row.Root.style.top = cluster.ListY + shown * RowHeight;
                 row.Name.text = $"+{cluster.Members.Count - MaxRowsPerList}";
+                row.Name.style.width = cluster.NameWidth;
             }
         }
 
@@ -459,13 +537,15 @@ namespace Rush.UI
             root.style.flexDirection = FlexDirection.Row;
             root.style.alignItems = Align.Center;
 
+            // 행 높이를 고정해 설명선 앵커(중간)와 시각적 중앙을 일치시킨다
+            root.style.height = RowHeight;
+
             var name = new Label();
             name.pickingMode = PickingMode.Ignore;
             name.style.fontSize = 10;
             name.style.color = Color.white;
-            name.style.width = 58f;
-            name.style.unityTextAlign = TextAnchor.MiddleRight;
-            name.style.marginRight = 4f;
+            name.style.unityTextAlign = TextAnchor.MiddleLeft;
+            name.style.marginRight = NameBarGap;
             name.style.overflow = Overflow.Hidden;
             root.Add(name);
 

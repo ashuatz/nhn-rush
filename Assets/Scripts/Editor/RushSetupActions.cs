@@ -1186,17 +1186,21 @@ namespace Rush.EditorTools
             Report("씬 셋업 완료: " + ScenePath);
         }
 
+        /// <summary>
+        /// 카메라가 없을 때만 만들고 기본 앵글을 준다.
+        /// 이미 있으면 위치/회전/fov를 절대 건드리지 않는다 (수동으로 잡은 앵글 보존).
+        /// </summary>
         static void SetupCamera()
         {
             var cam = Camera.main;
 
-            if (cam == null)
-            {
-                var go = new GameObject("Main Camera");
-                go.tag = "MainCamera";
-                cam = go.AddComponent<Camera>();
-                go.AddComponent<AudioListener>();
-            }
+            if (cam != null)
+                return;
+
+            var go = new GameObject("Main Camera");
+            go.tag = "MainCamera";
+            cam = go.AddComponent<Camera>();
+            go.AddComponent<AudioListener>();
 
             cam.transform.position = new Vector3(0f, 16f, -11f);
             cam.transform.rotation = Quaternion.Euler(55f, 0f, 0f);

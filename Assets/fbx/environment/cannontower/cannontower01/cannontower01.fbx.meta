@@ -3,7 +3,12 @@ guid: cadf6783209943c4aa0c2a5522b452e3
 ModelImporter:
   serializedVersion: 24300
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: cannontower
+    second: {fileID: 2100000, guid: f1a0e2a6fae5778499663876db578562, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
