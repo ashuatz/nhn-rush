@@ -1516,10 +1516,11 @@ namespace Rush.EditorTools
             var buildMenu = EnsureComponent<BuildMenu>(uiGo);
             var dashboard = EnsureComponent<DebugDashboard>(uiGo);
             var rewardOverlay = EnsureComponent<RewardOverlay>(uiGo);
-            EnsureComponent<MonsterHealthOverlay>(uiGo);
+            var healthOverlay = EnsureComponent<MonsterHealthOverlay>(uiGo);
 
             var hudSo = new SerializedObject(hud);
             FillIfEmpty(hudSo, "_stage", stage);
+            FillIfEmpty(hudSo, "_healthOverlay", healthOverlay);
             hudSo.ApplyModifiedPropertiesWithoutUndo();
 
             var overlaySo = new SerializedObject(rewardOverlay);

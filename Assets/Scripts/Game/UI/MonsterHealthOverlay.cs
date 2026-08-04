@@ -9,22 +9,32 @@ namespace Rush.UI
     /// 몬스터 HP 표시 오버레이 (UI Toolkit).
     /// 혼자 있는 몬스터는 머리 위에 바를 직접 붙이고,
     /// 화면상 겹치는 몬스터들은 옆으로 뺀 리스트로 묶은 뒤 설명선(리더 라인)으로 각 개체와 잇는다.
-    /// 매 프레임 화면 투영으로 갱신하며, 요소는 풀로 재사용한다.
+    ///
+    /// 설명선 규칙:
+    /// - 클러스터는 시드(첫 개체) 위치 기준 반경으로만 묶는다. 이동 평균 중심을 쓰면
+    ///   경로를 따라 늘어선 몬스터가 연쇄 합병되어 선이 화면을 가로지르게 된다.
+    /// - 행 수가 상한을 넘으면 "+N" 행으로 접는다 (선 없음).
+    /// - 선은 행에서 짧은 수평 스터브를 낸 뒤 몬스터로 향하고, 끝점에 점을 찍어 어디에 닿는지 보여준다.
+    /// - 리스트끼리 세로로 겹치면 아래로 밀어낸다.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public class MonsterHealthOverlay : MonoBehaviour
     {
-        /// <summary>이 거리(패널 px) 안에 모이면 한 클러스터로 묶는다.</summary>
-        const float ClusterRadius = 42f;
+        /// <summary>시드에서 이 거리(패널 px) 안에 들어온 몬스터만 같은 클러스터로 묶는다.</summary>
+        const float ClusterRadius = 46f;
+
+        const int MaxRowsPerList = 7;
 
         const float BarWidth = 40f;
         const float BarHeight = 5f;
         const float RowHeight = 15f;
+        const float RowWidth = 104f;
         const float HeadOffset = 0.75f;
         const float ListOffsetX = 58f;
+        const float StubLength = 8f;
 
         static readonly Color BackColor = new Color(0f, 0f, 0f, 0.65f);
-        static readonly Color LineColor = new Color(1f, 1f, 1f, 0.4f);
+        static readonly Color LineColor = new Color(1f, 1f, 1f, 0.5f);
 
         struct Entry
         {
@@ -35,21 +45,35 @@ namespace Rush.UI
 
         struct LeaderLine
         {
-            public Vector2 From;
-            public Vector2 To;
+            public Vector2 Anchor;
+            public Vector2 Elbow;
+            public Vector2 Target;
+        }
+
+        class Cluster
+        {
+            public readonly List<int> Members = new List<int>(16);
+            public Vector2 Seed;
+            public Vector2 Centroid;
+            public bool OnRight;
+            public float ListX;
+            public float ListY;
+            public float Height;
         }
 
         class BarRow
         {
             public VisualElement Root;
             public Label Name;
+            public VisualElement BarBack;
             public VisualElement Fill;
         }
 
         readonly List<Entry> _entries = new List<Entry>(64);
-        readonly List<List<int>> _clusters = new List<List<int>>(16);
-        readonly List<Vector2> _clusterCentroids = new List<Vector2>(16);
-        readonly List<LeaderLine> _lines = new List<LeaderLine>(32);
+        readonly List<Cluster> _clusters = new List<Cluster>(24);
+        readonly List<Cluster> _clusterPool = new List<Cluster>(24);
+        readonly List<Cluster> _multiClusters = new List<Cluster>(24);
+        readonly List<LeaderLine> _lines = new List<LeaderLine>(48);
         readonly List<BarRow> _pool = new List<BarRow>(64);
 
         UIDocument _doc;
@@ -57,6 +81,10 @@ namespace Rush.UI
         VisualElement _lineLayer;
         Camera _camera;
         int _usedRows;
+        bool _hiddenApplied;
+
+        /// <summary>HP 표시 on/off. HUD 토글 버튼이 제어한다.</summary>
+        public bool DisplayEnabled { get; set; } = true;
 
         void OnEnable()
         {
@@ -105,14 +133,21 @@ namespace Rush.UI
         {
             var painter = ctx.painter2D;
             painter.strokeColor = LineColor;
-            painter.lineWidth = 1.5f;
+            painter.fillColor = LineColor;
+            painter.lineWidth = 1.2f;
 
             foreach (var line in _lines)
             {
                 painter.BeginPath();
-                painter.MoveTo(line.From);
-                painter.LineTo(line.To);
+                painter.MoveTo(line.Anchor);
+                painter.LineTo(line.Elbow);
+                painter.LineTo(line.Target);
                 painter.Stroke();
+
+                // 끝점 마커: 선이 어느 개체에 닿는지 보여준다
+                painter.BeginPath();
+                painter.Arc(line.Target, 2.2f, 0f, 360f);
+                painter.Fill();
             }
         }
 
@@ -120,6 +155,14 @@ namespace Rush.UI
         {
             if (_layer == null)
                 return;
+
+            if (!DisplayEnabled)
+            {
+                HideAll();
+                return;
+            }
+
+            _hiddenApplied = false;
 
             if (_camera == null)
             {
@@ -136,8 +179,23 @@ namespace Rush.UI
 
             CollectEntries(panel);
             BuildClusters();
+            LayoutLists();
             Render();
 
+            _lineLayer.MarkDirtyRepaint();
+        }
+
+        void HideAll()
+        {
+            if (_hiddenApplied)
+                return;
+
+            _hiddenApplied = true;
+
+            foreach (var row in _pool)
+                row.Root.style.display = DisplayStyle.None;
+
+            _lines.Clear();
             _lineLayer.MarkDirtyRepaint();
         }
 
@@ -168,43 +226,120 @@ namespace Rush.UI
             }
         }
 
-        /// <summary>탐욕 클러스터링: 기존 클러스터 중심과 가까우면 합류, 아니면 새 클러스터.</summary>
+        /// <summary>시드 고정 탐욕 클러스터링. 시드에서 반경 안일 때만 합류하므로 연쇄 합병이 없다.</summary>
         void BuildClusters()
         {
             _clusters.Clear();
-            _clusterCentroids.Clear();
 
             for (int i = 0; i < _entries.Count; i++)
             {
-                int joined = -1;
+                Cluster joined = null;
 
-                for (int c = 0; c < _clusterCentroids.Count; c++)
+                foreach (var cluster in _clusters)
                 {
-                    if ((_entries[i].PanelPos - _clusterCentroids[c]).sqrMagnitude > ClusterRadius * ClusterRadius)
+                    if ((_entries[i].PanelPos - cluster.Seed).sqrMagnitude > ClusterRadius * ClusterRadius)
                         continue;
 
-                    joined = c;
+                    joined = cluster;
                     break;
                 }
 
-                if (joined < 0)
+                if (joined == null)
                 {
-                    var members = new List<int> { i };
-                    _clusters.Add(members);
-                    _clusterCentroids.Add(_entries[i].PanelPos);
-                    continue;
+                    joined = TakeCluster();
+                    joined.Seed = _entries[i].PanelPos;
+                    _clusters.Add(joined);
                 }
 
-                var cluster = _clusters[joined];
-                cluster.Add(i);
+                joined.Members.Add(i);
+            }
 
-                // 중심을 이동 평균으로 갱신
+            foreach (var cluster in _clusters)
+            {
                 Vector2 sum = Vector2.zero;
 
-                foreach (int index in cluster)
+                foreach (int index in cluster.Members)
                     sum += _entries[index].PanelPos;
 
-                _clusterCentroids[joined] = sum / cluster.Count;
+                cluster.Centroid = sum / cluster.Members.Count;
+            }
+        }
+
+        Cluster TakeCluster()
+        {
+            if (_clusterPool.Count > 0)
+            {
+                var cluster = _clusterPool[_clusterPool.Count - 1];
+                _clusterPool.RemoveAt(_clusterPool.Count - 1);
+                cluster.Members.Clear();
+
+                return cluster;
+            }
+
+            return new Cluster();
+        }
+
+        /// <summary>다중 클러스터의 리스트 위치를 정하고, 같은 쪽 리스트끼리 겹치면 아래로 밀어낸다.</summary>
+        void LayoutLists()
+        {
+            float panelWidth = _doc.rootVisualElement.resolvedStyle.width;
+            float panelHeight = _doc.rootVisualElement.resolvedStyle.height;
+
+            _multiClusters.Clear();
+
+            foreach (var cluster in _clusters)
+            {
+                if (cluster.Members.Count < 2)
+                    continue;
+
+                // 화면 위쪽 개체가 리스트 위 행이 되도록 정렬 (선 교차 최소화)
+                cluster.Members.Sort((a, b) => _entries[a].PanelPos.y.CompareTo(_entries[b].PanelPos.y));
+
+                int rows = Mathf.Min(cluster.Members.Count, MaxRowsPerList);
+
+                if (cluster.Members.Count > MaxRowsPerList)
+                    rows++;
+
+                cluster.Height = rows * RowHeight;
+                cluster.OnRight = cluster.Centroid.x + ListOffsetX + RowWidth < panelWidth - 4f;
+
+                if (cluster.OnRight)
+                {
+                    cluster.ListX = cluster.Centroid.x + ListOffsetX;
+                }
+                else
+                {
+                    cluster.ListX = cluster.Centroid.x - ListOffsetX - RowWidth;
+                }
+
+                cluster.ListY = Mathf.Clamp(cluster.Centroid.y - cluster.Height * 0.5f,
+                    4f, Mathf.Max(4f, panelHeight - cluster.Height - 4f));
+
+                _multiClusters.Add(cluster);
+            }
+
+            // 세로 겹침 해소: 위에서 아래로 훑으며 수평으로 겹치는 이전 리스트 아래로 민다
+            _multiClusters.Sort((a, b) => a.ListY.CompareTo(b.ListY));
+
+            for (int i = 1; i < _multiClusters.Count; i++)
+            {
+                var current = _multiClusters[i];
+
+                for (int j = 0; j < i; j++)
+                {
+                    var above = _multiClusters[j];
+
+                    bool horizontalOverlap = current.ListX < above.ListX + RowWidth + 6f
+                        && above.ListX < current.ListX + RowWidth + 6f;
+
+                    if (!horizontalOverlap)
+                        continue;
+
+                    float aboveBottom = above.ListY + above.Height;
+
+                    if (current.ListY < aboveBottom + 2f)
+                        current.ListY = aboveBottom + 2f;
+                }
             }
         }
 
@@ -213,30 +348,27 @@ namespace Rush.UI
             _usedRows = 0;
             _lines.Clear();
 
-            float panelWidth = _doc.rootVisualElement.resolvedStyle.width;
-            float panelHeight = _doc.rootVisualElement.resolvedStyle.height;
-
-            for (int c = 0; c < _clusters.Count; c++)
+            foreach (var cluster in _clusters)
             {
-                var cluster = _clusters[c];
-
-                if (cluster.Count == 1)
-                {
-                    RenderSingle(_entries[cluster[0]]);
-                    continue;
-                }
-
-                RenderClusterList(cluster, _clusterCentroids[c], panelWidth, panelHeight);
+                if (cluster.Members.Count == 1)
+                    RenderSingle(_entries[cluster.Members[0]]);
             }
+
+            foreach (var cluster in _multiClusters)
+                RenderClusterList(cluster);
 
             // 남은 풀 요소는 숨긴다
             for (int i = _usedRows; i < _pool.Count; i++)
                 _pool[i].Root.style.display = DisplayStyle.None;
+
+            // 클러스터 객체 회수
+            foreach (var cluster in _clusters)
+                _clusterPool.Add(cluster);
         }
 
         void RenderSingle(in Entry entry)
         {
-            var row = TakeRow(showName: false);
+            var row = TakeRow(showName: false, showBar: true);
 
             row.Root.style.left = entry.PanelPos.x - BarWidth * 0.5f;
             row.Root.style.top = entry.PanelPos.y - 14f;
@@ -244,55 +376,59 @@ namespace Rush.UI
             SetFill(row, entry.HpFraction);
         }
 
-        void RenderClusterList(List<int> cluster, Vector2 centroid, float panelWidth, float panelHeight)
+        void RenderClusterList(Cluster cluster)
         {
-            // 화면 위쪽에 있는 몬스터가 리스트 위쪽 행이 되도록 정렬 (설명선 교차 최소화)
-            cluster.Sort((a, b) => _entries[a].PanelPos.y.CompareTo(_entries[b].PanelPos.y));
+            int shown = Mathf.Min(cluster.Members.Count, MaxRowsPerList);
 
-            float listHeight = cluster.Count * RowHeight;
-            float rowWidth = BarWidth + 64f;
-
-            // 기본은 클러스터 오른쪽, 화면을 벗어나면 왼쪽으로 뒤집는다
-            bool onRight = centroid.x + ListOffsetX + rowWidth < panelWidth - 4f;
-
-            float listX;
-
-            if (onRight)
+            for (int i = 0; i < shown; i++)
             {
-                listX = centroid.x + ListOffsetX;
-            }
-            else
-            {
-                listX = centroid.x - ListOffsetX - rowWidth;
-            }
+                var entry = _entries[cluster.Members[i]];
+                var row = TakeRow(showName: true, showBar: true);
 
-            float listY = Mathf.Clamp(centroid.y - listHeight * 0.5f, 4f, Mathf.Max(4f, panelHeight - listHeight - 4f));
+                float rowY = cluster.ListY + i * RowHeight;
 
-            for (int i = 0; i < cluster.Count; i++)
-            {
-                var entry = _entries[cluster[i]];
-                var row = TakeRow(showName: true);
-
-                float rowY = listY + i * RowHeight;
-
-                row.Root.style.left = listX;
+                row.Root.style.left = cluster.ListX;
                 row.Root.style.top = rowY;
                 row.Name.text = entry.Monster.Data.DisplayName;
 
                 SetFill(row, entry.HpFraction);
 
-                // 설명선: 행의 안쪽 끝에서 몬스터 머리 위치로
-                float anchorX = onRight ? listX - 2f : listX + rowWidth + 2f;
+                // 설명선: 행 가장자리에서 짧은 스터브를 낸 뒤 몬스터 머리로
+                float rowCenterY = rowY + RowHeight * 0.5f - 1f;
+                float anchorX;
+                float elbowX;
+
+                if (cluster.OnRight)
+                {
+                    anchorX = cluster.ListX - 2f;
+                    elbowX = anchorX - StubLength;
+                }
+                else
+                {
+                    anchorX = cluster.ListX + RowWidth + 2f;
+                    elbowX = anchorX + StubLength;
+                }
 
                 _lines.Add(new LeaderLine
                 {
-                    From = new Vector2(anchorX, rowY + RowHeight * 0.5f - 1f),
-                    To = entry.PanelPos,
+                    Anchor = new Vector2(anchorX, rowCenterY),
+                    Elbow = new Vector2(elbowX, rowCenterY),
+                    Target = entry.PanelPos,
                 });
+            }
+
+            // 넘친 개체는 "+N" 행으로 접는다 (선 없음)
+            if (cluster.Members.Count > MaxRowsPerList)
+            {
+                var row = TakeRow(showName: true, showBar: false);
+
+                row.Root.style.left = cluster.ListX;
+                row.Root.style.top = cluster.ListY + shown * RowHeight;
+                row.Name.text = $"+{cluster.Members.Count - MaxRowsPerList}";
             }
         }
 
-        BarRow TakeRow(bool showName)
+        BarRow TakeRow(bool showName, bool showBar)
         {
             BarRow row;
 
@@ -310,6 +446,7 @@ namespace Rush.UI
 
             row.Root.style.display = DisplayStyle.Flex;
             row.Name.style.display = showName ? DisplayStyle.Flex : DisplayStyle.None;
+            row.BarBack.style.display = showBar ? DisplayStyle.Flex : DisplayStyle.None;
 
             return row;
         }
@@ -347,7 +484,7 @@ namespace Rush.UI
 
             _layer.Add(root);
 
-            return new BarRow { Root = root, Name = name, Fill = fill };
+            return new BarRow { Root = root, Name = name, BarBack = barBack, Fill = fill };
         }
 
         static void SetFill(BarRow row, float fraction)

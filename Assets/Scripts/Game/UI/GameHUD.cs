@@ -16,6 +16,7 @@ namespace Rush.UI
         static readonly Color TextColor = Color.white;
 
         [SerializeField] StageController _stage;
+        [SerializeField] MonsterHealthOverlay _healthOverlay;
 
         VisualElement _container;
         Label _goldLabel;
@@ -24,6 +25,7 @@ namespace Rush.UI
         Label _countdownLabel;
         Button _earlyCallButton;
         Button _speedButton;
+        Button _hpToggleButton;
         VisualElement _resultOverlay;
         Label _resultLabel;
 
@@ -60,6 +62,9 @@ namespace Rush.UI
 
             // 카운트다운은 매 프레임 갱신 (Changed 이벤트 대상이 아님)
             RefreshCountdown();
+
+            // HP 토글은 외부(디버그 등)에서 바뀔 수 있어 함께 동기화한다
+            RefreshHpToggle();
         }
 
         void BuildUI(VisualElement root)
@@ -112,6 +117,15 @@ namespace Rush.UI
             _speedButton.style.paddingLeft = 10;
             _speedButton.style.paddingRight = 10;
             bar.Add(_speedButton);
+
+            _hpToggleButton = new Button(OnHpToggleClicked);
+            _hpToggleButton.style.fontSize = 13;
+            _hpToggleButton.style.marginTop = 0;
+            _hpToggleButton.style.marginBottom = 0;
+            _hpToggleButton.style.marginLeft = 6;
+            _hpToggleButton.style.paddingLeft = 10;
+            _hpToggleButton.style.paddingRight = 10;
+            bar.Add(_hpToggleButton);
 
             return bar;
         }
@@ -205,6 +219,30 @@ namespace Rush.UI
             _stage.CycleSpeed();
         }
 
+        void OnHpToggleClicked()
+        {
+            if (_healthOverlay == null)
+                return;
+
+            _healthOverlay.DisplayEnabled = !_healthOverlay.DisplayEnabled;
+
+            RefreshHpToggle();
+        }
+
+        void RefreshHpToggle()
+        {
+            if (_hpToggleButton == null)
+                return;
+
+            if (_healthOverlay == null)
+            {
+                _hpToggleButton.style.display = DisplayStyle.None;
+                return;
+            }
+
+            _hpToggleButton.text = _healthOverlay.DisplayEnabled ? "HP 끄기" : "HP 켜기";
+        }
+
         void OnRestartClicked()
         {
             if (_stage == null)
@@ -222,6 +260,7 @@ namespace Rush.UI
             _lifeLabel.text = $"생명 {_stage.Life}";
             _waveLabel.text = $"웨이브 {_stage.WaveNumber}/{_stage.TotalWaves} ({_stage.DifficultyName})";
             _speedButton.text = $"배속 {_stage.CurrentSpeed:0.#}x";
+            RefreshHpToggle();
 
             RefreshCountdown();
             RefreshResult();
