@@ -1260,6 +1260,7 @@ namespace Rush.EditorTools
             var buildMenu = EnsureComponent<BuildMenu>(uiGo);
             var dashboard = EnsureComponent<DebugDashboard>(uiGo);
             var rewardOverlay = EnsureComponent<RewardOverlay>(uiGo);
+            EnsureComponent<MonsterHealthOverlay>(uiGo);
 
             var hudSo = new SerializedObject(hud);
             FillIfEmpty(hudSo, "_stage", stage);
@@ -1571,6 +1572,9 @@ namespace Rush.EditorTools
 
             if (UnityEngine.Object.FindFirstObjectByType<RewardOverlay>() == null)
                 issues.Add("[씬] RewardOverlay(GameUI) 없음");
+
+            if (UnityEngine.Object.FindFirstObjectByType<MonsterHealthOverlay>() == null)
+                issues.Add("[씬] MonsterHealthOverlay(GameUI) 없음");
 
             var path = UnityEngine.Object.FindFirstObjectByType<PathRoute>();
 
