@@ -165,8 +165,12 @@ namespace Rush.EditorTools
 
             var row2 = MakeButtonRow();
             row2.Add(MakeButton("스테이지/난이도", RushSetupActions.CreateStageAndDifficultyData));
+            row2.Add(MakeButton("보상 데이터", () => RushSetupActions.CreateRewardAssets()));
             row2.Add(MakeButton("PanelSettings", () => RushSetupActions.CreatePanelSettings()));
             body.Add(row2);
+
+            var balanceButton = MakeButton("Balance Board 열기 (수치 조절)", BalanceBoardWindow.Open);
+            body.Add(balanceButton);
 
             return section;
         }

@@ -11,6 +11,7 @@ namespace Rush.Combat
     ///
     /// 저지 규칙: 표적 예약과 저지를 분리한다. 근접 접촉 전에는 저지하지 않으며,
     /// 접촉한 뒤 매 프레임 저지를 시도하므로 앞선 저지자가 죽어도 즉시 이어받는다.
+    /// 보상(B1A)이 있으면 한 병사가 여러 기를 저지할 수 있다.
     /// </summary>
     public class Soldier : MonoBehaviour
     {
@@ -28,6 +29,8 @@ namespace Rush.Combat
 
         public static IReadOnlyList<Soldier> Active => _active;
 
+        readonly List<Monster> _blocking = new List<Monster>(4);
+
         InfantryTower _owner;
         float _maxHp;
         float _damage;
@@ -36,7 +39,6 @@ namespace Rush.Combat
         float _engageRange;
 
         Monster _target;
-        bool _isBlocking;
         float _attackTimer;
 
         Transform _visual;
@@ -111,9 +113,11 @@ namespace Rush.Combat
 
             TickLunge();
 
-            // 표적이 죽었거나 사라졌으면 저지를 풀고 재탐색으로 넘어간다
+            _blocking.RemoveAll(m => m == null || !m.IsAlive);
+
+            // 표적이 죽었거나 사라졌으면 재탐색으로 넘어간다
             if (_target != null && !_target.IsAlive)
-                ClearTarget();
+                _target = null;
 
             if (_target == null)
             {
@@ -142,8 +146,14 @@ namespace Rush.Combat
         /// <summary>표적 예약만 한다. 저지는 접촉 후 EngageTarget에서 시도한다.</summary>
         void AcquireTarget()
         {
+            // 이미 저지 중인 몬스터가 있으면 그쪽을 우선 공격한다
+            if (_blocking.Count > 0)
+            {
+                _target = _blocking[0];
+                return;
+            }
+
             _target = MonsterRegistry.FindBlockTarget(_rallyPoint, _engageRange);
-            _isBlocking = false;
         }
 
         void EngageTarget()
@@ -159,8 +169,8 @@ namespace Rush.Combat
             }
 
             // 접촉 상태에서 매 프레임 저지를 시도한다 - 앞선 저지자가 죽으면 즉시 이어받는다
-            if (!_isBlocking)
-                _isBlocking = _target.TryBlock(this);
+            if (!_blocking.Contains(_target))
+                _target.TryBlock(this);
 
             _attackTimer -= Time.deltaTime;
 
@@ -171,7 +181,11 @@ namespace Rush.Combat
             _lungeDirection = toTarget.normalized;
             _lungeTimer = LungeDuration;
 
-            DamageResolver.Apply(_target, _damage, DamageType.Physical, 0f, "병사");
+            var source = DamageSource.FromSoldierUnit(_owner);
+            DamageResolver.Apply(_target, _damage, DamageType.Physical, 0f, source);
+
+            // 보상(B1B): 병사 공격이 확률로 적을 밀어내고, 밀린 적은 저지가 풀린다
+            RewardSystem.TrySoldierKnockback(_target);
         }
 
         /// <summary>공격 순간 비주얼만 앞으로 찔렀다가 되돌아온다.</summary>
@@ -209,32 +223,70 @@ namespace Rush.Combat
 
         void ClearTarget()
         {
-            if (_target != null && _isBlocking)
+            if (_target != null && _blocking.Contains(_target))
+            {
                 _target.ReleaseBlock(this);
+                _blocking.Remove(_target);
+            }
 
             _target = null;
-            _isBlocking = false;
+        }
+
+        void ReleaseAllBlocks()
+        {
+            foreach (var monster in _blocking)
+            {
+                if (monster == null)
+                    continue;
+
+                monster.ReleaseBlock(this);
+            }
+
+            _blocking.Clear();
+            _target = null;
+        }
+
+        // ---------- 저지 상태 (Monster와의 상호 통지) ----------
+
+        /// <summary>추가 저지 가능 여부. 기본 1기, 보상(B1A)으로 증가.</summary>
+        public bool CanBlockMore()
+        {
+            if (!IsAlive)
+                return false;
+
+            return _blocking.Count < RewardSystem.SoldierMaxBlock();
+        }
+
+        /// <summary>Monster.TryBlock 성공 시 몬스터 쪽에서 호출.</summary>
+        public void NotifyBlocked(Monster monster)
+        {
+            if (_blocking.Contains(monster))
+                return;
+
+            _blocking.Add(monster);
         }
 
         /// <summary>저지 중이던 몬스터가 죽거나 이탈했을 때 몬스터 쪽에서 호출.</summary>
         public void NotifyTargetGone(Monster monster)
         {
-            if (_target != monster)
-                return;
+            _blocking.Remove(monster);
 
-            _target = null;
-            _isBlocking = false;
+            if (_target == monster)
+                _target = null;
         }
 
-        public void TakeDamage(float damage, string source)
+        public void TakeDamage(float damage, string sourceLabel)
         {
             if (!IsAlive)
                 return;
 
-            Hp -= damage;
+            // 보상(D03): 병사 피해 감소
+            float final = damage * (1f - RewardSystem.SoldierDamageReduction());
+
+            Hp -= final;
 
             if (GameLog.VerboseCombat)
-                GameLog.Info("Dmg", $"{source} -> 병사: {damage:F0} (남은 체력 {Mathf.Max(0f, Hp):F0})");
+                GameLog.Info("Dmg", $"{sourceLabel} -> 병사: {final:F0} (남은 체력 {Mathf.Max(0f, Hp):F0})");
 
             if (Hp > 0f)
                 return;
@@ -246,7 +298,7 @@ namespace Rush.Combat
         {
             IsAlive = false;
 
-            ClearTarget();
+            ReleaseAllBlocks();
             _active.Remove(this);
 
             if (_owner != null)
@@ -260,7 +312,7 @@ namespace Rush.Combat
         {
             IsAlive = false;
 
-            ClearTarget();
+            ReleaseAllBlocks();
             _active.Remove(this);
 
             Destroy(gameObject);

@@ -9,6 +9,7 @@ namespace Rush.Stage
     public class PathRoute : MonoBehaviour
     {
         Transform[] _points;
+        float[] _cumulative;
 
         public int PointCount
         {
@@ -16,6 +17,20 @@ namespace Rush.Stage
             {
                 EnsureCached();
                 return _points.Length;
+            }
+        }
+
+        /// <summary>경로 전체 길이. 몬스터 이동/넉백의 기준 좌표계.</summary>
+        public float TotalLength
+        {
+            get
+            {
+                EnsureCached();
+
+                if (_cumulative.Length == 0)
+                    return 0f;
+
+                return _cumulative[_cumulative.Length - 1];
             }
         }
 
@@ -32,12 +47,52 @@ namespace Rush.Stage
 
             for (int i = 0; i < count; i++)
                 _points[i] = transform.GetChild(i);
+
+            _cumulative = new float[count];
+
+            for (int i = 1; i < count; i++)
+            {
+                float segment = Vector3.Distance(_points[i - 1].position, _points[i].position);
+                _cumulative[i] = _cumulative[i - 1] + segment;
+            }
         }
 
         public Vector3 GetPoint(int index)
         {
             EnsureCached();
             return _points[index].position;
+        }
+
+        /// <summary>시작점에서 distance만큼 진행한 경로 위 지점. 범위를 벗어나면 양끝으로 clamp.</summary>
+        public Vector3 GetPositionAtDistance(float distance)
+        {
+            EnsureCached();
+
+            if (_points.Length == 0)
+                return transform.position;
+
+            if (_points.Length == 1 || distance <= 0f)
+                return _points[0].position;
+
+            if (distance >= TotalLength)
+                return _points[_points.Length - 1].position;
+
+            for (int i = 1; i < _points.Length; i++)
+            {
+                if (distance > _cumulative[i])
+                    continue;
+
+                float segmentLength = _cumulative[i] - _cumulative[i - 1];
+
+                if (segmentLength < 0.0001f)
+                    return _points[i].position;
+
+                float t = (distance - _cumulative[i - 1]) / segmentLength;
+
+                return Vector3.Lerp(_points[i - 1].position, _points[i].position, t);
+            }
+
+            return _points[_points.Length - 1].position;
         }
 
         void EnsureCached()

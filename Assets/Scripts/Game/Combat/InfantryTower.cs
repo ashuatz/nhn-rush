@@ -50,8 +50,8 @@ namespace Rush.Combat
             if (_respawnTimer > 0f)
                 return;
 
-            SpawnOneSoldier();
-            _respawnTimer = CurrentStat.SoldierRespawnSeconds;
+            SpawnOneSoldier(isRespawn: true);
+            _respawnTimer = RespawnSeconds();
         }
 
         /// <summary>강화 시 병사를 전부 새 스탯으로 재소환한다.</summary>
@@ -67,8 +67,10 @@ namespace Rush.Combat
             SpawnMissingSoldiers(immediate: true);
         }
 
-        void OnDestroy()
+        protected override void OnDestroy()
         {
+            base.OnDestroy();
+
             DespawnAllSoldiers();
         }
 
@@ -79,15 +81,23 @@ namespace Rush.Combat
             if (immediate)
             {
                 while (_soldiers.Count < CurrentStat.SoldierCount)
-                    SpawnOneSoldier();
+                    SpawnOneSoldier(isRespawn: false);
 
                 return;
             }
 
-            _respawnTimer = CurrentStat.SoldierRespawnSeconds;
+            _respawnTimer = RespawnSeconds();
         }
 
-        void SpawnOneSoldier()
+        float RespawnSeconds()
+        {
+            // 충원 속도 보상(C05): 속도가 오르면 시간이 줄어든다
+            float speedMul = RewardSystem.GetStatMods(Data.Type).SoldierRespawnMul;
+
+            return CurrentStat.SoldierRespawnSeconds / Mathf.Max(0.1f, speedMul);
+        }
+
+        void SpawnOneSoldier(bool isRespawn)
         {
             if (Data.SoldierPrefab == null)
             {
@@ -96,6 +106,7 @@ namespace Rush.Combat
             }
 
             var stat = CurrentStat;
+            var mods = RewardSystem.GetStatMods(Data.Type);
 
             // 집결지 주변으로 살짝 흩어서 배치
             float angle = _soldiers.Count * 120f * Mathf.Deg2Rad;
@@ -107,12 +118,26 @@ namespace Rush.Combat
             if (soldier == null)
                 soldier = go.AddComponent<Soldier>();
 
-            float hp = stat.SoldierHp * Stage.SoldierHpMultiplier;
+            float hp = stat.SoldierHp * Stage.SoldierHpMultiplier * mods.SoldierHpMul;
+            float damage = stat.SoldierDamage * mods.SoldierDamageMul;
+            float engageRange = stat.Range * mods.RallyRangeMul;
 
-            soldier.Initialize(this, hp, stat.SoldierDamage, stat.SoldierAttackInterval,
-                _rallyPoint + offset, stat.Range);
+            soldier.Initialize(this, hp, damage, stat.SoldierAttackInterval,
+                _rallyPoint + offset, engageRange);
 
             _soldiers.Add(soldier);
+
+            // 현장 보급(A01): 충원(리스폰)될 때만 골드
+            if (isRespawn)
+            {
+                int gold = RewardSystem.SoldierRespawnGold();
+
+                if (gold > 0)
+                {
+                    Stage.AddGold(gold);
+                    GameLog.Info("Reward", $"현장 보급 +{gold}G");
+                }
+            }
         }
 
         void DespawnAllSoldiers()
@@ -131,7 +156,7 @@ namespace Rush.Combat
         public void NotifySoldierDied(Soldier soldier)
         {
             _soldiers.Remove(soldier);
-            _respawnTimer = CurrentStat.SoldierRespawnSeconds;
+            _respawnTimer = RespawnSeconds();
         }
 
         /// <summary>타워 위치에서 가장 가까운 경로 위 지점을 병사 집결지로 삼는다.</summary>

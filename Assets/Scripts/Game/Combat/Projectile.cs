@@ -1,5 +1,7 @@
+using System.Collections;
 using System.Collections.Generic;
 using Rush.Data;
+using Rush.Stage;
 using UnityEngine;
 
 namespace Rush.Combat
@@ -16,7 +18,7 @@ namespace Rush.Combat
         public float SplashRadius;
         public float SlowPercent;
         public float SlowDuration;
-        public string SourceLabel;
+        public DamageSource Source;
 
         /// <summary>처치 시 추가 발사를 요청할 타워. 추가 발사로 생긴 발사체는 비워 둔다.</summary>
         public Tower BonusOwner;
@@ -26,6 +28,7 @@ namespace Rush.Combat
     /// 타워 발사체. MotionTrajectory가 그려 주는 곡선을 따라 날아가고 착탄 시 DamageResolver를 호출한다.
     /// 궤적은 "시작점 - 현재 표적 위치" 사이에서 매 프레임 다시 평가하므로 표적이 움직여도 따라간다.
     /// 표적이 먼저 죽으면 광역은 마지막 위치에 착탄하고, 단일 표적은 소멸한다.
+    /// 착탄 시 보상 효과(중심 보너스/집속탄/연쇄 반응/넉백/기절)가 여기서 발동한다.
     /// </summary>
     public class Projectile : MonoBehaviour
     {
@@ -33,6 +36,8 @@ namespace Rush.Combat
         const float MaxLifetime = 6f;
 
         static readonly List<Monster> _splashBuffer = new List<Monster>(32);
+        static readonly List<Monster> _chainBuffer = new List<Monster>(16);
+        static readonly List<Vector3> _killPositions = new List<Vector3>(16);
 
         readonly MotionTrajectory _trajectory = new MotionTrajectory();
 
@@ -45,6 +50,7 @@ namespace Rush.Combat
         float _duration;
         float _elapsed;
         bool _launched;
+        bool _impacted;
 
         public void Launch(in ProjectileConfig config, Monster target, Vector3 startPosition)
         {
@@ -69,7 +75,7 @@ namespace Rush.Combat
         void Update()
         {
             // Launch 전에 Update가 돌면(프리팹 오배치) 아무것도 하지 않는다
-            if (!_launched)
+            if (!_launched || _impacted)
                 return;
 
             _elapsed += Time.deltaTime;
@@ -130,24 +136,57 @@ namespace Rush.Combat
 
         void Impact()
         {
+            _impacted = true;
+
             Monster killed;
             Vector3 killPosition;
 
             if (_config.SplashRadius > 0f)
             {
-                killed = ImpactSplash(out killPosition);
+                killed = ImpactSplash(_config.Damage, out killPosition);
             }
             else
             {
                 killed = ImpactSingle(out killPosition);
             }
 
-            SpawnBurst();
+            SpawnBurst(transform.position);
+
+            if (killed != null)
+                RequestBonusShots(killPosition, killed);
+
+            // 집속탄(D09): 같은 지점에 지연 후 한 번 더 터진다
+            if (_config.SplashRadius > 0f && RewardSystem.TryGetDoubleBlast(_config.Source, out float fraction, out float delay))
+            {
+                StartCoroutine(SecondBlast(fraction, delay));
+                return;
+            }
+
+            Despawn();
+        }
+
+        IEnumerator SecondBlast(float fraction, float delay)
+        {
+            HideVisuals();
+
+            yield return new WaitForSeconds(delay);
+
+            var killed = ImpactSplash(_config.Damage * fraction, out Vector3 killPosition);
+
+            SpawnBurst(_lastTargetPos);
 
             if (killed != null)
                 RequestBonusShots(killPosition, killed);
 
             Despawn();
+        }
+
+        void HideVisuals()
+        {
+            DetachTrail();
+
+            foreach (var renderer in GetComponentsInChildren<Renderer>())
+                renderer.enabled = false;
         }
 
         /// <summary>이 착탄으로 죽은 몬스터를 돌려준다. 아무도 죽지 않았으면 null.</summary>
@@ -161,27 +200,55 @@ namespace Rush.Combat
             // Destroy는 프레임 끝에 반영되므로 위치는 피해 적용 전에 잡아 둔다
             Vector3 hitPosition = _target.transform.position;
 
-            DamageResolver.Apply(_target, _config.Damage, _config.DamageType, _config.ArmorPierce, _config.SourceLabel);
+            DamageResolver.Apply(_target, _config.Damage, _config.DamageType, _config.ArmorPierce, _config.Source);
 
-            if (_config.SlowPercent > 0f && _target.IsAlive)
-                _target.ApplySlow(_config.SlowPercent, _config.SlowDuration);
+            if (_target != null && _target.IsAlive)
+            {
+                if (_config.SlowPercent > 0f)
+                    _target.ApplySlow(_config.SlowPercent, _config.SlowDuration);
 
-            if (_target.IsAlive)
+                RewardSystem.ApplyOnHitRiders(_config.Source, _target);
+
                 return null;
+            }
 
             killPosition = hitPosition;
 
             return _target;
         }
 
-        Monster ImpactSplash(out Vector3 killPosition)
+        Monster ImpactSplash(float damage, out Vector3 killPosition)
         {
             killPosition = _lastTargetPos;
 
             // 포병은 공중 공격 불가이므로 지상만 수집한다
             MonsterRegistry.CollectInRange(_lastTargetPos, _config.SplashRadius, includeFlying: false, _splashBuffer);
 
+            // 폭발 중심 보너스(D08): 중심에 가장 가까운 적 1기
+            Monster centerMost = null;
+            float centerBonus = RewardSystem.SplashCenterBonus(_config.Source);
+
+            if (centerBonus > 0f)
+            {
+                float bestSqr = float.MaxValue;
+
+                foreach (var monster in _splashBuffer)
+                {
+                    if (monster == null || !monster.IsAlive)
+                        continue;
+
+                    float distSqr = (monster.transform.position - _lastTargetPos).sqrMagnitude;
+
+                    if (distSqr >= bestSqr)
+                        continue;
+
+                    centerMost = monster;
+                    bestSqr = distSqr;
+                }
+            }
+
             Monster killed = null;
+            _killPositions.Clear();
 
             foreach (var monster in _splashBuffer)
             {
@@ -190,20 +257,53 @@ namespace Rush.Combat
 
                 Vector3 hitPosition = monster.transform.position;
 
-                DamageResolver.Apply(monster, _config.Damage, _config.DamageType, _config.ArmorPierce, _config.SourceLabel);
+                float perTarget = damage;
 
-                if (_config.SlowPercent > 0f && monster.IsAlive)
-                    monster.ApplySlow(_config.SlowPercent, _config.SlowDuration);
+                if (monster == centerMost)
+                    perTarget *= 1f + centerBonus;
 
-                if (monster.IsAlive)
+                DamageResolver.Apply(monster, perTarget, _config.DamageType, _config.ArmorPierce, _config.Source);
+
+                if (monster != null && monster.IsAlive)
+                {
+                    if (_config.SlowPercent > 0f)
+                        monster.ApplySlow(_config.SlowPercent, _config.SlowDuration);
+
+                    RewardSystem.ApplyOnHitRiders(_config.Source, monster);
                     continue;
+                }
 
-                // 여러 마리가 죽어도 추가 발사는 착탄당 한 번으로 묶는다 (발사체 폭주 방지)
+                // 여러 마리가 죽어도 추가 발사(처치 트리거)는 착탄당 한 번으로 묶는다 (발사체 폭주 방지)
                 killed = monster;
                 killPosition = hitPosition;
+                _killPositions.Add(hitPosition);
             }
 
+            // 연쇄 반응(G02): 광역 처치마다 그 자리에서 한 번 더 터진다 (연쇄의 연쇄는 없음)
+            if (_killPositions.Count > 0 && RewardSystem.TryGetChainExplosion(_config.Source, out float chainFraction, out float chainRadius))
+                ExplodeChain(damage * chainFraction, chainRadius);
+
             return killed;
+        }
+
+        void ExplodeChain(float chainDamage, float radius)
+        {
+            var chainSource = _config.Source.AsChain();
+
+            foreach (var position in _killPositions)
+            {
+                MonsterRegistry.CollectInRange(position, radius, includeFlying: false, _chainBuffer);
+
+                foreach (var monster in _chainBuffer)
+                {
+                    if (monster == null || !monster.IsAlive)
+                        continue;
+
+                    DamageResolver.Apply(monster, chainDamage, _config.DamageType, _config.ArmorPierce, chainSource);
+                }
+
+                SpawnBurst(position);
+            }
         }
 
         /// <summary>
@@ -218,12 +318,12 @@ namespace Rush.Combat
             _config.BonusOwner.FireOnKillShots(killPosition, killed);
         }
 
-        void SpawnBurst()
+        void SpawnBurst(Vector3 position)
         {
             if (_config.ImpactPrefab == null)
                 return;
 
-            var go = Instantiate(_config.ImpactPrefab, transform.position, Quaternion.identity);
+            var go = Instantiate(_config.ImpactPrefab, position, Quaternion.identity);
             var burst = go.GetComponent<ImpactBurst>();
 
             if (burst == null)

@@ -24,6 +24,7 @@ namespace Rush.EditorTools
         const string DataMonsters = Root + "/Data/Monsters";
         const string DataStages = Root + "/Data/Stages";
         const string DataDifficulty = Root + "/Data/Difficulty";
+        const string DataRewards = Root + "/Data/Rewards";
         const string PrefabDir = Root + "/Prefabs";
         const string MaterialDir = Root + "/Materials";
         const string UiDir = Root + "/UI";
@@ -70,6 +71,7 @@ namespace Rush.EditorTools
             EnsureFolder(DataMonsters);
             EnsureFolder(DataStages);
             EnsureFolder(DataDifficulty);
+            EnsureFolder(DataRewards);
             EnsureFolder(PrefabDir);
             EnsureFolder(MaterialDir);
             EnsureFolder(UiDir);
@@ -842,6 +844,34 @@ namespace Rush.EditorTools
             return ps;
         }
 
+        // ---------- 6-1. 보상 데이터 ----------
+
+        /// <summary>보상 카드 54종과 플로우 설정을 생성/동기화한다. 수치는 기존 조정값을 존중한다.</summary>
+        public static RewardFlowConfig CreateRewardAssets(bool forceValues = false)
+        {
+            CreateFolders();
+
+            var cards = RushRewardCatalog.EnsureAll(DataRewards, forceValues);
+
+            string configPath = $"{DataRewards}/RewardFlowConfig.asset";
+            var config = AssetDatabase.LoadAssetAtPath<RewardFlowConfig>(configPath);
+
+            if (config == null)
+            {
+                config = ScriptableObject.CreateInstance<RewardFlowConfig>();
+                AssetDatabase.CreateAsset(config, configPath);
+            }
+
+            config.Cards = cards.ToArray();
+            EditorUtility.SetDirty(config);
+
+            AssetDatabase.SaveAssets();
+
+            Report($"보상 데이터 동기화 완료 (카드 {cards.Count}종)");
+
+            return config;
+        }
+
         // ---------- 7. 전체 에셋 원클릭 ----------
 
         public static void CreateAllAssets()
@@ -851,6 +881,7 @@ namespace Rush.EditorTools
             CreateTowerData();
             CreateMonsterData();
             CreateStageAndDifficultyData();
+            CreateRewardAssets();
             CreatePanelSettings();
 
             Report("전체 에셋 셋업 완료");
@@ -1167,8 +1198,14 @@ namespace Rush.EditorTools
             if (spawner == null)
                 spawner = stageGo.AddComponent<WaveSpawner>();
 
+            var rewards = stageGo.GetComponent<RewardSystem>();
+
+            if (rewards == null)
+                rewards = stageGo.AddComponent<RewardSystem>();
+
             var stageData = AssetDatabase.LoadAssetAtPath<StageData>($"{DataStages}/Stage01.asset");
             var difficulty = AssetDatabase.LoadAssetAtPath<DifficultyPreset>($"{DataDifficulty}/Difficulty_Normal.asset");
+            var rewardConfig = AssetDatabase.LoadAssetAtPath<RewardFlowConfig>($"{DataRewards}/RewardFlowConfig.asset");
 
             // 비어 있는 참조만 채운다 (사용자가 바꿔 둔 난이도 등을 덮어쓰지 않음)
             var so = new SerializedObject(stage);
@@ -1176,7 +1213,13 @@ namespace Rush.EditorTools
             FillIfEmpty(so, "_difficulty", difficulty);
             FillIfEmpty(so, "_path", path);
             FillIfEmpty(so, "_spawner", spawner);
+            FillIfEmpty(so, "_rewards", rewards);
             so.ApplyModifiedPropertiesWithoutUndo();
+
+            var rewardSo = new SerializedObject(rewards);
+            FillIfEmpty(rewardSo, "_stage", stage);
+            FillIfEmpty(rewardSo, "_config", rewardConfig);
+            rewardSo.ApplyModifiedPropertiesWithoutUndo();
 
             return stage;
         }
@@ -1216,10 +1259,16 @@ namespace Rush.EditorTools
             var hud = EnsureComponent<GameHUD>(uiGo);
             var buildMenu = EnsureComponent<BuildMenu>(uiGo);
             var dashboard = EnsureComponent<DebugDashboard>(uiGo);
+            var rewardOverlay = EnsureComponent<RewardOverlay>(uiGo);
 
             var hudSo = new SerializedObject(hud);
             FillIfEmpty(hudSo, "_stage", stage);
             hudSo.ApplyModifiedPropertiesWithoutUndo();
+
+            var overlaySo = new SerializedObject(rewardOverlay);
+            FillIfEmpty(overlaySo, "_stage", stage);
+            FillIfEmpty(overlaySo, "_rewards", stage.GetComponent<RewardSystem>());
+            overlaySo.ApplyModifiedPropertiesWithoutUndo();
 
             var dashSo = new SerializedObject(dashboard);
             FillIfEmpty(dashSo, "_stage", stage);
@@ -1281,6 +1330,7 @@ namespace Rush.EditorTools
             ValidateTowerData(issues);
             ValidateMonsterData(issues);
             ValidateStageData(issues);
+            ValidateRewardData(issues);
             ValidateScene(issues);
 
             if (issues.Count == 0)
@@ -1427,6 +1477,56 @@ namespace Rush.EditorTools
             }
         }
 
+        static void ValidateRewardData(List<string> issues)
+        {
+            var config = AssetDatabase.LoadAssetAtPath<RewardFlowConfig>($"{DataRewards}/RewardFlowConfig.asset");
+
+            if (config == null)
+            {
+                issues.Add("[보상] RewardFlowConfig 없음 (보상 데이터 생성 필요)");
+                return;
+            }
+
+            if (config.Cards == null || config.Cards.Length == 0)
+            {
+                issues.Add("[보상] 카드 풀이 비어 있음");
+                return;
+            }
+
+            int enabledCount = 0;
+
+            foreach (var card in config.Cards)
+            {
+                if (card == null)
+                {
+                    issues.Add("[보상] 카드 풀에 빈 항목이 있음");
+                    continue;
+                }
+
+                if (!card.Enabled)
+                    continue;
+
+                enabledCount++;
+
+                if (card.Effect == RewardEffectType.None)
+                    issues.Add($"[보상] {card.Id}: 효과 미지정인데 활성 상태");
+
+                if (card.Effect == RewardEffectType.DamageRangeNarrow)
+                    issues.Add($"[보상] {card.Id}: 미구현 효과(피해 범위)인데 활성 상태");
+
+                if (card.StackLimit < 1)
+                    issues.Add($"[보상] {card.Id}: StackLimit이 1 미만");
+            }
+
+            if (enabledCount == 0)
+                issues.Add("[보상] 활성 카드가 하나도 없음");
+
+            float weightSum = config.WeightCommon + config.WeightRare + config.WeightHeroic + config.WeightLegendary;
+
+            if (weightSum <= 0f)
+                issues.Add("[보상] 등급 가중치 합이 0");
+        }
+
         static void ValidateScene(List<string> issues)
         {
             if (EditorSceneManager.GetActiveScene().path != ScenePath)
@@ -1444,13 +1544,33 @@ namespace Rush.EditorTools
             }
 
             var so = new SerializedObject(stage);
-            string[] fields = { "_stageData", "_difficulty", "_path", "_spawner" };
+            string[] fields = { "_stageData", "_difficulty", "_path", "_spawner", "_rewards" };
 
             foreach (var field in fields)
             {
                 if (so.FindProperty(field).objectReferenceValue == null)
                     issues.Add($"[씬] StageController.{field} 참조 비어 있음");
             }
+
+            var rewards = UnityEngine.Object.FindFirstObjectByType<RewardSystem>();
+
+            if (rewards == null)
+            {
+                issues.Add("[씬] RewardSystem 없음");
+            }
+            else
+            {
+                var rewardSo = new SerializedObject(rewards);
+
+                if (rewardSo.FindProperty("_config").objectReferenceValue == null)
+                    issues.Add("[씬] RewardSystem._config 참조 비어 있음");
+
+                if (rewardSo.FindProperty("_stage").objectReferenceValue == null)
+                    issues.Add("[씬] RewardSystem._stage 참조 비어 있음");
+            }
+
+            if (UnityEngine.Object.FindFirstObjectByType<RewardOverlay>() == null)
+                issues.Add("[씬] RewardOverlay(GameUI) 없음");
 
             var path = UnityEngine.Object.FindFirstObjectByType<PathRoute>();
 
