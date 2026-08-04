@@ -32,6 +32,13 @@ namespace Rush.Combat
         readonly List<Monster> _blocking = new List<Monster>(4);
 
         InfantryTower _owner;
+
+        // 기본값(난이도 포함, 보상 제외). 보상 배율은 매번 조회해 곱한다 - 이미 배치된 병사도 즉시 반영.
+        float _baseMaxHp;
+        float _baseDamage;
+        float _baseEngageRange;
+        int _modsVersion = -1;
+
         float _maxHp;
         float _damage;
         float _attackInterval;
@@ -78,15 +85,17 @@ namespace Rush.Combat
             return best;
         }
 
-        public void Initialize(InfantryTower owner, float hp, float damage, float attackInterval,
-            Vector3 rallyPoint, float engageRange)
+        public void Initialize(InfantryTower owner, float baseHp, float baseDamage, float attackInterval,
+            Vector3 rallyPoint, float baseEngageRange)
         {
             _owner = owner;
-            _maxHp = hp;
-            _damage = damage;
+            _baseMaxHp = baseHp;
+            _baseDamage = baseDamage;
+            _baseEngageRange = baseEngageRange;
             _attackInterval = attackInterval;
             _rallyPoint = rallyPoint;
-            _engageRange = engageRange;
+
+            RefreshMods();
 
             Hp = _maxHp;
             IsAlive = true;
@@ -106,10 +115,31 @@ namespace Rush.Combat
             _active.Remove(this);
         }
 
+        /// <summary>보상 배율을 기본값에 적용한다. 카드 획득/수치 변경 시 기존 병사도 따라온다.</summary>
+        void RefreshMods()
+        {
+            _modsVersion = RewardSystem.StatVersion;
+
+            var mods = RewardSystem.GetStatMods(TowerType.Infantry);
+
+            float newMax = _baseMaxHp * mods.SoldierHpMul;
+
+            // 최대 체력이 바뀌면 현재 체력은 비율을 유지한다
+            if (_maxHp > 0f && !Mathf.Approximately(newMax, _maxHp))
+                Hp = Hp / _maxHp * newMax;
+
+            _maxHp = newMax;
+            _damage = _baseDamage * mods.SoldierDamageMul;
+            _engageRange = _baseEngageRange * mods.RallyRangeMul;
+        }
+
         void Update()
         {
             if (!IsAlive)
                 return;
+
+            if (_modsVersion != RewardSystem.StatVersion)
+                RefreshMods();
 
             TickLunge();
 
@@ -172,6 +202,10 @@ namespace Rush.Combat
             if (!_blocking.Contains(_target))
                 _target.TryBlock(this);
 
+            // 다중 저지(B1A): 여유가 있으면 근접한 미저지 몬스터를 추가로 붙잡는다
+            if (CanBlockMore())
+                TryBlockNearby();
+
             _attackTimer -= Time.deltaTime;
 
             if (_attackTimer > 0f)
@@ -186,6 +220,28 @@ namespace Rush.Combat
 
             // 보상(B1B): 병사 공격이 확률로 적을 밀어내고, 밀린 적은 저지가 풀린다
             RewardSystem.TrySoldierKnockback(_target);
+        }
+
+        /// <summary>병사 바로 옆까지 온 미저지 지상 몬스터를 한 기 더 저지한다 (프레임당 1기).</summary>
+        void TryBlockNearby()
+        {
+            float reach = MeleeRange * 1.6f;
+            float reachSqr = reach * reach;
+
+            foreach (var monster in MonsterRegistry.Active)
+            {
+                if (monster == null || !monster.IsAlive || monster.IsBlocked)
+                    continue;
+
+                if (monster.Data.IsFlying)
+                    continue;
+
+                if ((monster.transform.position - transform.position).sqrMagnitude > reachSqr)
+                    continue;
+
+                monster.TryBlock(this);
+                return;
+            }
         }
 
         /// <summary>공격 순간 비주얼만 앞으로 찔렀다가 되돌아온다.</summary>

@@ -338,7 +338,7 @@ namespace Rush.Combat
                 Speed = extras.ProcSpeed,
                 Damage = stat.Damage * mods.DamageMul * extras.ProcDamageScale,
                 ArmorPierce = stat.ArmorPierce,
-                SplashRadius = extras.ProcSplashRadius,
+                SplashRadius = extras.ProcSplashRadius * mods.SplashMul,
                 SlowPercent = 0f,
                 SlowDuration = 0f,
                 Source = DamageSource.FromTower(this, DamageTag.Splash, $"{stat.DisplayName} 추가탄"),

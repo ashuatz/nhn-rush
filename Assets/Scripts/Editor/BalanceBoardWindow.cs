@@ -28,7 +28,48 @@ namespace Rush.EditorTools
         TextField _search;
         Label _summary;
         bool _building;
-        bool _pendingSave;
+
+        /// <summary>
+        /// 플레이 중 편집분의 저장 대기 플래그. 창 인스턴스가 아니라 static으로 들고,
+        /// 에디터 로드 시 등록되는 정적 훅이 플레이 종료 시점에 저장한다.
+        /// 창을 닫아도 저장이 유실되지 않는다.
+        /// </summary>
+        static bool s_pendingSave;
+
+        [InitializeOnLoadMethod]
+        static void HookPlayModeSave()
+        {
+            EditorApplication.playModeStateChanged += change =>
+            {
+                if (change == PlayModeStateChange.EnteredEditMode)
+                    SavePendingStatic();
+            };
+        }
+
+        static void SavePendingStatic()
+        {
+            if (!s_pendingSave)
+                return;
+
+            s_pendingSave = false;
+
+            var guids = AssetDatabase.FindAssets("t:RewardDefinition", new[] { RewardFolder });
+
+            foreach (var guid in guids)
+            {
+                var card = AssetDatabase.LoadAssetAtPath<RewardDefinition>(AssetDatabase.GUIDToAssetPath(guid));
+
+                if (card != null)
+                    AssetDatabase.SaveAssetIfDirty(card);
+            }
+
+            var config = LoadConfig();
+
+            if (config != null)
+                AssetDatabase.SaveAssetIfDirty(config);
+
+            Debug.Log("[Rush] 플레이 중 조정한 밸런스 수치를 에셋에 저장함");
+        }
 
         [MenuItem("Rush/Balance Board")]
         public static void Open()
@@ -50,10 +91,10 @@ namespace Rush.EditorTools
 
         void OnPlayModeChanged(PlayModeStateChange change)
         {
+            // 저장은 static 훅이 담당한다. 여기서는 UI만 최신 값으로 다시 그린다.
             if (change != PlayModeStateChange.EnteredEditMode)
                 return;
 
-            SavePending();
             RebuildCardList();
         }
 
@@ -66,30 +107,11 @@ namespace Rush.EditorTools
 
             if (EditorApplication.isPlayingOrWillChangePlaymode)
             {
-                _pendingSave = true;
+                s_pendingSave = true;
                 return;
             }
 
             AssetDatabase.SaveAssetIfDirty(asset);
-        }
-
-        void SavePending()
-        {
-            if (!_pendingSave)
-                return;
-
-            _pendingSave = false;
-
-            foreach (var card in _cards)
-            {
-                if (card != null)
-                    AssetDatabase.SaveAssetIfDirty(card);
-            }
-
-            var config = LoadConfig();
-
-            if (config != null)
-                AssetDatabase.SaveAssetIfDirty(config);
         }
 
         static RewardFlowConfig LoadConfig()

@@ -240,6 +240,10 @@ namespace Rush.Stage
             if (AllWavesStarted)
                 return;
 
+            // 보상 대기 중 패배/승리가 확정됐다면 뒤늦게 도착한 재개 콜백을 무시한다
+            if (Phase == StagePhase.Victory || Phase == StagePhase.Defeat)
+                return;
+
             _waveIndex++;
             _nextWaveTimer = _stageData.WaveInterval;
             Phase = StagePhase.Running;
@@ -351,6 +355,10 @@ namespace Rush.Stage
                 Phase = StagePhase.Defeat;
                 _spawner.StopAll();
 
+                // 열려 있던 보상 제시는 무효 (선택해도 웨이브가 시작되면 안 된다)
+                if (_rewards != null)
+                    _rewards.CancelOffer();
+
                 GameLog.Info("Stage", "패배 - 생명 소진");
             }
 
@@ -371,6 +379,10 @@ namespace Rush.Stage
 
         void ApplySpeed()
         {
+            // 보상 선택(디밍) 중에는 정지를 유지한다. 배속 인덱스만 바뀌고 닫힐 때 반영된다.
+            if (_rewards != null && _rewards.OfferActive)
+                return;
+
             Time.timeScale = SpeedSteps[_speedIndex];
         }
 

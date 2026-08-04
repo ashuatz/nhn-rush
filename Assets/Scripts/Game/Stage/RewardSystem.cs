@@ -33,6 +33,20 @@ namespace Rush.Stage
 
         public bool OfferActive { get; private set; }
 
+        /// <summary>보유 카드 구성이 바뀔 때마다 증가. 스탯을 스냅샷한 개체(병사)가 갱신 시점을 감지한다.</summary>
+        public int Version { get; private set; }
+
+        public static int StatVersion
+        {
+            get
+            {
+                if (Active == null)
+                    return 0;
+
+                return Active.Version;
+            }
+        }
+
         public IReadOnlyList<RewardDefinition> CurrentOffer => _offer;
 
         public int RerollsLeft => _rerollsLeft;
@@ -259,6 +273,7 @@ namespace Rush.Stage
 
             _stacks.TryGetValue(card, out int count);
             _stacks[card] = count + 1;
+            Version++;
 
             ApplyImmediate(card);
 
@@ -326,6 +341,22 @@ namespace Rush.Stage
             _pendingProceed = null;
 
             proceed?.Invoke();
+        }
+
+        /// <summary>제시를 무효화한다 (패배 확정 등). 재개 콜백은 버려진다.</summary>
+        public void CancelOffer()
+        {
+            if (!OfferActive)
+                return;
+
+            OfferActive = false;
+            _offer.Clear();
+            _pendingProceed = null;
+
+            if (_stage != null)
+                _stage.ReapplySpeed();
+
+            OfferChanged?.Invoke();
         }
 
         void ApplyImmediate(RewardDefinition card)
