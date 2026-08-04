@@ -14,13 +14,18 @@ namespace Rush.Combat
     public abstract class Tower : MonoBehaviour
     {
         const string VisualName = "Visual";
+        const string TierVisualsName = "TierVisuals";
         const float BaseSellRefundFraction = 0.9f;
+
+        /// <summary>레벨 수가 티어 모델 수보다 많을 때(Lv4 = 3티어 재사용) 최상위 티어를 키우는 배율.</summary>
+        const float ReusedTierScaleStep = 0.12f;
 
         static readonly List<Tower> _activeTowers = new List<Tower>();
         static readonly List<Monster> _bonusTargets = new List<Monster>(8);
 
         float _cooldown;
         Transform _visual;
+        Transform _tierVisuals;
 
         // 연속 타격 보상(C08) 상태
         Monster _consecutiveTarget;
@@ -116,6 +121,7 @@ namespace Rush.Combat
             TotalInvested = data.Levels[0].Cost;
 
             _visual = transform.Find(VisualName);
+            _tierVisuals = transform.Find(TierVisualsName);
 
             _activeTowers.Add(this);
 
@@ -151,14 +157,50 @@ namespace Rush.Combat
             StopAllCoroutines();
         }
 
-        /// <summary>레벨 변화 시 더미 비주얼 스케일로 단계를 표현한다 (리소스 교체 전까지).</summary>
+        /// <summary>
+        /// 레벨 변화 시 비주얼 갱신.
+        /// 티어 모델(TierVisuals 자식)이 있으면 레벨에 맞는 티어만 켠다.
+        /// 레벨이 티어 수를 넘으면(Lv4 = 3티어) 최상위 티어를 재사용하고 살짝 키워 구분한다.
+        /// 티어 모델이 없으면 예전 방식(더미 큐브 스케일)으로 폴백한다.
+        /// </summary>
         protected virtual void OnLevelChanged()
         {
+            if (_tierVisuals != null && _tierVisuals.childCount > 0)
+            {
+                ApplyTierVisual();
+                return;
+            }
+
             if (_visual == null)
                 return;
 
             float scale = 1f + LevelIndex * 0.15f;
             _visual.localScale = new Vector3(scale, scale, scale);
+        }
+
+        void ApplyTierVisual()
+        {
+            // 더미 큐브는 티어 모델이 있으면 항상 끈다
+            if (_visual != null)
+                _visual.gameObject.SetActive(false);
+
+            int tierCount = _tierVisuals.childCount;
+            int tierIndex = Mathf.Min(LevelIndex, tierCount - 1);
+            int reusedSteps = Mathf.Max(0, LevelIndex - (tierCount - 1));
+
+            for (int i = 0; i < tierCount; i++)
+            {
+                var tier = _tierVisuals.GetChild(i);
+                bool active = i == tierIndex;
+
+                tier.gameObject.SetActive(active);
+
+                if (!active)
+                    continue;
+
+                float scale = 1f + reusedSteps * ReusedTierScaleStep;
+                tier.localScale = new Vector3(scale, scale, scale);
+            }
         }
 
         protected virtual void Update()

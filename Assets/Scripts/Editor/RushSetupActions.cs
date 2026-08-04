@@ -331,6 +331,260 @@ namespace Rush.EditorTools
             return prefab;
         }
 
+        // ---------- 2-1. 아트 모델 적용 ----------
+
+        const string FbxEnvironment = "Assets/fbx/environment";
+        const string FbxCharacter = "Assets/fbx/character";
+
+        /// <summary>
+        /// fbx 아트 모델을 프리팹에 배선한다. 머티리얼은 건드리지 않는다 (임포트 상태 그대로).
+        /// 타워: TierVisuals/Tier1~3 자식으로 주입하고 더미 큐브는 끈다 (레벨별 온오프는 Tower가 처리).
+        /// 병사: Visual 노드 아래에 모델을 넣고 큐브 렌더러만 끈다 (런지 모션 유지).
+        /// 재실행하면 기존 주입분을 지우고 다시 만든다.
+        /// </summary>
+        public static void ApplyArtModels()
+        {
+            InjectTowerTiers("Tower_Archer", "archertower", 1.5f);
+            InjectTowerTiers("Tower_Infantry", "barracktower", 1.5f);
+            InjectTowerTiers("Tower_Mage", "magiciantower", 1.6f);
+            InjectTowerTiers("Tower_Artillery", "cannontower", 1.4f);
+
+            InjectSoldierModel();
+
+            AssetDatabase.SaveAssets();
+
+            Report("아트 모델 적용 완료 (머티리얼은 임포트 상태 유지)");
+        }
+
+        static void InjectTowerTiers(string prefabName, string fbxFamily, float targetHeight)
+        {
+            string prefabPath = $"{PrefabDir}/{prefabName}.prefab";
+
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) == null)
+            {
+                Report($"{prefabName}: 프리팹이 없어 건너뜀 (더미 프리팹 먼저 생성)");
+                return;
+            }
+
+            var contents = PrefabUtility.LoadPrefabContents(prefabPath);
+
+            var oldTiers = contents.transform.Find("TierVisuals");
+
+            if (oldTiers != null)
+                UnityEngine.Object.DestroyImmediate(oldTiers.gameObject);
+
+            var tierRoot = new GameObject("TierVisuals");
+            tierRoot.transform.SetParent(contents.transform);
+            tierRoot.transform.localPosition = Vector3.zero;
+
+            int injected = 0;
+
+            for (int tier = 1; tier <= 3; tier++)
+            {
+                string fbxPath = $"{FbxEnvironment}/{fbxFamily}/{fbxFamily}0{tier}/{fbxFamily}0{tier}.fbx";
+                var model = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
+
+                if (model == null)
+                {
+                    Report($"{prefabName}: {fbxPath} 없음 - 티어 {tier} 건너뜀");
+                    continue;
+                }
+
+                var wrapper = new GameObject($"Tier{tier}");
+                wrapper.transform.SetParent(tierRoot.transform);
+                wrapper.transform.localPosition = Vector3.zero;
+
+                var instance = (GameObject)PrefabUtility.InstantiatePrefab(model, wrapper.transform);
+                instance.transform.localPosition = Vector3.zero;
+                instance.transform.localRotation = Quaternion.identity;
+
+                NormalizeToHeight(instance.transform, targetHeight, bottomY: 0f);
+                StripColliders(instance);
+
+                // 기본은 1티어만 보이게. 런타임에는 Tower.OnLevelChanged가 다시 정한다.
+                wrapper.SetActive(tier == 1);
+
+                injected++;
+            }
+
+            // 더미 큐브는 티어 모델이 하나라도 있으면 꺼 둔다 (없으면 폴백으로 유지)
+            var visual = contents.transform.Find("Visual");
+
+            if (visual != null)
+                visual.gameObject.SetActive(injected == 0);
+
+            if (injected == 0)
+                UnityEngine.Object.DestroyImmediate(tierRoot);
+
+            PrefabUtility.SaveAsPrefabAsset(contents, prefabPath);
+            PrefabUtility.UnloadPrefabContents(contents);
+
+            Report($"{prefabName}: 티어 모델 {injected}개 주입");
+        }
+
+        static void InjectSoldierModel()
+        {
+            string prefabPath = $"{PrefabDir}/Soldier.prefab";
+            string fbxPath = $"{FbxCharacter}/soldier.fbx";
+
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
+
+            if (model == null)
+            {
+                Report($"Soldier: {fbxPath} 없음 - 건너뜀");
+                return;
+            }
+
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) == null)
+            {
+                Report("Soldier: 프리팹이 없어 건너뜀");
+                return;
+            }
+
+            var contents = PrefabUtility.LoadPrefabContents(prefabPath);
+            var visual = contents.transform.Find("Visual");
+
+            if (visual == null)
+            {
+                PrefabUtility.UnloadPrefabContents(contents);
+                Report("Soldier: Visual 노드가 없어 건너뜀");
+                return;
+            }
+
+            var oldModel = visual.Find("Model");
+
+            if (oldModel != null)
+                UnityEngine.Object.DestroyImmediate(oldModel.gameObject);
+
+            // 큐브 렌더러만 끈다. Visual 트랜스폼은 런지 모션이 계속 쓴다.
+            var cubeRenderer = visual.GetComponent<MeshRenderer>();
+
+            if (cubeRenderer != null)
+                cubeRenderer.enabled = false;
+
+            var wrapper = new GameObject("Model");
+            wrapper.transform.SetParent(visual);
+            wrapper.transform.localPosition = Vector3.zero;
+
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(model, wrapper.transform);
+            instance.transform.localPosition = Vector3.zero;
+            instance.transform.localRotation = Quaternion.identity;
+
+            // 병사 루트는 지면(y=0)에 서고 Visual은 위로 떠 있으므로, 모델 바닥을 지면에 맞춘다
+            NormalizeToHeight(instance.transform, 0.9f, bottomY: -visual.localPosition.y);
+            StripColliders(instance);
+
+            PrefabUtility.SaveAsPrefabAsset(contents, prefabPath);
+            PrefabUtility.UnloadPrefabContents(contents);
+
+            Report("Soldier: 캐릭터 모델 주입 (애니메이션은 아직 미셋업)");
+        }
+
+        /// <summary>
+        /// 렌더러 바운드 기준으로 목표 높이에 맞게 균등 스케일하고,
+        /// 바닥이 부모 로컬 bottomY, 수평 중심이 0이 되도록 위치를 보정한다.
+        /// </summary>
+        static void NormalizeToHeight(Transform instance, float targetHeight, float bottomY)
+        {
+            var bounds = CalculateRendererBounds(instance);
+
+            if (bounds.size.y <= 0.0001f)
+                return;
+
+            float scale = targetHeight / bounds.size.y;
+            instance.localScale = instance.localScale * scale;
+
+            // 스케일 반영 후 바운드를 다시 재서 바닥/중심을 맞춘다
+            bounds = CalculateRendererBounds(instance);
+
+            Vector3 offset = new Vector3(-bounds.center.x, bottomY - bounds.min.y, -bounds.center.z);
+            instance.localPosition += offset;
+        }
+
+        static Bounds CalculateRendererBounds(Transform root)
+        {
+            var renderers = root.GetComponentsInChildren<Renderer>(true);
+
+            if (renderers.Length == 0)
+                return new Bounds(root.position, Vector3.zero);
+
+            var bounds = renderers[0].bounds;
+
+            for (int i = 1; i < renderers.Length; i++)
+                bounds.Encapsulate(renderers[i].bounds);
+
+            return bounds;
+        }
+
+        /// <summary>모델에 딸려 온 콜라이더는 슬롯 클릭 레이캐스트를 방해하므로 제거한다.</summary>
+        static void StripColliders(GameObject root)
+        {
+            foreach (var collider in root.GetComponentsInChildren<Collider>(true))
+                UnityEngine.Object.DestroyImmediate(collider);
+        }
+
+        /// <summary>씬의 타워 슬롯 비주얼을 towerbase 모델로 교체한다 (있을 때만).</summary>
+        public static void UpgradeSlotVisuals()
+        {
+            string fbxPath = $"{FbxEnvironment}/towerbase/towerbase/towerbase.fbx";
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
+
+            if (model == null)
+            {
+                Report("towerbase 모델 없음 - 슬롯 비주얼 유지");
+                return;
+            }
+
+            var slots = UnityEngine.Object.FindObjectsByType<TowerSlot>(FindObjectsSortMode.None);
+            int upgraded = 0;
+
+            foreach (var slot in slots)
+            {
+                var visual = slot.transform.Find("Visual");
+
+                // 이미 모델 기반이면 건너뛴다 (큐브 프리미티브만 교체)
+                if (visual != null && visual.GetComponent<MeshFilter>() == null)
+                    continue;
+
+                if (visual != null)
+                    UnityEngine.Object.DestroyImmediate(visual.gameObject);
+
+                var wrapper = new GameObject("Visual");
+                wrapper.transform.SetParent(slot.transform);
+                wrapper.transform.localPosition = Vector3.zero;
+
+                var instance = (GameObject)PrefabUtility.InstantiatePrefab(model, wrapper.transform);
+                instance.transform.localPosition = Vector3.zero;
+                instance.transform.localRotation = Quaternion.identity;
+
+                NormalizeSlotBase(instance.transform);
+                StripColliders(instance);
+
+                upgraded++;
+            }
+
+            if (upgraded > 0)
+                Report($"슬롯 비주얼 {upgraded}개를 towerbase 모델로 교체");
+        }
+
+        /// <summary>슬롯 받침은 높이가 아니라 발자국(가로세로 1.1)에 맞춰 정규화한다.</summary>
+        static void NormalizeSlotBase(Transform instance)
+        {
+            var bounds = CalculateRendererBounds(instance);
+            float footprint = Mathf.Max(bounds.size.x, bounds.size.z);
+
+            if (footprint <= 0.0001f)
+                return;
+
+            float scale = 1.1f / footprint;
+            instance.localScale = instance.localScale * scale;
+
+            bounds = CalculateRendererBounds(instance);
+
+            Vector3 offset = new Vector3(-bounds.center.x, -bounds.min.y, -bounds.center.z);
+            instance.localPosition += offset;
+        }
+
         // ---------- 3. 타워 데이터 ----------
 
         public static void CreateTowerData()
@@ -878,6 +1132,7 @@ namespace Rush.EditorTools
         {
             CreateFolders();
             CreateDummyPrefabs();
+            ApplyArtModels();
             CreateTowerData();
             CreateMonsterData();
             CreateStageAndDifficultyData();
@@ -916,6 +1171,7 @@ namespace Rush.EditorTools
             var path = SetupPath();
             BakePathVisual(path);
             SetupSlots();
+            UpgradeSlotVisuals();
             var stage = SetupStageController(path);
             SetupGameUI(stage);
 
