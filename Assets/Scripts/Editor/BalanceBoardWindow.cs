@@ -155,19 +155,18 @@ namespace Rush.EditorTools
             body.Add(IntRow("첫 보상 웨이브", config.FirstRewardWave, v => { config.FirstRewardWave = Mathf.Max(1, v); MarkDirty(config); }));
             body.Add(IntRow("N웨이브마다", config.EveryNWaves, v => { config.EveryNWaves = Mathf.Max(1, v); MarkDirty(config); }));
             body.Add(IntRow("제시 카드 수", config.CardsPerOffer, v => { config.CardsPerOffer = Mathf.Clamp(v, 1, 5); MarkDirty(config); }));
-            body.Add(IntRow("다시뽑기 횟수", config.RerollsPerOffer, v => { config.RerollsPerOffer = Mathf.Max(0, v); MarkDirty(config); }));
+            body.Add(IntRow("다시뽑기 (판 전체)", config.RerollsPerRun, v => { config.RerollsPerRun = Mathf.Max(0, v); MarkDirty(config); }));
             body.Add(IntRow("다시뽑기 비용", config.RerollCost, v => { config.RerollCost = Mathf.Max(0, v); MarkDirty(config); }));
-            body.Add(IntRow("건너뛰기 골드", config.SkipGold, v => { config.SkipGold = Mathf.Max(0, v); MarkDirty(config); }));
 
-            body.Add(Note("등급 가중치 (일반/희귀/영웅/전설)"));
+            body.Add(Note("등급 목표 확률 % (일반/희귀/영웅/전설) - 카드 가중치 = 목표 확률 / 등급 풀 개수"));
 
             var weightRow = new VisualElement();
             weightRow.style.flexDirection = FlexDirection.Row;
 
-            weightRow.Add(WeightField(config.WeightCommon, v => { config.WeightCommon = v; MarkDirty(config); }));
-            weightRow.Add(WeightField(config.WeightRare, v => { config.WeightRare = v; MarkDirty(config); }));
-            weightRow.Add(WeightField(config.WeightHeroic, v => { config.WeightHeroic = v; MarkDirty(config); }));
-            weightRow.Add(WeightField(config.WeightLegendary, v => { config.WeightLegendary = v; MarkDirty(config); }));
+            weightRow.Add(WeightField(config.TargetCommon, v => { config.TargetCommon = v; MarkDirty(config); }));
+            weightRow.Add(WeightField(config.TargetRare, v => { config.TargetRare = v; MarkDirty(config); }));
+            weightRow.Add(WeightField(config.TargetHeroic, v => { config.TargetHeroic = v; MarkDirty(config); }));
+            weightRow.Add(WeightField(config.TargetLegendary, v => { config.TargetLegendary = v; MarkDirty(config); }));
 
             body.Add(weightRow);
 

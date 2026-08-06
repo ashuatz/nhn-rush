@@ -22,6 +22,25 @@ namespace Rush.Combat
 
         /// <summary>처치 시 추가 발사를 요청할 타워. 추가 발사로 생긴 발사체는 비워 둔다.</summary>
         public Tower BonusOwner;
+
+        // ---------- 분기 스킬 부가 효과 (막증축 타워 스킬 정리) ----------
+
+        /// <summary>헤드샷: 착탄 후 생존한 일반 몬스터 즉사 확률.</summary>
+        public float InstantKillChance;
+
+        /// <summary>급조 철갑탄: 물리 방어 1단계 영구 감소 확률.</summary>
+        public float PhysShredChance;
+
+        /// <summary>길잃은 방랑자: 시작 지점으로 되돌릴 확률 (보스 제외).</summary>
+        public float TeleportChance;
+
+        /// <summary>집속로켓: 착탄 시 기절 시간.</summary>
+        public float StunDuration;
+
+        /// <summary>용의 숨결: 착탄 지점 화염 장판 (초당 피해 / 지속 / 반경).</summary>
+        public float GroundFireDps;
+        public float GroundFireSeconds;
+        public float GroundFireRadius;
     }
 
     /// <summary>
@@ -152,6 +171,11 @@ namespace Rush.Combat
 
             SpawnBurst(transform.position);
 
+            // 용의 숨결: 착탄 지점에 화염 장판을 남긴다
+            if (_config.GroundFireDps > 0f)
+                FireZone.Spawn(_lastTargetPos, _config.GroundFireRadius, _config.GroundFireDps,
+                    _config.GroundFireSeconds, _config.Source, _config.ImpactPrefab);
+
             if (killed != null)
                 RequestBonusShots(killPosition, killed);
 
@@ -202,19 +226,52 @@ namespace Rush.Combat
 
             DamageResolver.Apply(_target, _config.Damage, _config.DamageType, _config.ArmorPierce, _config.Source);
 
+            // 헤드샷: 생존한 일반 몬스터 즉사 확률
+            if (_target != null && _target.IsAlive && _config.InstantKillChance > 0f && !_target.Data.IsBoss)
+            {
+                if (Random.value < _config.InstantKillChance)
+                {
+                    GameLog.Info("Skill", $"{_config.Source.Label} 즉사 발동 -> {_target.Data.DisplayName}");
+                    DamageResolver.Apply(_target, _target.Hp + 1f, DamageType.True, 0f, _config.Source);
+                }
+            }
+
             if (_target != null && _target.IsAlive)
             {
                 if (_config.SlowPercent > 0f)
                     _target.ApplySlow(_config.SlowPercent, _config.SlowDuration);
 
+                ApplyBranchRiders(_target);
                 RewardSystem.ApplyOnHitRiders(_config.Source, _target);
 
                 return null;
             }
 
+            NotifyKillToSourceTower();
+
             killPosition = hitPosition;
 
             return _target;
+        }
+
+        /// <summary>분기 스킬 착탄 효과 (생존한 표적 대상): 방깎 / 귀환 / 기절.</summary>
+        void ApplyBranchRiders(Monster target)
+        {
+            if (_config.PhysShredChance > 0f && Random.value < _config.PhysShredChance)
+                target.LowerPhysStage();
+
+            if (_config.TeleportChance > 0f && !target.Data.IsBoss && Random.value < _config.TeleportChance)
+                target.TeleportToStart();
+
+            if (_config.StunDuration > 0f)
+                target.ApplyStun(_config.StunDuration, 1f);
+        }
+
+        /// <summary>처치를 출처 타워에 알린다 (피의 향연 트리거).</summary>
+        void NotifyKillToSourceTower()
+        {
+            if (_config.Source.Tower != null)
+                _config.Source.Tower.NotifyKillByThisTower();
         }
 
         Monster ImpactSplash(float damage, out Vector3 killPosition)
@@ -269,6 +326,7 @@ namespace Rush.Combat
                     if (_config.SlowPercent > 0f)
                         monster.ApplySlow(_config.SlowPercent, _config.SlowDuration);
 
+                    ApplyBranchRiders(monster);
                     RewardSystem.ApplyOnHitRiders(_config.Source, monster);
                     continue;
                 }
@@ -278,6 +336,9 @@ namespace Rush.Combat
                 killPosition = hitPosition;
                 _killPositions.Add(hitPosition);
             }
+
+            if (killed != null)
+                NotifyKillToSourceTower();
 
             // 연쇄 반응(G02): 광역 처치마다 그 자리에서 한 번 더 터진다 (연쇄의 연쇄는 없음)
             if (_killPositions.Count > 0 && RewardSystem.TryGetChainExplosion(_config.Source, out float chainFraction, out float chainRadius))

@@ -34,10 +34,23 @@ namespace Rush.Combat
         Soldier _blockedBy;
         float _meleeTimer;
         float _rangedTimer;
+        float _statMultiplier = 1f;
 
         public MonsterData Data { get; private set; }
         public float Hp { get; private set; }
         public float MaxHp { get; private set; }
+
+        /// <summary>웨이브 배수가 반영된 킬 보상. 스프레드시트(적 스탯 스케일링).</summary>
+        public int GoldReward => ScaledGold(Data, _statMultiplier);
+
+        /// <summary>
+        /// 배수 반영 킬 보상(=적 단가)의 단일 계산 창구.
+        /// 웨이브 예산 구성(WaveSpawner)과 실제 지급이 같은 값을 쓰게 해 예산 상한이 유지된다.
+        /// </summary>
+        public static int ScaledGold(MonsterData data, float statMultiplier)
+        {
+            return Mathf.RoundToInt(data.GoldReward * statMultiplier);
+        }
 
         /// <summary>경로 진행 거리 (정확한 값). 타워 타겟팅 우선순위에 쓴다.</summary>
         public float PathProgress => _distance;
@@ -63,7 +76,7 @@ namespace Rush.Combat
             }
         }
 
-        /// <summary>물리 방어 런타임 단계. 0=없음, 1~4=낮음~매우높음, 5=면역.</summary>
+        /// <summary>물리 방어 런타임 단계. 0=없음 ~ 4=면역 (단계당 25% 감쇄).</summary>
         public int PhysStage { get; private set; }
 
         /// <summary>마법 저항 런타임 단계. 보상으로 영구 하락 가능.</summary>
@@ -75,20 +88,22 @@ namespace Rush.Combat
         /// <summary>마지막 피격 시점에 통제(감속/저지) 상태였는지. 사망 시 저지가 풀려도 판정이 남는다.</summary>
         public bool ControlledAtLastHit { get; private set; }
 
-        public void Initialize(MonsterData data, PathRoute route, float hpMultiplier,
+        public void Initialize(MonsterData data, PathRoute route, float hpMultiplier, float statMultiplier,
             Action<Monster> onDied, Action<Monster> onReachedExit)
         {
             Data = data;
             _route = route;
             _onDied = onDied;
             _onReachedExit = onReachedExit;
+            _statMultiplier = Mathf.Max(0.01f, statMultiplier);
 
-            MaxHp = data.MaxHp * hpMultiplier;
+            // 웨이브 배수는 체력/공격력/킬 보상에만 곱한다. 방어 단계는 그대로.
+            MaxHp = data.MaxHp * hpMultiplier * _statMultiplier;
             Hp = MaxHp;
             IsAlive = true;
 
-            PhysStage = (int)data.PhysicalDefense + 1;
-            MagicStage = (int)data.MagicalDefense + 1;
+            PhysStage = (int)data.PhysicalDefense;
+            MagicStage = (int)data.MagicalDefense;
 
             // 이동속도가 0 이하면 출구에도 못 가고 죽지도 않아 승패 판정이 막힌다
             _moveSpeed = data.MoveSpeed;
@@ -181,13 +196,13 @@ namespace Rush.Combat
                 GameLog.Info("Dmg", $"{Data.DisplayName} 원거리 -> 병사: {Data.RangedDamage:F0}");
         }
 
-        /// <summary>통제 상태 공격력 감소 보상(C11) 반영.</summary>
+        /// <summary>웨이브 스탯 배수 x 통제 상태 공격력 감소 보상(C11).</summary>
         float AttackMultiplier()
         {
             if (!IsControlled)
-                return 1f;
+                return _statMultiplier;
 
-            return 1f - RewardSystem.ControlledAttackReduction();
+            return _statMultiplier * (1f - RewardSystem.ControlledAttackReduction());
         }
 
         void Move()
@@ -297,6 +312,35 @@ namespace Rush.Combat
 
             _stunUntil = Time.time + duration;
             _stunImmuneUntil = _stunUntil + immunitySeconds;
+        }
+
+        /// <summary>웨이브 배수가 반영된 근접 공격력. 분기 스킬(정신차려!)이 읽는다.</summary>
+        public float ScaledAttackDamage => Data.MeleeDamage * _statMultiplier;
+
+        /// <summary>물리 방어 단계를 영구히 한 단계 낮춘다 (최소 0). 급조 철갑탄.</summary>
+        public void LowerPhysStage()
+        {
+            if (PhysStage <= 0)
+                return;
+
+            PhysStage--;
+
+            if (GameLog.VerboseCombat)
+                GameLog.Info("Dmg", $"{Data.DisplayName} 물리 방어 하락 -> {PhysStage}단계");
+        }
+
+        /// <summary>경로 시작 지점으로 되돌린다 (길잃은 방랑자). 저지 중이면 풀린다.</summary>
+        public void TeleportToStart()
+        {
+            if (!IsAlive)
+                return;
+
+            ReleaseFromBlocker();
+
+            _distance = 0f;
+            transform.position = _route.GetPositionAtDistance(0f) + Vector3.up * _yOffset;
+
+            GameLog.Info("Skill", $"{Data.DisplayName} 시작 지점으로 귀환");
         }
 
         /// <summary>마법 저항 단계를 영구히 한 단계 낮춘다 (최소 0).</summary>

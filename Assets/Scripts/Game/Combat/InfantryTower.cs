@@ -93,8 +93,13 @@ namespace Rush.Combat
         {
             // 충원 속도 보상(C05): 속도가 오르면 시간이 줄어든다
             float speedMul = RewardSystem.GetStatMods(Data.Type).SoldierRespawnMul;
+            float seconds = CurrentStat.SoldierRespawnSeconds / Mathf.Max(0.1f, speedMul);
 
-            return CurrentStat.SoldierRespawnSeconds / Mathf.Max(0.1f, speedMul);
+            // 빠른 충원: 부활 대기 시간 2/4/6초 감소 (하한 3초)
+            if (TryGetSkill(BranchSkillType.FastRecruit, out var recruit, out int level))
+                seconds -= recruit.ValueAt(level);
+
+            return Mathf.Max(3f, seconds);
         }
 
         void SpawnOneSoldier(bool isRespawn)
@@ -120,7 +125,9 @@ namespace Rush.Combat
             // 기본값(난이도 포함)만 넘긴다. 보상 배율은 병사가 스스로 조회해 실시간 반영한다.
             float baseHp = stat.SoldierHp * Stage.SoldierHpMultiplier;
 
-            soldier.Initialize(this, baseHp, stat.SoldierDamage, stat.SoldierAttackInterval,
+            float damageMax = Mathf.Max(stat.SoldierDamage, stat.SoldierDamageMax);
+
+            soldier.Initialize(this, baseHp, stat.SoldierDamage, damageMax, stat.SoldierAttackInterval,
                 _rallyPoint + offset, stat.Range);
 
             _soldiers.Add(soldier);

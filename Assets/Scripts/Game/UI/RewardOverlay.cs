@@ -6,7 +6,7 @@ using UnityEngine.UIElements;
 namespace Rush.UI
 {
     /// <summary>
-    /// 보상 선택 오버레이. 화면을 디밍하고 카드 3장 + 다시뽑기/건너뛰기 버튼을 띄운다.
+    /// 보상 선택 오버레이. 화면을 디밍하고 카드 3장 + 다시뽑기 버튼을 띄운다 (1장 선택 강제, 스킵 없음).
     /// RewardSystem.OfferChanged 이벤트를 구독만 하고, 조작은 RewardSystem 공개 API를 호출한다.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
@@ -22,7 +22,6 @@ namespace Rush.UI
         VisualElement _overlay;
         VisualElement _cardRow;
         Button _rerollButton;
-        Button _skipButton;
 
         void OnEnable()
         {
@@ -125,16 +124,7 @@ namespace Rush.UI
             _rerollButton.style.paddingRight = 18;
             _rerollButton.style.paddingTop = 8;
             _rerollButton.style.paddingBottom = 8;
-            _rerollButton.style.marginRight = 12;
             buttonRow.Add(_rerollButton);
-
-            _skipButton = new Button(OnSkipClicked);
-            _skipButton.style.fontSize = 14;
-            _skipButton.style.paddingLeft = 18;
-            _skipButton.style.paddingRight = 18;
-            _skipButton.style.paddingTop = 8;
-            _skipButton.style.paddingBottom = 8;
-            buttonRow.Add(_skipButton);
 
             root.Add(_overlay);
         }
@@ -143,12 +133,6 @@ namespace Rush.UI
         {
             if (_rewards != null)
                 _rewards.Reroll();
-        }
-
-        void OnSkipClicked()
-        {
-            if (_rewards != null)
-                _rewards.Skip();
         }
 
         void Refresh()
@@ -170,15 +154,13 @@ namespace Rush.UI
 
             var config = _rewards.Config;
 
-            string rerollText = $"다시뽑기 ({_rewards.RerollsLeft}회)";
+            string rerollText = $"다시뽑기 (남은 {_rewards.RerollsLeft}회)";
 
             if (config.RerollCost > 0)
                 rerollText += $" -{config.RerollCost}G";
 
             _rerollButton.text = rerollText;
             _rerollButton.SetEnabled(_rewards.CanReroll);
-
-            _skipButton.text = $"건너뛰기 (+{config.SkipGold}G)";
         }
 
         VisualElement BuildCard(RewardDefinition card, int index)
