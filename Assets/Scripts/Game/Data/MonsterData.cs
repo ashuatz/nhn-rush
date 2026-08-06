@@ -20,6 +20,9 @@ namespace Rush.Data
         public int GoldReward = 5;
         public int LifeDamage = 1;
 
+        [Header("보스 여부 (처치 시 보상 제시, 통과 시 라이프 20 차감)")]
+        public bool IsBoss;
+
         [Header("마법 특성 (마법 유닛 전용)")]
         public float RegenPerSecond;
 

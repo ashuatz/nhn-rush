@@ -154,16 +154,16 @@ namespace Rush.EditorTools
             EnsureProjectileTrail("Projectile_Missile", new Color(1f, 0.55f, 0.2f), 0.5f, 0.18f);
             EnsureProjectileTrail("Projectile_Dagger", new Color(0.5f, 0.95f, 1f), 0.45f, 0.14f);
 
-            // 몬스터 9종
-            EnsureUnitPrefab("Monster_Infantry", typeof(Monster), EnsureMaterial("Mat_MonInfantry", new Color(0.8f, 0.3f, 0.3f)), 0.75f, 0.4f);
-            EnsureUnitPrefab("Monster_Archer", typeof(Monster), EnsureMaterial("Mat_MonArcher", new Color(0.9f, 0.55f, 0.3f)), 0.65f, 0.35f);
-            EnsureUnitPrefab("Monster_Tank", typeof(Monster), EnsureMaterial("Mat_MonTank", new Color(0.5f, 0.22f, 0.22f)), 1.05f, 0.55f);
-            EnsureUnitPrefab("Monster_Fighter", typeof(Monster), EnsureMaterial("Mat_MonFighter", new Color(0.9f, 0.4f, 0.55f)), 0.7f, 0.35f);
-            EnsureUnitPrefab("Monster_MagicInfantry", typeof(Monster), EnsureMaterial("Mat_MonMagicInfantry", new Color(0.55f, 0.35f, 0.9f)), 0.8f, 0.42f);
-            EnsureUnitPrefab("Monster_MagicArcher", typeof(Monster), EnsureMaterial("Mat_MonMagicArcher", new Color(0.65f, 0.5f, 0.95f)), 0.68f, 0.36f);
-            EnsureUnitPrefab("Monster_MagicTank", typeof(Monster), EnsureMaterial("Mat_MonMagicTank", new Color(0.4f, 0.2f, 0.6f)), 1.1f, 0.58f);
-            EnsureUnitPrefab("Monster_MagicFighter", typeof(Monster), EnsureMaterial("Mat_MonMagicFighter", new Color(0.75f, 0.55f, 1f)), 0.72f, 0.38f);
-            EnsureUnitPrefab("Monster_Boss", typeof(Monster), EnsureMaterial("Mat_MonBoss", new Color(0.25f, 0.05f, 0.05f)), 1.6f, 0.85f);
+            // 적 6종 + 중간 보스 3종 (스프레드시트: 적 6종)
+            EnsureUnitPrefab("Monster_Militia", typeof(Monster), EnsureMaterial("Mat_MonMilitia", new Color(0.8f, 0.3f, 0.3f)), 0.7f, 0.38f);
+            EnsureUnitPrefab("Monster_HeavyInfantry", typeof(Monster), EnsureMaterial("Mat_MonHeavy", new Color(0.5f, 0.22f, 0.22f)), 0.95f, 0.5f);
+            EnsureUnitPrefab("Monster_Rider", typeof(Monster), EnsureMaterial("Mat_MonRider", new Color(0.9f, 0.4f, 0.55f)), 0.7f, 0.35f);
+            EnsureUnitPrefab("Monster_Scout", typeof(Monster), EnsureMaterial("Mat_MonScout", new Color(0.9f, 0.55f, 0.3f)), 0.6f, 0.32f);
+            EnsureUnitPrefab("Monster_EnemyMage", typeof(Monster), EnsureMaterial("Mat_MonMage", new Color(0.55f, 0.35f, 0.9f)), 0.8f, 0.42f);
+            EnsureUnitPrefab("Monster_Centurion", typeof(Monster), EnsureMaterial("Mat_MonCenturion", new Color(0.35f, 0.12f, 0.12f)), 1.15f, 0.6f);
+            EnsureUnitPrefab("Monster_MidBoss1", typeof(Monster), EnsureMaterial("Mat_MonMidBoss", new Color(0.25f, 0.05f, 0.05f)), 1.5f, 0.8f);
+            EnsureUnitPrefab("Monster_MidBoss2", typeof(Monster), EnsureMaterial("Mat_MonMidBoss", new Color(0.25f, 0.05f, 0.05f)), 1.65f, 0.88f);
+            EnsureUnitPrefab("Monster_MidBoss3", typeof(Monster), EnsureMaterial("Mat_MonMidBoss", new Color(0.25f, 0.05f, 0.05f)), 1.8f, 0.95f);
 
             AssetDatabase.SaveAssets();
 
@@ -331,64 +331,417 @@ namespace Rush.EditorTools
             return prefab;
         }
 
+        // ---------- 2-1. 아트 모델 적용 ----------
+
+        const string FbxEnvironment = "Assets/fbx/environment";
+        const string FbxCharacter = "Assets/fbx/character";
+
+        /// <summary>
+        /// fbx 아트 모델을 프리팹에 배선한다. 머티리얼은 건드리지 않는다 (임포트 상태 그대로).
+        /// 타워: TierVisuals/Tier1~3 자식으로 주입하고 더미 큐브는 끈다 (레벨별 온오프는 Tower가 처리).
+        /// 병사: Visual 노드 아래에 모델을 넣고 큐브 렌더러만 끈다 (런지 모션 유지).
+        /// 재실행하면 기존 주입분을 지우고 다시 만든다.
+        /// </summary>
+        public static void ApplyArtModels()
+        {
+            InjectTowerTiers("Tower_Archer", "archertower", 1.5f);
+            InjectTowerTiers("Tower_Infantry", "barracktower", 1.5f);
+            InjectTowerTiers("Tower_Mage", "magiciantower", 1.6f);
+            InjectTowerTiers("Tower_Artillery", "cannontower", 1.4f);
+
+            InjectSoldierModel();
+
+            AssetDatabase.SaveAssets();
+
+            Report("아트 모델 적용 완료 (머티리얼은 임포트 상태 유지)");
+        }
+
+        static void InjectTowerTiers(string prefabName, string fbxFamily, float targetHeight)
+        {
+            string prefabPath = $"{PrefabDir}/{prefabName}.prefab";
+
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) == null)
+            {
+                Report($"{prefabName}: 프리팹이 없어 건너뜀 (더미 프리팹 먼저 생성)");
+                return;
+            }
+
+            var contents = PrefabUtility.LoadPrefabContents(prefabPath);
+
+            var oldTiers = contents.transform.Find("TierVisuals");
+
+            if (oldTiers != null)
+                UnityEngine.Object.DestroyImmediate(oldTiers.gameObject);
+
+            var tierRoot = new GameObject("TierVisuals");
+            tierRoot.transform.SetParent(contents.transform);
+            tierRoot.transform.localPosition = Vector3.zero;
+
+            int injected = 0;
+
+            for (int tier = 1; tier <= 3; tier++)
+            {
+                string fbxPath = $"{FbxEnvironment}/{fbxFamily}/{fbxFamily}0{tier}/{fbxFamily}0{tier}.fbx";
+                var model = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
+
+                if (model == null)
+                {
+                    Report($"{prefabName}: {fbxPath} 없음 - 티어 {tier} 건너뜀");
+                    continue;
+                }
+
+                var wrapper = new GameObject($"Tier{tier}");
+                wrapper.transform.SetParent(tierRoot.transform);
+                wrapper.transform.localPosition = Vector3.zero;
+
+                var instance = (GameObject)PrefabUtility.InstantiatePrefab(model, wrapper.transform);
+                instance.transform.localPosition = Vector3.zero;
+                instance.transform.localRotation = Quaternion.identity;
+
+                NormalizeToHeight(instance.transform, targetHeight, bottomY: 0f);
+                StripColliders(instance);
+
+                // 기본은 1티어만 보이게. 런타임에는 Tower.OnLevelChanged가 다시 정한다.
+                wrapper.SetActive(tier == 1);
+
+                injected++;
+            }
+
+            // 더미 큐브는 티어 모델이 하나라도 있으면 꺼 둔다 (없으면 폴백으로 유지)
+            var visual = contents.transform.Find("Visual");
+
+            if (visual != null)
+                visual.gameObject.SetActive(injected == 0);
+
+            if (injected == 0)
+                UnityEngine.Object.DestroyImmediate(tierRoot);
+
+            PrefabUtility.SaveAsPrefabAsset(contents, prefabPath);
+            PrefabUtility.UnloadPrefabContents(contents);
+
+            Report($"{prefabName}: 티어 모델 {injected}개 주입");
+        }
+
+        static void InjectSoldierModel()
+        {
+            string prefabPath = $"{PrefabDir}/Soldier.prefab";
+            string fbxPath = $"{FbxCharacter}/soldier.fbx";
+
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
+
+            if (model == null)
+            {
+                Report($"Soldier: {fbxPath} 없음 - 건너뜀");
+                return;
+            }
+
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) == null)
+            {
+                Report("Soldier: 프리팹이 없어 건너뜀");
+                return;
+            }
+
+            var contents = PrefabUtility.LoadPrefabContents(prefabPath);
+            var visual = contents.transform.Find("Visual");
+
+            if (visual == null)
+            {
+                PrefabUtility.UnloadPrefabContents(contents);
+                Report("Soldier: Visual 노드가 없어 건너뜀");
+                return;
+            }
+
+            var oldModel = visual.Find("Model");
+
+            if (oldModel != null)
+                UnityEngine.Object.DestroyImmediate(oldModel.gameObject);
+
+            // 큐브 렌더러만 끈다. Visual 트랜스폼은 런지 모션이 계속 쓴다.
+            var cubeRenderer = visual.GetComponent<MeshRenderer>();
+
+            if (cubeRenderer != null)
+                cubeRenderer.enabled = false;
+
+            var wrapper = new GameObject("Model");
+            wrapper.transform.SetParent(visual);
+            wrapper.transform.localPosition = Vector3.zero;
+
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(model, wrapper.transform);
+            instance.transform.localPosition = Vector3.zero;
+            instance.transform.localRotation = Quaternion.identity;
+
+            // 병사 루트는 지면(y=0)에 서고 Visual은 위로 떠 있으므로, 모델 바닥을 지면에 맞춘다
+            NormalizeToHeight(instance.transform, 0.9f, bottomY: -visual.localPosition.y);
+            StripColliders(instance);
+
+            PrefabUtility.SaveAsPrefabAsset(contents, prefabPath);
+            PrefabUtility.UnloadPrefabContents(contents);
+
+            Report("Soldier: 캐릭터 모델 주입 (애니메이션은 아직 미셋업)");
+        }
+
+        /// <summary>
+        /// 렌더러 바운드 기준으로 목표 높이에 맞게 균등 스케일하고,
+        /// 바닥이 부모 로컬 bottomY, 수평 중심이 0이 되도록 위치를 보정한다.
+        /// </summary>
+        static void NormalizeToHeight(Transform instance, float targetHeight, float bottomY)
+        {
+            var bounds = CalculateRendererBounds(instance);
+
+            if (bounds.size.y <= 0.0001f)
+                return;
+
+            float scale = targetHeight / bounds.size.y;
+            instance.localScale = instance.localScale * scale;
+
+            // 스케일 반영 후 바운드를 다시 재서 바닥/중심을 맞춘다
+            bounds = CalculateRendererBounds(instance);
+
+            Vector3 offset = new Vector3(-bounds.center.x, bottomY - bounds.min.y, -bounds.center.z);
+            instance.localPosition += offset;
+        }
+
+        static Bounds CalculateRendererBounds(Transform root)
+        {
+            var renderers = root.GetComponentsInChildren<Renderer>(true);
+
+            if (renderers.Length == 0)
+                return new Bounds(root.position, Vector3.zero);
+
+            var bounds = renderers[0].bounds;
+
+            for (int i = 1; i < renderers.Length; i++)
+                bounds.Encapsulate(renderers[i].bounds);
+
+            return bounds;
+        }
+
+        /// <summary>모델에 딸려 온 콜라이더는 슬롯 클릭 레이캐스트를 방해하므로 제거한다.</summary>
+        static void StripColliders(GameObject root)
+        {
+            foreach (var collider in root.GetComponentsInChildren<Collider>(true))
+                UnityEngine.Object.DestroyImmediate(collider);
+        }
+
+        /// <summary>씬의 타워 슬롯 비주얼을 towerbase 모델로 교체한다 (있을 때만).</summary>
+        public static void UpgradeSlotVisuals()
+        {
+            string fbxPath = $"{FbxEnvironment}/towerbase/towerbase/towerbase.fbx";
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
+
+            if (model == null)
+            {
+                Report("towerbase 모델 없음 - 슬롯 비주얼 유지");
+                return;
+            }
+
+            var slots = UnityEngine.Object.FindObjectsByType<TowerSlot>(FindObjectsSortMode.None);
+            int upgraded = 0;
+
+            foreach (var slot in slots)
+            {
+                var visual = slot.transform.Find("Visual");
+
+                // 이미 모델 기반이면 건너뛴다 (큐브 프리미티브만 교체)
+                if (visual != null && visual.GetComponent<MeshFilter>() == null)
+                    continue;
+
+                if (visual != null)
+                    UnityEngine.Object.DestroyImmediate(visual.gameObject);
+
+                var wrapper = new GameObject("Visual");
+                wrapper.transform.SetParent(slot.transform);
+                wrapper.transform.localPosition = Vector3.zero;
+
+                var instance = (GameObject)PrefabUtility.InstantiatePrefab(model, wrapper.transform);
+                instance.transform.localPosition = Vector3.zero;
+                instance.transform.localRotation = Quaternion.identity;
+
+                NormalizeSlotBase(instance.transform);
+                StripColliders(instance);
+
+                upgraded++;
+            }
+
+            if (upgraded > 0)
+                Report($"슬롯 비주얼 {upgraded}개를 towerbase 모델로 교체");
+        }
+
+        /// <summary>슬롯 받침은 높이가 아니라 발자국(가로세로 1.1)에 맞춰 정규화한다.</summary>
+        static void NormalizeSlotBase(Transform instance)
+        {
+            var bounds = CalculateRendererBounds(instance);
+            float footprint = Mathf.Max(bounds.size.x, bounds.size.z);
+
+            if (footprint <= 0.0001f)
+                return;
+
+            float scale = 1.1f / footprint;
+            instance.localScale = instance.localScale * scale;
+
+            bounds = CalculateRendererBounds(instance);
+
+            Vector3 offset = new Vector3(-bounds.center.x, -bounds.min.y, -bounds.center.z);
+            instance.localPosition += offset;
+        }
+
         // ---------- 3. 타워 데이터 ----------
 
+        /// <summary>
+        /// 타워 4계열. 가격/병영 유닛 스탯은 스프레드시트(타워 시트/병영 시트)가 원본이며
+        /// 셋업을 다시 실행하면 항상 시트 값으로 재베이크한다. 프리팹/연출 참조는 비어 있을 때만 채운다.
+        /// 시트에 없는 전투 수치(피해/사거리/공속)는 기존 튜닝 값을 유지한다.
+        /// </summary>
         public static void CreateTowerData()
         {
             CreateDummyPrefabs();
 
-            var infantry = EnsureAsset<TowerData>($"{DataTowers}/Tower_Infantry.asset", data =>
+            var infantry = EnsureTower("Tower_Infantry", data =>
             {
                 data.Type = TowerType.Infantry;
                 data.DamageType = DamageType.Physical;
                 data.Levels = new[]
                 {
-                    new TowerLevelStat { DisplayName = "민병대 초소", Cost = 70, Range = 2.5f, AttackInterval = 1f, SoldierCount = 2, SoldierHp = 60, SoldierDamage = 6, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 8f },
-                    new TowerLevelStat { DisplayName = "정예 보병대", Cost = 110, Range = 2.5f, AttackInterval = 1f, SoldierCount = 2, SoldierHp = 90, SoldierDamage = 9, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 8f },
-                    new TowerLevelStat { DisplayName = "중장 보병대", Cost = 160, Range = 2.8f, AttackInterval = 1f, SoldierCount = 3, SoldierHp = 120, SoldierDamage = 12, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 8f },
-                    new TowerLevelStat { DisplayName = "왕실 근위대", Cost = 240, Range = 3f, AttackInterval = 1f, SoldierCount = 3, SoldierHp = 160, SoldierDamage = 16, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 8f },
+                    new TowerLevelStat { DisplayName = "병영 1단계", Cost = 70, Range = 2.5f, AttackInterval = 1f, SoldierCount = 3, SoldierHp = 80, SoldierDamage = 4, SoldierDamageMax = 7, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f },
+                    new TowerLevelStat { DisplayName = "병영 2단계", Cost = 115, Range = 2.5f, AttackInterval = 1f, SoldierCount = 3, SoldierHp = 130, SoldierDamage = 7, SoldierDamageMax = 12, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f },
+                    new TowerLevelStat { DisplayName = "병영 3단계", Cost = 185, Range = 2.8f, AttackInterval = 1f, SoldierCount = 3, SoldierHp = 200, SoldierDamage = 10, SoldierDamageMax = 18, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f },
+                };
+
+                // 기사단: 높은 방어/체력, 전선 유지 특화 (방어/저항 1단계 = 피해 25% 감쇄 근사)
+                data.BranchA = new TowerBranchDef
+                {
+                    Name = "제국 친위대 (기사단)",
+                    Stat = new TowerLevelStat { DisplayName = "기사단", Cost = 330, Range = 3f, AttackInterval = 1f, SoldierCount = 3, SoldierHp = 330, SoldierDamage = 13, SoldierDamageMax = 25, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f, SoldierDamageCut = 0.25f },
+                    Skills = new[]
+                    {
+                        Skill("신성한 의무", "유닛의 체력이 1 이하로 떨어지면 즉시 체력 100% 회복 · 60초 쿨타임", BranchSkillType.HolyDuty, 300, 1f, 1f, 1f),
+                        Skill("신성한 강타", "15% 확률로 공격이 1/1.5/2배 피해를 광역으로 입힘", BranchSkillType.HolySmite, 330, 1f, 1.5f, 2f),
+                        Skill("굳은 의지", "최대 체력 +40/80/120 · 3레벨에 방어력 1단계 추가", BranchSkillType.IronWill, 270, 40f, 80f, 120f),
+                    },
+                };
+
+                // 용병단: 빠른 충원, 낮은 방어, 높은 공격력
+                data.BranchB = new TowerBranchDef
+                {
+                    Name = "영웅 용병단",
+                    Stat = new TowerLevelStat { DisplayName = "용병단", Cost = 330, Range = 3f, AttackInterval = 1f, SoldierCount = 3, SoldierHp = 210, SoldierDamage = 24, SoldierDamageMax = 40, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f },
+                    Skills = new[]
+                    {
+                        Skill("현상금 수거", "용병이 적을 죽이면 골드의 1.4/1.7/2배 획득 (올림) · 전장 회수와 합연산", BranchSkillType.BountyCollect, 300, 1.4f, 1.7f, 2f),
+                        Skill("빠른 충원", "부활 대기 시간 2/4/6초 감소", BranchSkillType.FastRecruit, 240, 2f, 4f, 6f),
+                        Skill("장비 개조", "공격력 +15/20/25 · 3레벨에 15% 확률로 방어력 무시 공격", BranchSkillType.GearMod, 330, 15f, 20f, 25f),
+                    },
                 };
             });
 
-            var archer = EnsureAsset<TowerData>($"{DataTowers}/Tower_Archer.asset", data =>
+            var archer = EnsureTower("Tower_Archer", data =>
             {
                 data.Type = TowerType.Archer;
                 data.DamageType = DamageType.Physical;
                 data.ProjectileSpeed = 14f;
                 data.Levels = new[]
                 {
-                    new TowerLevelStat { DisplayName = "궁수 초소", Cost = 70, Damage = 8, Range = 5f, AttackInterval = 0.9f },
-                    new TowerLevelStat { DisplayName = "장궁병 부대", Cost = 110, Damage = 12, Range = 5.5f, AttackInterval = 0.9f },
-                    new TowerLevelStat { DisplayName = "정예 궁병대", Cost = 160, Damage = 16, Range = 5.5f, AttackInterval = 0.7f },
-                    new TowerLevelStat { DisplayName = "왕실 궁병단", Cost = 240, Damage = 22, Range = 6f, AttackInterval = 0.6f },
+                    new TowerLevelStat { DisplayName = "궁수탑 1단계", Cost = 70, Damage = 8, Range = 5f, AttackInterval = 0.9f },
+                    new TowerLevelStat { DisplayName = "궁수탑 2단계", Cost = 110, Damage = 12, Range = 5.5f, AttackInterval = 0.9f },
+                    new TowerLevelStat { DisplayName = "궁수탑 3단계", Cost = 180, Damage = 16, Range = 5.5f, AttackInterval = 0.7f },
+                };
+
+                // 명사수 성지: 넓은 사거리 + 빠른 연사
+                data.BranchA = new TowerBranchDef
+                {
+                    Name = "명사수 성지",
+                    Stat = new TowerLevelStat { DisplayName = "명사수 성지", Cost = 320, Damage = 20, Range = 6.5f, AttackInterval = 0.55f },
+                    Skills = new[]
+                    {
+                        Skill("헤드샷", "공격 60번마다 다음 공격에 200/400/600 추가 물리 피해 · 일반 몬스터는 10/15/20% 확률로 즉사", BranchSkillType.Headshot, 360, 200f, 400f, 600f, 0.10f, 0.15f, 0.20f),
+                        Skill("정확한 조준", "크리티컬 확률 +10/20/30% · 크리티컬은 2배 피해", BranchSkillType.CriticalAim, 300, 0f, 0f, 0f, 0.10f, 0.20f, 0.30f),
+                    },
+                };
+
+                // 불법 총포상: 활 대신 총. 공속은 느리나 매우 넓은 사거리와 강한 단발
+                data.BranchB = new TowerBranchDef
+                {
+                    Name = "불법 총포상",
+                    Stat = new TowerLevelStat { DisplayName = "불법 총포상", Cost = 320, Damage = 45, Range = 7.5f, AttackInterval = 1.6f },
+                    Skills = new[]
+                    {
+                        Skill("마개조 기관총", "15초마다 1/3/5초간 공격주기 80% 감소 (공격속도 500%)", BranchSkillType.MachineGunBurst, 360, 1f, 3f, 5f),
+                        Skill("급조 철갑탄", "공격 시 10/20/30% 확률로 대상의 물리 방어력 1단계 영구 감소", BranchSkillType.ArmorShredShot, 300, 0f, 0f, 0f, 0.10f, 0.20f, 0.30f),
+                    },
                 };
             });
 
-            var mage = EnsureAsset<TowerData>($"{DataTowers}/Tower_Mage.asset", data =>
+            var mage = EnsureTower("Tower_Mage", data =>
             {
                 data.Type = TowerType.Mage;
                 data.DamageType = DamageType.Magical;
                 data.ProjectileSpeed = 10f;
                 data.Levels = new[]
                 {
-                    new TowerLevelStat { DisplayName = "견습 마법사 탑", Cost = 100, Damage = 12, Range = 4.5f, AttackInterval = 1.4f, SlowPercent = 0.25f, SlowDuration = 2f },
-                    new TowerLevelStat { DisplayName = "상급 마법사 탑", Cost = 160, Damage = 18, Range = 4.5f, AttackInterval = 1.4f, SlowPercent = 0.25f, SlowDuration = 2.5f },
-                    new TowerLevelStat { DisplayName = "대마법사 탑", Cost = 240, Damage = 26, Range = 5f, AttackInterval = 1.4f, SlowPercent = 0.3f, SlowDuration = 2.5f },
-                    new TowerLevelStat { DisplayName = "대현자 탑", Cost = 360, Damage = 36, Range = 5f, AttackInterval = 1.4f, SlowPercent = 0.35f, SlowDuration = 3f },
+                    new TowerLevelStat { DisplayName = "마법사탑 1단계", Cost = 100, Damage = 12, Range = 4.5f, AttackInterval = 1.4f, SlowPercent = 0.25f, SlowDuration = 2f },
+                    new TowerLevelStat { DisplayName = "마법사탑 2단계", Cost = 165, Damage = 18, Range = 4.5f, AttackInterval = 1.4f, SlowPercent = 0.25f, SlowDuration = 2.5f },
+                    new TowerLevelStat { DisplayName = "마법사탑 3단계", Cost = 265, Damage = 26, Range = 5f, AttackInterval = 1.4f, SlowPercent = 0.3f, SlowDuration = 2.5f },
+                };
+
+                // 흑마법사: 공속은 더 느려지나 한 방이 매우 강함
+                data.BranchA = new TowerBranchDef
+                {
+                    Name = "흑마법사",
+                    Stat = new TowerLevelStat { DisplayName = "흑마법사", Cost = 420, Damage = 46, Range = 5f, AttackInterval = 1.7f, SlowPercent = 0.3f, SlowDuration = 2.5f },
+                    Skills = new[]
+                    {
+                        Skill("죽음의 광선", "20초마다 다음 기본 공격이 사거리 내 체력이 가장 많은 적에게 300/650/1000 마법 피해", BranchSkillType.DeathRay, 420, 300f, 650f, 1000f),
+                        Skill("피의 향연", "기본 공격으로 적을 제거하면 다음 기본 공격 피해 +15/20/25% · 중첩 없음 · 죽음의 광선에도 적용", BranchSkillType.BloodFeast, 360, 0.15f, 0.20f, 0.25f),
+                    },
+                };
+
+                // 환영술사: 군중제어 특화
+                data.BranchB = new TowerBranchDef
+                {
+                    Name = "환영술사",
+                    Stat = new TowerLevelStat { DisplayName = "환영술사", Cost = 420, Damage = 30, Range = 5.5f, AttackInterval = 1.3f, SlowPercent = 0.4f, SlowDuration = 3f },
+                    Skills = new[]
+                    {
+                        Skill("길잃은 방랑자", "기본 공격이 1/2/4% 확률로 적을 시작 지점으로 되돌려보냄 · 중간 보스급 이상 제외", BranchSkillType.LostWanderer, 390, 0f, 0f, 0f, 0.01f, 0.02f, 0.04f),
+                        Skill("정신차려!", "30초마다 사거리 내 5/7/9명의 적이 3초간 서로를 공격 · 적의 공격은 마법사의 공격으로 간주", BranchSkillType.SnapOut, 420, 5f, 7f, 9f),
+                    },
                 };
             });
 
-            var artillery = EnsureAsset<TowerData>($"{DataTowers}/Tower_Artillery.asset", data =>
+            var artillery = EnsureTower("Tower_Artillery", data =>
             {
                 data.Type = TowerType.Artillery;
                 data.DamageType = DamageType.Physical;
                 data.ProjectileSpeed = 8f;
                 data.Levels = new[]
                 {
-                    new TowerLevelStat { DisplayName = "화포 진지", Cost = 125, Damage = 18, Range = 4.5f, AttackInterval = 2.5f, SplashRadius = 1.2f, ArmorPierce = 0.5f },
-                    new TowerLevelStat { DisplayName = "중포 진지", Cost = 220, Damage = 28, Range = 4.5f, AttackInterval = 2.5f, SplashRadius = 1.4f, ArmorPierce = 0.5f },
-                    new TowerLevelStat { DisplayName = "공성포 진지", Cost = 320, Damage = 40, Range = 5f, AttackInterval = 2.5f, SplashRadius = 1.6f, ArmorPierce = 0.5f },
-                    new TowerLevelStat { DisplayName = "왕실 공성단", Cost = 480, Damage = 56, Range = 5f, AttackInterval = 2.5f, SplashRadius = 1.8f, ArmorPierce = 0.5f },
+                    new TowerLevelStat { DisplayName = "포병탑 1단계", Cost = 125, Damage = 18, Range = 4.5f, AttackInterval = 2.5f, SplashRadius = 1.2f, ArmorPierce = 0.5f },
+                    new TowerLevelStat { DisplayName = "포병탑 2단계", Cost = 190, Damage = 28, Range = 4.5f, AttackInterval = 2.5f, SplashRadius = 1.4f, ArmorPierce = 0.5f },
+                    new TowerLevelStat { DisplayName = "포병탑 3단계", Cost = 300, Damage = 40, Range = 5f, AttackInterval = 2.5f, SplashRadius = 1.6f, ArmorPierce = 0.5f },
+                };
+
+                // 용의 숨결포: 광역 피해 강화
+                data.BranchA = new TowerBranchDef
+                {
+                    Name = "용의 숨결포",
+                    Stat = new TowerLevelStat { DisplayName = "용의 숨결포", Cost = 460, Damage = 52, Range = 5f, AttackInterval = 2.5f, SplashRadius = 2.1f, ArmorPierce = 0.5f },
+                    Skills = new[]
+                    {
+                        Skill("용의 숨결", "6초마다 다음 공격이 광역 범위에 화염 장판을 남김 · 3초간 매초 20/35/50 피해 (광역 태그 아님)", BranchSkillType.DragonBreath, 420, 20f, 35f, 50f),
+                        Skill("용암포탄", "기본 공격의 광역 범위 +10/20/30% · 적을 20% 둔화", BranchSkillType.LavaShell, 360, 0.10f, 0.20f, 0.30f),
+                    },
+                };
+
+                // 마개조 장사정포: 광역은 약해지나 장거리 공격 가능
+                data.BranchB = new TowerBranchDef
+                {
+                    Name = "마개조 장사정포",
+                    Stat = new TowerLevelStat { DisplayName = "마개조 장사정포", Cost = 460, Damage = 48, Range = 7f, AttackInterval = 2.5f, SplashRadius = 1.3f, ArmorPierce = 0.5f },
+                    Skills = new[]
+                    {
+                        Skill("활강포탄", "먼 거리의 적을 공격할 때 피해 +10/20/30%까지 증가", BranchSkillType.GlideShell, 360, 0.10f, 0.20f, 0.30f),
+                        Skill("집속로켓", "12초마다 다음 기본 공격이 사거리 내 무작위 적에게 3/5/7발 동시 발사 · 1초간 기절", BranchSkillType.ClusterRocket, 420, 3f, 5f, 7f),
+                    },
                 };
             });
 
@@ -402,7 +755,33 @@ namespace Rush.EditorTools
 
             AssetDatabase.SaveAssets();
 
-            Report("타워 데이터 4종 생성 완료");
+            Report("타워 데이터 재베이크 완료 (시트 가격표 반영)");
+        }
+
+        /// <summary>타워 데이터를 항상 시트 값으로 덮어쓴다 (프리팹/연출 참조는 별도 규칙).</summary>
+        static TowerData EnsureTower(string assetName, Action<TowerData> setup)
+        {
+            var data = EnsureAsset<TowerData>($"{DataTowers}/{assetName}.asset", d => { });
+
+            setup(data);
+            EditorUtility.SetDirty(data);
+
+            return data;
+        }
+
+        /// <summary>분기 스킬 정의. 레벨별 가격은 총액의 20/32/48% (BranchSkillDef.CostOfLevel).</summary>
+        static BranchSkillDef Skill(string name, string description, BranchSkillType type, int totalCost,
+            float v1, float v2, float v3, float c1 = 0f, float c2 = 0f, float c3 = 0f)
+        {
+            return new BranchSkillDef
+            {
+                DisplayName = name,
+                Description = description,
+                Type = type,
+                TotalCost = totalCost,
+                Values = new[] { v1, v2, v3 },
+                Chances = new[] { c1, c2, c3 },
+            };
         }
 
         static void WireTowerPrefabs(TowerData data, string towerPrefab, string projectilePrefab,
@@ -634,92 +1013,133 @@ namespace Rush.EditorTools
 
         // ---------- 4. 몬스터 데이터 ----------
 
+        /// <summary>구 로스터(9종) 에셋 이름. 시트 개편으로 삭제 대상.</summary>
+        static readonly string[] LegacyMonsterNames =
+        {
+            "Monster_Infantry", "Monster_Archer", "Monster_Tank", "Monster_Fighter",
+            "Monster_MagicInfantry", "Monster_MagicArcher", "Monster_MagicTank", "Monster_MagicFighter",
+            "Monster_Boss",
+        };
+
+        /// <summary>
+        /// 적 6종 + 중간 보스 3종. 스탯은 스프레드시트(적 6종/적 스탯 스케일링)가 원본이며
+        /// 셋업을 다시 실행하면 항상 시트 값으로 재베이크한다.
+        /// 이동속도는 민병 1.6 유닛/초를 상대값 1.0으로 둔 환산이다.
+        /// 보스 킬 보상은 웨이브 배수를 곱해 시트의 보스 수익(165/315/600)이 되는 기본값이다.
+        /// </summary>
         public static void CreateMonsterData()
         {
             CreateDummyPrefabs();
+            DeleteLegacyMonsters();
 
-            EnsureMonster("Monster_Infantry", "보병", data =>
+            EnsureMonster("Monster_Militia", "민병", data =>
             {
                 data.MaxHp = 60; data.MoveSpeed = 1.6f;
                 data.PhysicalDefense = DefenseGrade.Low; data.MagicalDefense = DefenseGrade.Low;
-                data.GoldReward = 5; data.MeleeDamage = 5;
+                data.GoldReward = 5; data.MeleeDamage = 6;
             });
 
-            EnsureMonster("Monster_Archer", "궁병", data =>
+            EnsureMonster("Monster_HeavyInfantry", "중보병", data =>
             {
-                data.MaxHp = 45; data.MoveSpeed = 1.6f;
-                data.PhysicalDefense = DefenseGrade.Low; data.MagicalDefense = DefenseGrade.Low;
-                data.GoldReward = 6; data.MeleeDamage = 3;
-                data.RangedDamage = 6; data.RangedRange = 4f; data.RangedInterval = 1.5f;
+                data.MaxHp = 140; data.MoveSpeed = 1.44f;
+                data.PhysicalDefense = DefenseGrade.High; data.MagicalDefense = DefenseGrade.Low;
+                data.GoldReward = 10; data.MeleeDamage = 10;
             });
 
-            EnsureMonster("Monster_Tank", "탱크", data =>
+            EnsureMonster("Monster_Rider", "라이더", data =>
             {
-                data.MaxHp = 220; data.MoveSpeed = 0.9f;
-                data.PhysicalDefense = DefenseGrade.High; data.MagicalDefense = DefenseGrade.Medium;
-                data.GoldReward = 12; data.MeleeDamage = 12; data.MeleeInterval = 1.2f;
-            });
-
-            EnsureMonster("Monster_Fighter", "전투기", data =>
-            {
-                data.MaxHp = 80; data.MoveSpeed = 2.2f; data.IsFlying = true;
-                data.PhysicalDefense = DefenseGrade.Medium; data.MagicalDefense = DefenseGrade.Medium;
-                data.GoldReward = 8;
-            });
-
-            EnsureMonster("Monster_MagicInfantry", "마법 보병", data =>
-            {
-                data.MaxHp = 110; data.MoveSpeed = 1.6f;
-                data.PhysicalDefense = DefenseGrade.Medium; data.MagicalDefense = DefenseGrade.Medium;
-                data.GoldReward = 9; data.MeleeDamage = 7; data.RegenPerSecond = 2f;
-            });
-
-            EnsureMonster("Monster_MagicArcher", "마법 궁병", data =>
-            {
-                data.MaxHp = 70; data.MoveSpeed = 1.6f;
+                // 비행: 병영 저지 불가, 궁수/마법사만 공격 가능. 교전하지 않으므로 공격력 없음.
+                data.MaxHp = 90; data.MoveSpeed = 2.08f; data.IsFlying = true;
                 data.PhysicalDefense = DefenseGrade.Medium; data.MagicalDefense = DefenseGrade.Low;
-                data.GoldReward = 10; data.MeleeDamage = 4; data.RegenPerSecond = 1f;
-                data.RangedDamage = 9; data.RangedRange = 5f; data.RangedInterval = 1.5f;
+                data.GoldReward = 15; data.MeleeDamage = 0;
             });
 
-            EnsureMonster("Monster_MagicTank", "마법 탱크", data =>
+            EnsureMonster("Monster_Scout", "정찰병", data =>
             {
-                data.MaxHp = 320; data.MoveSpeed = 1f;
+                data.MaxHp = 70; data.MoveSpeed = 3.2f;
+                data.PhysicalDefense = DefenseGrade.Low; data.MagicalDefense = DefenseGrade.Medium;
+                data.GoldReward = 10; data.MeleeDamage = 20;
+            });
+
+            EnsureMonster("Monster_EnemyMage", "마법사", data =>
+            {
+                // 적 중 유일하게 마법 피해로 공격한다 (병영 유닛 마법 저항이 의미를 갖는 유일한 상황)
+                data.MaxHp = 160; data.MoveSpeed = 1.44f;
+                data.PhysicalDefense = DefenseGrade.Low; data.MagicalDefense = DefenseGrade.Great;
+                data.GoldReward = 15; data.MeleeDamage = 22;
+            });
+
+            EnsureMonster("Monster_Centurion", "백인대장", data =>
+            {
+                data.MaxHp = 420; data.MoveSpeed = 1.92f;
                 data.PhysicalDefense = DefenseGrade.Great; data.MagicalDefense = DefenseGrade.Medium;
-                data.GoldReward = 18; data.MeleeDamage = 16; data.MeleeInterval = 1.2f; data.RegenPerSecond = 3f;
+                data.GoldReward = 30; data.MeleeDamage = 35;
             });
 
-            EnsureMonster("Monster_MagicFighter", "마법 전투기", data =>
+            EnsureMonster("Monster_MidBoss1", "중간 보스 1", data =>
             {
-                data.MaxHp = 140; data.MoveSpeed = 2.4f; data.IsFlying = true;
+                data.MaxHp = 900; data.MoveSpeed = 1.1f;
+                data.PhysicalDefense = DefenseGrade.Medium; data.MagicalDefense = DefenseGrade.Medium;
+                data.GoldReward = 123; data.LifeDamage = 20; data.IsBoss = true;
+                data.MeleeDamage = 40; data.MeleeInterval = 1.5f;
+            });
+
+            EnsureMonster("Monster_MidBoss2", "중간 보스 2", data =>
+            {
+                data.MaxHp = 1300; data.MoveSpeed = 1.1f;
+                data.PhysicalDefense = DefenseGrade.Medium; data.MagicalDefense = DefenseGrade.Medium;
+                data.GoldReward = 164; data.LifeDamage = 20; data.IsBoss = true;
+                data.MeleeDamage = 55; data.MeleeInterval = 1.5f;
+            });
+
+            EnsureMonster("Monster_MidBoss3", "중간 보스 3", data =>
+            {
+                data.MaxHp = 1800; data.MoveSpeed = 1.1f;
                 data.PhysicalDefense = DefenseGrade.High; data.MagicalDefense = DefenseGrade.High;
-                data.GoldReward = 15; data.RegenPerSecond = 2f;
-            });
-
-            EnsureMonster("Monster_Boss", "챕터 보스", data =>
-            {
-                data.MaxHp = 1500; data.MoveSpeed = 0.7f;
-                data.PhysicalDefense = DefenseGrade.Great; data.MagicalDefense = DefenseGrade.Great;
-                data.GoldReward = 100; data.LifeDamage = 5; data.MeleeDamage = 25; data.MeleeInterval = 1.5f;
+                data.GoldReward = 219; data.LifeDamage = 20; data.IsBoss = true;
+                data.MeleeDamage = 70; data.MeleeInterval = 1.5f;
             });
 
             AssetDatabase.SaveAssets();
 
-            Report("몬스터 데이터 9종 생성 완료");
+            Report("몬스터 데이터 재베이크 완료 (적 6종 + 중간 보스 3종)");
         }
 
+        static void DeleteLegacyMonsters()
+        {
+            int deleted = 0;
+
+            foreach (var name in LegacyMonsterNames)
+            {
+                if (AssetDatabase.DeleteAsset($"{DataMonsters}/{name}.asset"))
+                    deleted++;
+
+                if (AssetDatabase.DeleteAsset($"{PrefabDir}/{name}.prefab"))
+                    deleted++;
+            }
+
+            if (deleted > 0)
+                Report($"구 몬스터 에셋 정리: {deleted}건 삭제");
+        }
+
+        /// <summary>스탯은 항상 시트 값으로 덮어쓴다. 프리팹 참조는 수동 교체를 존중해 비어 있을 때만 채운다.</summary>
         static void EnsureMonster(string assetName, string displayName, Action<MonsterData> setup)
         {
-            var data = EnsureAsset<MonsterData>($"{DataMonsters}/{assetName}.asset", d =>
-            {
-                d.DisplayName = displayName;
-                setup(d);
-            });
+            var data = EnsureAsset<MonsterData>($"{DataMonsters}/{assetName}.asset", d => { });
 
-            if (data.Prefab != null)
-                return;
+            data.DisplayName = displayName;
+            data.LifeDamage = 1;
+            data.IsBoss = false;
+            data.IsFlying = false;
+            data.MeleeInterval = 1f;
+            data.RegenPerSecond = 0f;
+            data.RangedDamage = 0f;
 
-            data.Prefab = LoadPrefab(assetName);
+            setup(data);
+
+            if (data.Prefab == null)
+                data.Prefab = LoadPrefab(assetName);
+
             EditorUtility.SetDirty(data);
         }
 
@@ -750,54 +1170,121 @@ namespace Rush.EditorTools
                 d.SoldierHpMultiplier = 0.8f;
             });
 
-            EnsureAsset<StageData>($"{DataStages}/Stage01.asset", BuildStage01);
+            var stage = EnsureAsset<StageData>($"{DataStages}/Stage01.asset", s => { });
+
+            // 웨이브 구성은 시트가 원본이라 셋업을 다시 실행하면 항상 재베이크한다
+            BuildStage01(stage);
+            EditorUtility.SetDirty(stage);
 
             AssetDatabase.SaveAssets();
 
-            Report("스테이지/난이도 데이터 생성 완료");
+            Report("스테이지/난이도 데이터 생성 완료 (24웨이브 재베이크)");
         }
 
+        /// <summary>웨이브별 예산. 스프레드시트(웨이브 구성예산) B열.</summary>
+        static readonly int[] WaveBudgets =
+        {
+            320, 355, 395, 440, 490, 715, 610, 680, 760, 845, 940, 1360,
+            1165, 1300, 1445, 1610, 1795, 2600, 2225, 2480, 2760, 3080, 3430, 3815,
+        };
+
+        /// <summary>웨이브별 적 스탯 배수 (체력/공격력/킬 보상). 스프레드시트(웨이브 구성예산) E열.</summary>
+        static readonly float[] WaveMultipliers =
+        {
+            1.00f, 1.06f, 1.13f, 1.19f, 1.27f, 1.34f, 1.43f, 1.51f, 1.61f, 1.70f, 1.81f, 1.92f,
+            2.04f, 2.16f, 2.29f, 2.43f, 2.58f, 2.74f, 2.91f, 3.08f, 3.27f, 3.47f, 3.68f, 3.91f,
+        };
+
+        /// <summary>
+        /// 24웨이브 구성. 1~6웨이브는 고정 구성(시트: 고정 구간), 7웨이브부터는 예산 기반 무작위.
+        /// 보스 웨이브(6/12/18)는 보스 + 남은 예산의 무작위 구성으로 채워진다.
+        /// 고정 구성 수량은 "단가(기본 킬 보상 x 배수) 합 = 예산"이 되도록 계산된 값이다.
+        /// </summary>
         static void BuildStage01(StageData stage)
         {
-            var infantry = LoadMonster("Monster_Infantry");
-            var archer = LoadMonster("Monster_Archer");
-            var tank = LoadMonster("Monster_Tank");
-            var fighter = LoadMonster("Monster_Fighter");
-            var mInfantry = LoadMonster("Monster_MagicInfantry");
-            var mArcher = LoadMonster("Monster_MagicArcher");
-            var mTank = LoadMonster("Monster_MagicTank");
-            var mFighter = LoadMonster("Monster_MagicFighter");
-            var boss = LoadMonster("Monster_Boss");
+            var militia = LoadMonster("Monster_Militia");
+            var heavy = LoadMonster("Monster_HeavyInfantry");
+            var rider = LoadMonster("Monster_Rider");
+            var scout = LoadMonster("Monster_Scout");
+            var mage = LoadMonster("Monster_EnemyMage");
+            var centurion = LoadMonster("Monster_Centurion");
+            var boss1 = LoadMonster("Monster_MidBoss1");
+            var boss2 = LoadMonster("Monster_MidBoss2");
+            var boss3 = LoadMonster("Monster_MidBoss3");
 
             stage.StartLife = 20;
-            stage.StartGold = 260;
+            stage.StartGold = 300;
             stage.FirstWaveDelay = 15f;
             stage.WaveInterval = 30f;
-            stage.EarlyCallGoldPerSecond = 2f;
+            stage.EarlyCallBudgetFraction = 0.15f;
+            stage.RandomSpawnInterval = 0.8f;
+            stage.RandomPool = new[] { militia, heavy, rider, scout, mage, centurion };
 
-            stage.Waves = new[]
+            stage.Waves = new WaveData[24];
+
+            for (int i = 0; i < 24; i++)
             {
-                Wave(Entry(infantry, 6, 1.2f)),
-                Wave(Entry(infantry, 9, 1f)),
-                Wave(Entry(infantry, 6, 1.2f), Entry(archer, 4, 1.5f, 3f)),
-                Wave(Entry(infantry, 8, 1f), Entry(archer, 6, 1.2f, 2f)),
-                Wave(Entry(tank, 3, 3f), Entry(fighter, 4, 1.5f, 4f)),
-                Wave(Entry(tank, 4, 2.5f), Entry(fighter, 6, 1.2f, 3f), Entry(infantry, 6, 1f, 6f)),
-                Wave(Entry(mInfantry, 8, 1.2f), Entry(mArcher, 4, 1.5f, 4f)),
-                Wave(Entry(mInfantry, 10, 1f), Entry(mArcher, 6, 1.2f, 3f)),
-                Wave(Entry(mTank, 3, 4f), Entry(mFighter, 5, 1.5f, 5f)),
-                Wave(Entry(boss, 1, 1f)),
+                stage.Waves[i] = new WaveData
+                {
+                    Budget = WaveBudgets[i],
+                    StatMultiplier = WaveMultipliers[i],
+                };
+            }
+
+            // 고정 구간 (1~6웨이브). 시트: 민병대 / 민병대+정찰병 / 중보병+라이더 / 마법사+민병대 / 중보병+마법사 / 중간 보스 1
+            stage.Waves[0].Entries = new[]
+            {
+                Entry(militia, 64, 0.6f),
             };
+
+            stage.Waves[1].Entries = new[]
+            {
+                Entry(militia, 37, 0.8f),
+                Entry(scout, 15, 1.6f, 5f),
+            };
+
+            stage.Waves[2].Entries = new[]
+            {
+                Entry(heavy, 24, 1.1f),
+                Entry(rider, 7, 2.5f, 4f),
+            };
+
+            stage.Waves[3].Entries = new[]
+            {
+                Entry(mage, 14, 1.8f),
+                Entry(militia, 32, 0.7f, 3f),
+            };
+
+            stage.Waves[4].Entries = new[]
+            {
+                Entry(heavy, 20, 1.2f),
+                Entry(mage, 12, 1.8f, 5f),
+            };
+
+            // 6웨이브: 중간 보스 1 + 모든 종류의 적 포함
+            stage.Waves[5].IsBossWave = true;
+            stage.Waves[5].Entries = new[]
+            {
+                Entry(militia, 18, 0.8f),
+                Entry(heavy, 8, 1.5f, 4f),
+                Entry(rider, 4, 3f, 6f),
+                Entry(scout, 6, 1.5f, 8f),
+                Entry(mage, 4, 2.5f, 10f),
+                Entry(centurion, 2, 4f, 14f),
+                Entry(boss1, 1, 1f, 20f),
+            };
+
+            // 12/18웨이브: 보스 + 남은 예산은 무작위 구성이 자동으로 채운다
+            stage.Waves[11].IsBossWave = true;
+            stage.Waves[11].Entries = new[] { Entry(boss2, 1, 1f, 12f) };
+
+            stage.Waves[17].IsBossWave = true;
+            stage.Waves[17].Entries = new[] { Entry(boss3, 1, 1f, 15f) };
         }
 
         static MonsterData LoadMonster(string name)
         {
             return AssetDatabase.LoadAssetAtPath<MonsterData>($"{DataMonsters}/{name}.asset");
-        }
-
-        static WaveData Wave(params SpawnEntry[] entries)
-        {
-            return new WaveData { Entries = entries };
         }
 
         static SpawnEntry Entry(MonsterData monster, int count, float interval, float startDelay = 0f)
@@ -862,6 +1349,17 @@ namespace Rush.EditorTools
                 AssetDatabase.CreateAsset(config, configPath);
             }
 
+            // 플로우 수치는 시트가 원본이라 항상 재베이크한다 (매 웨이브 제시 / 리롤 판당 5회 / 등급 목표 확률)
+            config.FirstRewardWave = 1;
+            config.EveryNWaves = 1;
+            config.CardsPerOffer = 3;
+            config.RerollsPerRun = 5;
+            config.RerollCost = 0;
+            config.TargetCommon = 60.14f;
+            config.TargetRare = 26.92f;
+            config.TargetHeroic = 12.25f;
+            config.TargetLegendary = 0.68f;
+
             config.Cards = cards.ToArray();
             EditorUtility.SetDirty(config);
 
@@ -874,10 +1372,18 @@ namespace Rush.EditorTools
 
         // ---------- 7. 전체 에셋 원클릭 ----------
 
+        /// <summary>메뉴/자동화에서 원클릭 실행 (Stage Command Center의 전체 셋업과 동일).</summary>
+        [MenuItem("Rush/전체 셋업 (에셋+씬)")]
+        public static void RunFullSetup()
+        {
+            SetupScene();
+        }
+
         public static void CreateAllAssets()
         {
             CreateFolders();
             CreateDummyPrefabs();
+            ApplyArtModels();
             CreateTowerData();
             CreateMonsterData();
             CreateStageAndDifficultyData();
@@ -916,6 +1422,7 @@ namespace Rush.EditorTools
             var path = SetupPath();
             BakePathVisual(path);
             SetupSlots();
+            UpgradeSlotVisuals();
             var stage = SetupStageController(path);
             SetupGameUI(stage);
 
@@ -930,17 +1437,21 @@ namespace Rush.EditorTools
             Report("씬 셋업 완료: " + ScenePath);
         }
 
+        /// <summary>
+        /// 카메라가 없을 때만 만들고 기본 앵글을 준다.
+        /// 이미 있으면 위치/회전/fov를 절대 건드리지 않는다 (수동으로 잡은 앵글 보존).
+        /// </summary>
         static void SetupCamera()
         {
             var cam = Camera.main;
 
-            if (cam == null)
-            {
-                var go = new GameObject("Main Camera");
-                go.tag = "MainCamera";
-                cam = go.AddComponent<Camera>();
-                go.AddComponent<AudioListener>();
-            }
+            if (cam != null)
+                return;
+
+            var go = new GameObject("Main Camera");
+            go.tag = "MainCamera";
+            cam = go.AddComponent<Camera>();
+            go.AddComponent<AudioListener>();
 
             cam.transform.position = new Vector3(0f, 16f, -11f);
             cam.transform.rotation = Quaternion.Euler(55f, 0f, 0f);
@@ -1260,15 +1771,23 @@ namespace Rush.EditorTools
             var buildMenu = EnsureComponent<BuildMenu>(uiGo);
             var dashboard = EnsureComponent<DebugDashboard>(uiGo);
             var rewardOverlay = EnsureComponent<RewardOverlay>(uiGo);
+            var rewardSidebar = EnsureComponent<RewardSidebar>(uiGo);
+            var healthOverlay = EnsureComponent<MonsterHealthOverlay>(uiGo);
 
             var hudSo = new SerializedObject(hud);
             FillIfEmpty(hudSo, "_stage", stage);
+            FillIfEmpty(hudSo, "_healthOverlay", healthOverlay);
             hudSo.ApplyModifiedPropertiesWithoutUndo();
 
             var overlaySo = new SerializedObject(rewardOverlay);
             FillIfEmpty(overlaySo, "_stage", stage);
             FillIfEmpty(overlaySo, "_rewards", stage.GetComponent<RewardSystem>());
             overlaySo.ApplyModifiedPropertiesWithoutUndo();
+
+            var sidebarSo = new SerializedObject(rewardSidebar);
+            FillIfEmpty(sidebarSo, "_stage", stage);
+            FillIfEmpty(sidebarSo, "_rewards", stage.GetComponent<RewardSystem>());
+            sidebarSo.ApplyModifiedPropertiesWithoutUndo();
 
             var dashSo = new SerializedObject(dashboard);
             FillIfEmpty(dashSo, "_stage", stage);
@@ -1355,8 +1874,17 @@ namespace Rush.EditorTools
                     continue;
                 }
 
-                if (data.Levels == null || data.Levels.Length != 4)
-                    issues.Add($"[데이터] {name}: 레벨이 4단계가 아님");
+                if (data.Levels == null || data.Levels.Length != 3)
+                    issues.Add($"[데이터] {name}: 레벨이 3단계가 아님 (최종 증축은 분기)");
+
+                if (data.BranchA == null || !data.BranchA.IsValid)
+                    issues.Add($"[데이터] {name}: BranchA가 비어 있음");
+
+                if (data.BranchB == null || !data.BranchB.IsValid)
+                    issues.Add($"[데이터] {name}: BranchB가 비어 있음");
+
+                ValidateBranchSkills(issues, name, data.BranchA);
+                ValidateBranchSkills(issues, name, data.BranchB);
 
                 if (data.TowerPrefab == null)
                     issues.Add($"[데이터] {name}: TowerPrefab 비어 있음");
@@ -1403,6 +1931,30 @@ namespace Rush.EditorTools
                     if (level.SoldierAttackInterval <= 0f)
                         issues.Add($"[데이터] {name} Lv{i + 1}: SoldierAttackInterval이 0 이하");
                 }
+            }
+        }
+
+        static void ValidateBranchSkills(List<string> issues, string towerName, TowerBranchDef branch)
+        {
+            if (branch == null || branch.Skills == null)
+                return;
+
+            foreach (var skill in branch.Skills)
+            {
+                if (skill == null)
+                {
+                    issues.Add($"[데이터] {towerName}/{branch.Name}: 빈 스킬 항목");
+                    continue;
+                }
+
+                if (skill.Type == BranchSkillType.None)
+                    issues.Add($"[데이터] {towerName}/{skill.DisplayName}: 효과 미지정");
+
+                if (skill.TotalCost <= 0)
+                    issues.Add($"[데이터] {towerName}/{skill.DisplayName}: 총액이 0 이하");
+
+                if (skill.Values == null || skill.Values.Length != 3)
+                    issues.Add($"[데이터] {towerName}/{skill.DisplayName}: 레벨 수치가 3개가 아님");
             }
         }
 
@@ -1453,27 +2005,54 @@ namespace Rush.EditorTools
                 return;
             }
 
-            if (stage.Waves == null || stage.Waves.Length != 10)
+            if (stage.Waves == null || stage.Waves.Length != 24)
             {
-                issues.Add("[데이터] Stage01: 웨이브가 10개가 아님");
+                issues.Add("[데이터] Stage01: 웨이브가 24개가 아님");
                 return;
+            }
+
+            if (stage.RandomPool == null || stage.RandomPool.Length == 0)
+                issues.Add("[데이터] Stage01: RandomPool이 비어 있음 (무작위 구성 불가)");
+            else
+            {
+                foreach (var monster in stage.RandomPool)
+                {
+                    if (monster == null)
+                        issues.Add("[데이터] Stage01: RandomPool에 빈 항목");
+                }
             }
 
             for (int i = 0; i < stage.Waves.Length; i++)
             {
                 var wave = stage.Waves[i];
 
-                if (wave == null || wave.Entries == null || wave.Entries.Length == 0)
+                if (wave == null)
                 {
-                    issues.Add($"[데이터] Stage01: 웨이브 {i + 1}이 비어 있음");
+                    issues.Add($"[데이터] Stage01: 웨이브 {i + 1}이 null");
                     continue;
                 }
 
-                foreach (var entry in wave.Entries)
+                if (wave.Budget <= 0)
+                    issues.Add($"[데이터] Stage01: 웨이브 {i + 1} 예산이 0 이하");
+
+                if (wave.StatMultiplier <= 0f)
+                    issues.Add($"[데이터] Stage01: 웨이브 {i + 1} 스탯 배수가 0 이하");
+
+                bool hasBoss = false;
+
+                if (wave.Entries != null)
                 {
-                    if (entry.Monster == null)
-                        issues.Add($"[데이터] Stage01: 웨이브 {i + 1}에 몬스터 미지정 항목");
+                    foreach (var entry in wave.Entries)
+                    {
+                        if (entry.Monster == null)
+                            issues.Add($"[데이터] Stage01: 웨이브 {i + 1}에 몬스터 미지정 항목");
+                        else if (entry.Monster.IsBoss)
+                            hasBoss = true;
+                    }
                 }
+
+                if (wave.IsBossWave && !hasBoss)
+                    issues.Add($"[데이터] Stage01: 웨이브 {i + 1}이 보스 웨이브인데 보스 항목이 없음");
             }
         }
 
@@ -1521,10 +2100,10 @@ namespace Rush.EditorTools
             if (enabledCount == 0)
                 issues.Add("[보상] 활성 카드가 하나도 없음");
 
-            float weightSum = config.WeightCommon + config.WeightRare + config.WeightHeroic + config.WeightLegendary;
+            float targetSum = config.TargetCommon + config.TargetRare + config.TargetHeroic + config.TargetLegendary;
 
-            if (weightSum <= 0f)
-                issues.Add("[보상] 등급 가중치 합이 0");
+            if (targetSum <= 0f)
+                issues.Add("[보상] 등급 목표 확률 합이 0");
         }
 
         static void ValidateScene(List<string> issues)
@@ -1571,6 +2150,9 @@ namespace Rush.EditorTools
 
             if (UnityEngine.Object.FindFirstObjectByType<RewardOverlay>() == null)
                 issues.Add("[씬] RewardOverlay(GameUI) 없음");
+
+            if (UnityEngine.Object.FindFirstObjectByType<MonsterHealthOverlay>() == null)
+                issues.Add("[씬] MonsterHealthOverlay(GameUI) 없음");
 
             var path = UnityEngine.Object.FindFirstObjectByType<PathRoute>();
 

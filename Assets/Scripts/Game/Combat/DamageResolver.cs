@@ -5,16 +5,16 @@ using UnityEngine;
 namespace Rush.Combat
 {
     /// <summary>
-    /// 모든 피해가 지나가는 단일 계산 창구. 기획서(코어 룰) 3.1, 3.2.
-    /// 방어는 몬스터의 런타임 단계(0=없음 ~ 5=면역)로 계산하며, 보상 훅이 여기서 개입한다:
+    /// 모든 피해가 지나가는 단일 계산 창구. 스프레드시트(적 시스템: 방어력/마법 저항).
+    /// 방어는 몬스터의 런타임 단계(0=없음 ~ 4=면역, 단계당 25% 감쇄)로 계산하며, 보상 훅이 여기서 개입한다:
     /// 태그 피해 보너스, 조건부 피해, 확률 방어 무시, 저항 무시/영구 하락.
     /// </summary>
     public static class DamageResolver
     {
-        // 단계별 감쇄율: 없음/낮음/보통/높음/매우높음/면역
-        static readonly float[] StageReduction = { 0f, 0.15f, 0.45f, 0.75f, 0.95f, 1f };
+        // 단계별 감쇄율: 0단계(0%) ~ 4단계(100%=이뮨). 모든 단계는 스킬/보상으로 낮아질 수 있다.
+        static readonly float[] StageReduction = { 0f, 0.25f, 0.5f, 0.75f, 1f };
 
-        public const int ImmuneStage = 5;
+        public const int ImmuneStage = 4;
 
         public static float GetStageReduction(int stage)
         {

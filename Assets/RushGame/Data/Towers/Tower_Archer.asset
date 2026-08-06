@@ -20,7 +20,7 @@ MonoBehaviour:
   ImpactPrefab: {fileID: 1627701161268245957, guid: 95d834b14abf1a84e9024b82ee682a11, type: 3}
   ProjectileSpeed: 14
   Levels:
-  - DisplayName: "\uAD81\uC218 \uCD08\uC18C"
+  - DisplayName: "\uAD81\uC218\uD0D1 1\uB2E8\uACC4"
     Cost: 70
     Damage: 8
     Range: 5
@@ -32,9 +32,11 @@ MonoBehaviour:
     SoldierCount: 0
     SoldierHp: 0
     SoldierDamage: 0
+    SoldierDamageMax: 0
     SoldierAttackInterval: 0
     SoldierRespawnSeconds: 0
-  - DisplayName: "\uC7A5\uAD81\uBCD1 \uBD80\uB300"
+    SoldierDamageCut: 0
+  - DisplayName: "\uAD81\uC218\uD0D1 2\uB2E8\uACC4"
     Cost: 110
     Damage: 12
     Range: 5.5
@@ -46,10 +48,12 @@ MonoBehaviour:
     SoldierCount: 0
     SoldierHp: 0
     SoldierDamage: 0
+    SoldierDamageMax: 0
     SoldierAttackInterval: 0
     SoldierRespawnSeconds: 0
-  - DisplayName: "\uC815\uC608 \uAD81\uBCD1\uB300"
-    Cost: 160
+    SoldierDamageCut: 0
+  - DisplayName: "\uAD81\uC218\uD0D1 3\uB2E8\uACC4"
+    Cost: 180
     Damage: 16
     Range: 5.5
     AttackInterval: 0.7
@@ -60,22 +64,103 @@ MonoBehaviour:
     SoldierCount: 0
     SoldierHp: 0
     SoldierDamage: 0
+    SoldierDamageMax: 0
     SoldierAttackInterval: 0
     SoldierRespawnSeconds: 0
-  - DisplayName: "\uC655\uC2E4 \uAD81\uBCD1\uB2E8"
-    Cost: 240
-    Damage: 22
-    Range: 6
-    AttackInterval: 0.6
-    SlowPercent: 0
-    SlowDuration: 0
-    SplashRadius: 0
-    ArmorPierce: 0
-    SoldierCount: 0
-    SoldierHp: 0
-    SoldierDamage: 0
-    SoldierAttackInterval: 0
-    SoldierRespawnSeconds: 0
+    SoldierDamageCut: 0
+  BranchA:
+    Name: "\uBA85\uC0AC\uC218 \uC131\uC9C0"
+    Stat:
+      DisplayName: "\uBA85\uC0AC\uC218 \uC131\uC9C0"
+      Cost: 320
+      Damage: 20
+      Range: 6.5
+      AttackInterval: 0.55
+      SlowPercent: 0
+      SlowDuration: 0
+      SplashRadius: 0
+      ArmorPierce: 0
+      SoldierCount: 0
+      SoldierHp: 0
+      SoldierDamage: 0
+      SoldierDamageMax: 0
+      SoldierAttackInterval: 0
+      SoldierRespawnSeconds: 0
+      SoldierDamageCut: 0
+    Skills:
+    - DisplayName: "\uD5E4\uB4DC\uC0F7"
+      Description: "\uACF5\uACA9 60\uBC88\uB9C8\uB2E4 \uB2E4\uC74C \uACF5\uACA9\uC5D0
+        200/400/600 \uCD94\uAC00 \uBB3C\uB9AC \uD53C\uD574 \xB7 \uC77C\uBC18 \uBAAC\uC2A4\uD130\uB294
+        10/15/20% \uD655\uB960\uB85C \uC989\uC0AC"
+      Type: 1
+      TotalCost: 360
+      Values:
+      - 200
+      - 400
+      - 600
+      Chances:
+      - 0.1
+      - 0.15
+      - 0.2
+    - DisplayName: "\uC815\uD655\uD55C \uC870\uC900"
+      Description: "\uD06C\uB9AC\uD2F0\uCEEC \uD655\uB960 +10/20/30% \xB7 \uD06C\uB9AC\uD2F0\uCEEC\uC740
+        2\uBC30 \uD53C\uD574"
+      Type: 2
+      TotalCost: 300
+      Values:
+      - 0
+      - 0
+      - 0
+      Chances:
+      - 0.1
+      - 0.2
+      - 0.3
+  BranchB:
+    Name: "\uBD88\uBC95 \uCD1D\uD3EC\uC0C1"
+    Stat:
+      DisplayName: "\uBD88\uBC95 \uCD1D\uD3EC\uC0C1"
+      Cost: 320
+      Damage: 45
+      Range: 7.5
+      AttackInterval: 1.6
+      SlowPercent: 0
+      SlowDuration: 0
+      SplashRadius: 0
+      ArmorPierce: 0
+      SoldierCount: 0
+      SoldierHp: 0
+      SoldierDamage: 0
+      SoldierDamageMax: 0
+      SoldierAttackInterval: 0
+      SoldierRespawnSeconds: 0
+      SoldierDamageCut: 0
+    Skills:
+    - DisplayName: "\uB9C8\uAC1C\uC870 \uAE30\uAD00\uCD1D"
+      Description: "15\uCD08\uB9C8\uB2E4 1/3/5\uCD08\uAC04 \uACF5\uACA9\uC8FC\uAE30
+        80% \uAC10\uC18C (\uACF5\uACA9\uC18D\uB3C4 500%)"
+      Type: 3
+      TotalCost: 360
+      Values:
+      - 1
+      - 3
+      - 5
+      Chances:
+      - 0
+      - 0
+      - 0
+    - DisplayName: "\uAE09\uC870 \uCCA0\uAC11\uD0C4"
+      Description: "\uACF5\uACA9 \uC2DC 10/20/30% \uD655\uB960\uB85C \uB300\uC0C1\uC758
+        \uBB3C\uB9AC \uBC29\uC5B4\uB825 1\uB2E8\uACC4 \uC601\uAD6C \uAC10\uC18C"
+      Type: 4
+      TotalCost: 300
+      Values:
+      - 0
+      - 0
+      - 0
+      Chances:
+      - 0.1
+      - 0.2
+      - 0.3
   Motion:
     Kind: 1
     ShotCount: 2

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6e4c12fb4c25eef4494fc2018215d54d, type: 3}
+  m_Name: Monster_Rider
+  m_EditorClassIdentifier: Assembly-CSharp::Rush.Data.MonsterData
+  DisplayName: "\uB77C\uC774\uB354"
+  Prefab: {fileID: 1898961896578762242, guid: b53e5b9eaa93763438205d11bf284abe, type: 3}
+  MaxHp: 90
+  MoveSpeed: 2.08
+  PhysicalDefense: 1
+  MagicalDefense: 0
+  IsFlying: 1
+  GoldReward: 15
+  LifeDamage: 1
+  IsBoss: 0
+  RegenPerSecond: 0
+  MeleeDamage: 0
+  MeleeInterval: 1
+  RangedDamage: 0
+  RangedRange: 0
+  RangedInterval: 1.5

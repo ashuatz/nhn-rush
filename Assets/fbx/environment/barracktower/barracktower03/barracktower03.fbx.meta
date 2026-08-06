@@ -3,7 +3,12 @@ guid: d106d647c5c05ed46abb9a3466a6e5b3
 ModelImporter:
   serializedVersion: 24300
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: barracktower
+    second: {fileID: 2100000, guid: ffc0421bf9e93c147a12abad9f69dcd9, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

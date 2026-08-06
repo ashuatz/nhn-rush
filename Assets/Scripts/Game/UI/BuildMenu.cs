@@ -266,9 +266,118 @@ namespace Rush.UI
                 _buttonArea.Add(upgrade);
             }
 
+            // 최종 분기: 3단계에서 두 갈래 중 하나를 고른다 (되돌릴 수 없음)
+            if (tower.CanChooseBranch)
+            {
+                AddBranchButton(tower, tower.Data.BranchA, TowerBranchChoice.A);
+                AddBranchButton(tower, tower.Data.BranchB, TowerBranchChoice.B);
+            }
+
+            // 분기 확정 후: 분기 전용 스킬 구매 (각 3레벨)
+            if (tower.BranchChoice != TowerBranchChoice.None)
+                AddSkillButtons(tower);
+
             var sell = new Button(OnSellClicked);
             sell.text = $"판매 (+{tower.SellRefund}G)";
             _buttonArea.Add(sell);
+        }
+
+        void AddBranchButton(Tower tower, TowerBranchDef branch, TowerBranchChoice choice)
+        {
+            if (branch == null || !branch.IsValid)
+                return;
+
+            int cost = tower.BranchCost(branch);
+
+            var button = new Button(() => OnBranchClicked(choice));
+            button.text = $"분기: {branch.Name} ({cost}G)";
+            button.style.marginBottom = 4;
+            button.SetEnabled(_stage.Gold >= cost);
+
+            float previewRange = branch.Stat.Range * RewardSystem.GetStatMods(tower.Data.Type).RangeMul;
+            AttachRangePreview(button, previewRange);
+
+            _buttonArea.Add(button);
+        }
+
+        void AddSkillButtons(Tower tower)
+        {
+            for (int i = 0; i < tower.SkillCount; i++)
+            {
+                var skill = tower.GetSkill(i);
+
+                if (skill == null)
+                    continue;
+
+                int level = tower.GetSkillLevelAt(i);
+                int index = i;
+
+                if (level >= BranchSkillDef.MaxLevel)
+                {
+                    var maxed = new Label($"{skill.DisplayName} Lv{level} (최대)");
+                    maxed.style.color = new Color(0.6f, 0.85f, 0.6f, 1f);
+                    maxed.style.fontSize = 11;
+                    maxed.style.marginBottom = 4;
+                    maxed.tooltip = skill.Description;
+                    _buttonArea.Add(maxed);
+                    continue;
+                }
+
+                int cost = tower.SkillUpgradeCost(i);
+
+                var button = new Button(() => OnSkillClicked(index));
+                button.text = $"{skill.DisplayName} Lv{level} > {level + 1} ({cost}G)";
+                button.style.marginBottom = 4;
+                button.tooltip = skill.Description;
+                button.SetEnabled(_stage.Gold >= cost);
+
+                _buttonArea.Add(button);
+            }
+        }
+
+        void OnBranchClicked(TowerBranchChoice choice)
+        {
+            if (!CanOperate())
+                return;
+
+            if (!_selected.IsOccupied)
+                return;
+
+            var tower = _selected.Occupant;
+
+            if (!tower.CanChooseBranch)
+                return;
+
+            var branch = choice == TowerBranchChoice.A ? tower.Data.BranchA : tower.Data.BranchB;
+
+            if (!_stage.TrySpend(tower.BranchCost(branch)))
+                return;
+
+            tower.ChooseBranch(choice);
+
+            RefreshButtons();
+        }
+
+        void OnSkillClicked(int index)
+        {
+            if (!CanOperate())
+                return;
+
+            if (!_selected.IsOccupied)
+                return;
+
+            var tower = _selected.Occupant;
+            int cost = tower.SkillUpgradeCost(index);
+
+            if (cost <= 0)
+                return;
+
+            if (!_stage.TrySpend(cost))
+                return;
+
+            tower.UpgradeSkill(index);
+
+            RefreshButtons();
         }
 
         void OnBuildClicked(TowerData data)

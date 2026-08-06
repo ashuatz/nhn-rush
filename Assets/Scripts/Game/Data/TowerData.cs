@@ -21,15 +21,22 @@ namespace Rush.Data
         public float SplashRadius;
         [Range(0f, 1f)] public float ArmorPierce;
 
-        [Header("보병 전용")]
+        [Header("보병 전용 (공격력은 최소~최대 범위)")]
         public int SoldierCount;
         public float SoldierHp;
         public float SoldierDamage;
+        public float SoldierDamageMax;
         public float SoldierAttackInterval;
         public float SoldierRespawnSeconds;
+
+        [Tooltip("병사 피해 감소율 (기사단 방어/저항 1단계 = 0.25 근사)")]
+        [Range(0f, 1f)] public float SoldierDamageCut;
     }
 
-    /// <summary>타워 계열 1개의 정의 (Lv1~4 선형 강화). 기획서(코어 룰) 2장.</summary>
+    /// <summary>
+    /// 타워 계열 1개의 정의. 1~3단계(Levels) 뒤 최종 분기(BranchA/B) 중 하나를 선택한다 (되돌릴 수 없음).
+    /// 스프레드시트(타워 시트/막증축 타워 스킬 정리).
+    /// </summary>
     [CreateAssetMenu(menuName = "Rush/Tower Data", fileName = "TowerData")]
     public class TowerData : ScriptableObject
     {
@@ -40,7 +47,13 @@ namespace Rush.Data
         public GameObject SoldierPrefab;
         public GameObject ImpactPrefab;
         public float ProjectileSpeed = 12f;
-        public TowerLevelStat[] Levels = new TowerLevelStat[4];
+
+        [Tooltip("1~3단계 스탯. 최종 증축은 BranchA/B에 있다")]
+        public TowerLevelStat[] Levels = new TowerLevelStat[3];
+
+        [Header("최종 분기 (4단계)")]
+        public TowerBranchDef BranchA = new TowerBranchDef();
+        public TowerBranchDef BranchB = new TowerBranchDef();
 
         [Header("공격 연출")]
         public ProjectileMotion Motion = new ProjectileMotion();

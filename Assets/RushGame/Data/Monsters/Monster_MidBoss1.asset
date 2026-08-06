@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6e4c12fb4c25eef4494fc2018215d54d, type: 3}
+  m_Name: Monster_MidBoss1
+  m_EditorClassIdentifier: Assembly-CSharp::Rush.Data.MonsterData
+  DisplayName: "\uC911\uAC04 \uBCF4\uC2A4 1"
+  Prefab: {fileID: 5521943175427076578, guid: 12e689e848abc0c4eafeb7f347f735a0, type: 3}
+  MaxHp: 900
+  MoveSpeed: 1.1
+  PhysicalDefense: 1
+  MagicalDefense: 1
+  IsFlying: 0
+  GoldReward: 123
+  LifeDamage: 20
+  IsBoss: 1
+  RegenPerSecond: 0
+  MeleeDamage: 40
+  MeleeInterval: 1.5
+  RangedDamage: 0
+  RangedRange: 0
+  RangedInterval: 1.5

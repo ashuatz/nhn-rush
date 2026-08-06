@@ -20,7 +20,7 @@ MonoBehaviour:
   ImpactPrefab: {fileID: 2503662763899452666, guid: 59b20d2acbf52524ebc8d17298e6655c, type: 3}
   ProjectileSpeed: 8
   Levels:
-  - DisplayName: "\uD654\uD3EC \uC9C4\uC9C0"
+  - DisplayName: "\uD3EC\uBCD1\uD0D1 1\uB2E8\uACC4"
     Cost: 125
     Damage: 18
     Range: 4.5
@@ -32,10 +32,12 @@ MonoBehaviour:
     SoldierCount: 0
     SoldierHp: 0
     SoldierDamage: 0
+    SoldierDamageMax: 0
     SoldierAttackInterval: 0
     SoldierRespawnSeconds: 0
-  - DisplayName: "\uC911\uD3EC \uC9C4\uC9C0"
-    Cost: 220
+    SoldierDamageCut: 0
+  - DisplayName: "\uD3EC\uBCD1\uD0D1 2\uB2E8\uACC4"
+    Cost: 190
     Damage: 28
     Range: 4.5
     AttackInterval: 2.5
@@ -46,10 +48,12 @@ MonoBehaviour:
     SoldierCount: 0
     SoldierHp: 0
     SoldierDamage: 0
+    SoldierDamageMax: 0
     SoldierAttackInterval: 0
     SoldierRespawnSeconds: 0
-  - DisplayName: "\uACF5\uC131\uD3EC \uC9C4\uC9C0"
-    Cost: 320
+    SoldierDamageCut: 0
+  - DisplayName: "\uD3EC\uBCD1\uD0D1 3\uB2E8\uACC4"
+    Cost: 300
     Damage: 40
     Range: 5
     AttackInterval: 2.5
@@ -60,22 +64,104 @@ MonoBehaviour:
     SoldierCount: 0
     SoldierHp: 0
     SoldierDamage: 0
+    SoldierDamageMax: 0
     SoldierAttackInterval: 0
     SoldierRespawnSeconds: 0
-  - DisplayName: "\uC655\uC2E4 \uACF5\uC131\uB2E8"
-    Cost: 480
-    Damage: 56
-    Range: 5
-    AttackInterval: 2.5
-    SlowPercent: 0
-    SlowDuration: 0
-    SplashRadius: 1.8
-    ArmorPierce: 0.5
-    SoldierCount: 0
-    SoldierHp: 0
-    SoldierDamage: 0
-    SoldierAttackInterval: 0
-    SoldierRespawnSeconds: 0
+    SoldierDamageCut: 0
+  BranchA:
+    Name: "\uC6A9\uC758 \uC228\uACB0\uD3EC"
+    Stat:
+      DisplayName: "\uC6A9\uC758 \uC228\uACB0\uD3EC"
+      Cost: 460
+      Damage: 52
+      Range: 5
+      AttackInterval: 2.5
+      SlowPercent: 0
+      SlowDuration: 0
+      SplashRadius: 2.1
+      ArmorPierce: 0.5
+      SoldierCount: 0
+      SoldierHp: 0
+      SoldierDamage: 0
+      SoldierDamageMax: 0
+      SoldierAttackInterval: 0
+      SoldierRespawnSeconds: 0
+      SoldierDamageCut: 0
+    Skills:
+    - DisplayName: "\uC6A9\uC758 \uC228\uACB0"
+      Description: "6\uCD08\uB9C8\uB2E4 \uB2E4\uC74C \uACF5\uACA9\uC774 \uAD11\uC5ED
+        \uBC94\uC704\uC5D0 \uD654\uC5FC \uC7A5\uD310\uC744 \uB0A8\uAE40 \xB7 3\uCD08\uAC04
+        \uB9E4\uCD08 20/35/50 \uD53C\uD574 (\uAD11\uC5ED \uD0DC\uADF8 \uC544\uB2D8)"
+      Type: 15
+      TotalCost: 420
+      Values:
+      - 20
+      - 35
+      - 50
+      Chances:
+      - 0
+      - 0
+      - 0
+    - DisplayName: "\uC6A9\uC554\uD3EC\uD0C4"
+      Description: "\uAE30\uBCF8 \uACF5\uACA9\uC758 \uAD11\uC5ED \uBC94\uC704 +10/20/30%
+        \xB7 \uC801\uC744 20% \uB454\uD654"
+      Type: 16
+      TotalCost: 360
+      Values:
+      - 0.1
+      - 0.2
+      - 0.3
+      Chances:
+      - 0
+      - 0
+      - 0
+  BranchB:
+    Name: "\uB9C8\uAC1C\uC870 \uC7A5\uC0AC\uC815\uD3EC"
+    Stat:
+      DisplayName: "\uB9C8\uAC1C\uC870 \uC7A5\uC0AC\uC815\uD3EC"
+      Cost: 460
+      Damage: 48
+      Range: 7
+      AttackInterval: 2.5
+      SlowPercent: 0
+      SlowDuration: 0
+      SplashRadius: 1.3
+      ArmorPierce: 0.5
+      SoldierCount: 0
+      SoldierHp: 0
+      SoldierDamage: 0
+      SoldierDamageMax: 0
+      SoldierAttackInterval: 0
+      SoldierRespawnSeconds: 0
+      SoldierDamageCut: 0
+    Skills:
+    - DisplayName: "\uD65C\uAC15\uD3EC\uD0C4"
+      Description: "\uBA3C \uAC70\uB9AC\uC758 \uC801\uC744 \uACF5\uACA9\uD560 \uB54C
+        \uD53C\uD574 +10/20/30%\uAE4C\uC9C0 \uC99D\uAC00"
+      Type: 17
+      TotalCost: 360
+      Values:
+      - 0.1
+      - 0.2
+      - 0.3
+      Chances:
+      - 0
+      - 0
+      - 0
+    - DisplayName: "\uC9D1\uC18D\uB85C\uCF13"
+      Description: "12\uCD08\uB9C8\uB2E4 \uB2E4\uC74C \uAE30\uBCF8 \uACF5\uACA9\uC774
+        \uC0AC\uAC70\uB9AC \uB0B4 \uBB34\uC791\uC704 \uC801\uC5D0\uAC8C 3/5/7\uBC1C
+        \uB3D9\uC2DC \uBC1C\uC0AC \xB7 1\uCD08\uAC04 \uAE30\uC808"
+      Type: 18
+      TotalCost: 420
+      Values:
+      - 3
+      - 5
+      - 7
+      Chances:
+      - 0
+      - 0
+      - 0
   Motion:
     Kind: 2
     ShotCount: 1

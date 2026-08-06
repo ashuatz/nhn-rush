@@ -17,7 +17,10 @@ namespace Rush.Data
         True = 2,
     }
 
-    /// <summary>방어 등급 5단계. 기획서(코어 룰) 3.2.</summary>
+    /// <summary>
+    /// 방어 등급 5단계 = 시트의 0~4단계. 단계당 25% 감쇄, Immune(4단계)은 해당 속성 피해 무효.
+    /// 스프레드시트(적 시스템: 방어력/마법 저항).
+    /// </summary>
     public enum DefenseGrade
     {
         Low = 0,

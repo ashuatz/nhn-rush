@@ -3,7 +3,12 @@ guid: 4564bf64c485d3b4a88dc47e0adbedaa
 ModelImporter:
   serializedVersion: 24300
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: archertower
+    second: {fileID: 2100000, guid: 5924c25a4fe53ac4a9396c868d21b4dd, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

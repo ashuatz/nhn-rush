@@ -9,7 +9,9 @@ namespace Rush.Stage
 {
     /// <summary>
     /// 로그라이트 보상 시스템.
-    /// 웨이브 시작 직전에 게임을 멈추고(디밍) 카드 3장을 제시한다: 선택 / 다시뽑기 / 건너뛰기(+골드).
+    /// 웨이브 시작 직전에 게임을 멈추고(디밍) 카드 3장을 제시한다: 1장 선택 / 다시뽑기(판 전체 5회).
+    /// 보스 웨이브(6/12/18)는 시작 제시를 생략하고, 보스 처치 시 제시 + 직후 웨이브 시작은 확정 전설.
+    /// 버린(제시됐지만 안 뽑은) 카드는 같은 제시 화면(다시뽑기 포함)에 다시 나오지 않는다.
     /// 보유한 카드의 효과는 전투 코드가 static 쿼리로 읽어 간다 (씬에 배치, 부트스트랩 없음).
     /// 수치는 전부 RewardDefinition/RewardFlowConfig 에셋에 있고 Balance Board에서 조절한다.
     /// </summary>
@@ -24,14 +26,31 @@ namespace Rush.Stage
         readonly Dictionary<RewardDefinition, int> _stacks = new Dictionary<RewardDefinition, int>();
         readonly List<RewardDefinition> _offer = new List<RewardDefinition>(3);
         readonly List<RewardDefinition> _candidateBuffer = new List<RewardDefinition>(64);
+        readonly HashSet<RewardDefinition> _discardedThisOffer = new HashSet<RewardDefinition>();
         readonly List<Monster> _monsterBuffer = new List<Monster>(32);
 
         Action _pendingProceed;
         int _rerollsLeft;
+        bool _rerollsInitialized;
+        bool _offerLegendaryOnly;
 
         public RewardFlowConfig Config => _config;
 
         public bool OfferActive { get; private set; }
+
+        /// <summary>보유 카드 구성이 바뀔 때마다 증가. 스탯을 스냅샷한 개체(병사)가 갱신 시점을 감지한다.</summary>
+        public int Version { get; private set; }
+
+        public static int StatVersion
+        {
+            get
+            {
+                if (Active == null)
+                    return 0;
+
+                return Active.Version;
+            }
+        }
 
         public IReadOnlyList<RewardDefinition> CurrentOffer => _offer;
 
@@ -39,6 +58,9 @@ namespace Rush.Stage
 
         /// <summary>제시 시작/변경/종료 시 발화. UI는 이것만 구독한다.</summary>
         public event Action OfferChanged;
+
+        /// <summary>카드를 획득했을 때 발화 (획득 보상 바 연출용).</summary>
+        public event Action<RewardDefinition> CardAcquired;
 
         void Awake()
         {
@@ -69,6 +91,7 @@ namespace Rush.Stage
 
         /// <summary>
         /// 웨이브 시작을 가로챈다. 제시가 열리면 true를 돌려주고, 선택이 끝나면 proceed를 호출한다.
+        /// 보스 웨이브는 시작 제시를 생략하고, 보스 직후 웨이브는 확정 전설 제시다.
         /// </summary>
         public bool TryInterceptWaveStart(int waveNumber, Action proceed)
         {
@@ -84,44 +107,88 @@ namespace Rush.Stage
             if ((waveNumber - _config.FirstRewardWave) % Mathf.Max(1, _config.EveryNWaves) != 0)
                 return false;
 
-            if (!BuildOffer())
+            // 보스 웨이브 시작 시에는 제시하지 않는다 (보상은 보스 처치 시)
+            if (_stage.IsBossWave(waveNumber))
+                return false;
+
+            bool legendaryOnly = _stage.IsBossWave(waveNumber - 1);
+
+            if (!OpenOffer(legendaryOnly))
                 return false;
 
             _pendingProceed = proceed;
-            _rerollsLeft = _config.RerollsPerOffer;
+
+            if (legendaryOnly)
+                GameLog.Info("Reward", $"웨이브 {waveNumber} 확정 전설 보상 제시");
+            else
+                GameLog.Info("Reward", $"웨이브 {waveNumber} 보상 제시");
+
+            return true;
+        }
+
+        /// <summary>중간 보스 처치 보상 (한 판 3회). 웨이브 진행 중에 게임을 멈추고 제시한다.</summary>
+        public bool TryOfferBossReward()
+        {
+            if (OfferActive)
+                return false;
+
+            if (_config == null || _stage == null)
+                return false;
+
+            if (!OpenOffer(legendaryOnly: false))
+                return false;
+
+            _pendingProceed = null;
+
+            GameLog.Info("Reward", "보스 처치 보상 제시");
+
+            return true;
+        }
+
+        bool OpenOffer(bool legendaryOnly)
+        {
+            EnsureRerolls();
+
+            _discardedThisOffer.Clear();
+            _offerLegendaryOnly = legendaryOnly;
+
+            // 전설 풀이 바닥났을 때만 제시 전체를 일반 규칙으로 폴백한다 (리롤 중 폴백 금지)
+            if (legendaryOnly)
+            {
+                CollectCandidates(legendaryOnly: true);
+
+                if (_candidateBuffer.Count == 0)
+                    _offerLegendaryOnly = false;
+            }
+
+            if (!BuildOffer(_offerLegendaryOnly))
+                return false;
+
             OfferActive = true;
 
             // 디밍 동안 게임을 완전히 멈춘다 (스폰 코루틴 포함)
             Time.timeScale = 0f;
-
-            GameLog.Info("Reward", $"웨이브 {waveNumber} 보상 제시");
 
             OfferChanged?.Invoke();
 
             return true;
         }
 
-        bool BuildOffer()
+        /// <summary>다시뽑기 잔여 횟수는 판 전체 공유값이라 최초 1회만 채운다.</summary>
+        void EnsureRerolls()
+        {
+            if (_rerollsInitialized)
+                return;
+
+            _rerollsInitialized = true;
+            _rerollsLeft = _config.RerollsPerRun;
+        }
+
+        bool BuildOffer(bool legendaryOnly)
         {
             _offer.Clear();
-            _candidateBuffer.Clear();
 
-            if (_config.Cards == null)
-                return false;
-
-            foreach (var card in _config.Cards)
-            {
-                if (card == null || !card.Enabled)
-                    continue;
-
-                if (card.Effect == RewardEffectType.None || card.Effect == RewardEffectType.DamageRangeNarrow)
-                    continue;
-
-                if (StackOf(card) >= card.StackLimit)
-                    continue;
-
-                _candidateBuffer.Add(card);
-            }
+            CollectCandidates(legendaryOnly);
 
             if (_candidateBuffer.Count == 0)
                 return false;
@@ -141,110 +208,94 @@ namespace Rush.Stage
             return _offer.Count > 0;
         }
 
+        void CollectCandidates(bool legendaryOnly)
+        {
+            _candidateBuffer.Clear();
+
+            if (_config.Cards == null)
+                return;
+
+            foreach (var card in _config.Cards)
+            {
+                if (card == null || !card.Enabled)
+                    continue;
+
+                if (card.Effect == RewardEffectType.None || card.Effect == RewardEffectType.DamageRangeNarrow)
+                    continue;
+
+                // 중첩 상한에 도달한 보상은 풀에서 제외된다
+                if (StackOf(card) >= card.StackLimit)
+                    continue;
+
+                // 이번 제시 화면에서 버린(다시뽑기로 넘긴) 카드는 다시 나오지 않는다
+                if (_discardedThisOffer.Contains(card))
+                    continue;
+
+                if (legendaryOnly && card.Rarity != RewardRarity.Legendary)
+                    continue;
+
+                _candidateBuffer.Add(card);
+            }
+        }
+
+        /// <summary>
+        /// 카드 가중치 = 등급 목표 확률 / 그 등급의 활성 풀 개수.
+        /// 카드를 추가/삭제해도 등급별 체감이 유지된다 (스프레드시트: 계산된 배수).
+        /// </summary>
+        readonly int[] _poolCounts = new int[4];
+
         RewardDefinition PickWeighted(List<RewardDefinition> candidates, List<RewardDefinition> exclude)
         {
-            // 등급을 가중치로 뽑고, 그 등급 안에서 균등 추첨한다. 해당 등급에 후보가 없으면 전체에서 뽑는다.
+            for (int i = 0; i < _poolCounts.Length; i++)
+                _poolCounts[i] = 0;
+
+            if (_config.Cards != null)
+            {
+                foreach (var card in _config.Cards)
+                {
+                    if (card == null || !card.Enabled)
+                        continue;
+
+                    _poolCounts[(int)card.Rarity]++;
+                }
+            }
+
             float total = 0f;
 
-            foreach (RewardRarity rarity in Enum.GetValues(typeof(RewardRarity)))
+            foreach (var card in candidates)
             {
-                if (HasCandidateOfRarity(candidates, exclude, rarity))
-                    total += _config.WeightOf(rarity);
+                if (exclude.Contains(card))
+                    continue;
+
+                total += CardWeight(card);
             }
 
             if (total <= 0f)
-                return PickUniform(candidates, exclude);
+                return null;
 
             float roll = Random.value * total;
 
-            foreach (RewardRarity rarity in Enum.GetValues(typeof(RewardRarity)))
+            foreach (var card in candidates)
             {
-                if (!HasCandidateOfRarity(candidates, exclude, rarity))
+                if (exclude.Contains(card))
                     continue;
 
-                roll -= _config.WeightOf(rarity);
+                roll -= CardWeight(card);
 
                 if (roll > 0f)
                     continue;
 
-                return PickUniformOfRarity(candidates, exclude, rarity);
-            }
-
-            return PickUniform(candidates, exclude);
-        }
-
-        bool HasCandidateOfRarity(List<RewardDefinition> candidates, List<RewardDefinition> exclude, RewardRarity rarity)
-        {
-            foreach (var card in candidates)
-            {
-                if (card.Rarity != rarity)
-                    continue;
-
-                if (exclude.Contains(card))
-                    continue;
-
-                return true;
-            }
-
-            return false;
-        }
-
-        RewardDefinition PickUniformOfRarity(List<RewardDefinition> candidates, List<RewardDefinition> exclude, RewardRarity rarity)
-        {
-            int count = 0;
-
-            foreach (var card in candidates)
-            {
-                if (card.Rarity == rarity && !exclude.Contains(card))
-                    count++;
-            }
-
-            if (count == 0)
-                return null;
-
-            int pick = Random.Range(0, count);
-
-            foreach (var card in candidates)
-            {
-                if (card.Rarity != rarity || exclude.Contains(card))
-                    continue;
-
-                if (pick == 0)
-                    return card;
-
-                pick--;
+                return card;
             }
 
             return null;
         }
 
-        RewardDefinition PickUniform(List<RewardDefinition> candidates, List<RewardDefinition> exclude)
+        float CardWeight(RewardDefinition card)
         {
-            int count = 0;
+            int pool = Mathf.Max(1, _poolCounts[(int)card.Rarity]);
 
-            foreach (var card in candidates)
-            {
-                if (!exclude.Contains(card))
-                    count++;
-            }
-
-            if (count == 0)
-                return null;
-
-            int pick = Random.Range(0, count);
-
-            foreach (var card in candidates)
-            {
-                if (exclude.Contains(card))
-                    continue;
-
-                if (pick == 0)
-                    return card;
-
-                pick--;
-            }
-
-            return null;
+            return _config.TargetOf(card.Rarity) / pool;
         }
 
         public void Pick(int index)
@@ -259,10 +310,13 @@ namespace Rush.Stage
 
             _stacks.TryGetValue(card, out int count);
             _stacks[card] = count + 1;
+            Version++;
 
             ApplyImmediate(card);
 
             GameLog.Info("Reward", $"[{card.Id}] {card.DisplayName} 획득 ({count + 1}/{card.StackLimit})");
+
+            CardAcquired?.Invoke(card);
 
             CloseOffer();
         }
@@ -280,8 +334,25 @@ namespace Rush.Stage
                 if (_config.RerollCost > 0 && _stage.Gold < _config.RerollCost)
                     return false;
 
-                return true;
+                // 3장 전체 교체가 불가능하면(확정 전설 풀 소진 등) 리롤을 막는다
+                return RerollCandidateCount() >= _config.CardsPerOffer;
             }
+        }
+
+        /// <summary>지금 리롤하면 새로 뽑을 수 있는 후보 수 (현재 제시분은 버려지므로 제외).</summary>
+        int RerollCandidateCount()
+        {
+            CollectCandidates(_offerLegendaryOnly);
+
+            int count = 0;
+
+            foreach (var card in _candidateBuffer)
+            {
+                if (!_offer.Contains(card))
+                    count++;
+            }
+
+            return count;
         }
 
         public void Reroll()
@@ -294,21 +365,33 @@ namespace Rush.Stage
 
             _rerollsLeft--;
 
-            BuildOffer();
-            GameLog.Info("Reward", "보상 다시뽑기");
+            // 3장 전체 교체. 버린 카드는 이 화면에 다시 등장하지 않는다.
+            var previous = new List<RewardDefinition>(_offer);
+
+            foreach (var card in previous)
+                _discardedThisOffer.Add(card);
+
+            if (!BuildOffer(_offerLegendaryOnly))
+            {
+                // 남은 후보가 없어 교체 불가 - 버린 기록/횟수/비용을 되돌리고 기존 제시 유지
+                GameLog.Warn("Reward", "다시뽑기 실패 - 남은 후보 없음");
+
+                foreach (var card in previous)
+                    _discardedThisOffer.Remove(card);
+
+                _offer.Clear();
+                _offer.AddRange(previous);
+                _rerollsLeft++;
+
+                if (_config.RerollCost > 0)
+                    _stage.AddGold(_config.RerollCost);
+
+                return;
+            }
+
+            GameLog.Info("Reward", $"보상 다시뽑기 (남은 {_rerollsLeft}회)");
 
             OfferChanged?.Invoke();
-        }
-
-        public void Skip()
-        {
-            if (!OfferActive)
-                return;
-
-            _stage.AddGold(_config.SkipGold);
-            GameLog.Info("Reward", $"보상 건너뛰기 (+{_config.SkipGold}G)");
-
-            CloseOffer();
         }
 
         void CloseOffer()
@@ -326,6 +409,22 @@ namespace Rush.Stage
             _pendingProceed = null;
 
             proceed?.Invoke();
+        }
+
+        /// <summary>제시를 무효화한다 (패배 확정 등). 재개 콜백은 버려진다.</summary>
+        public void CancelOffer()
+        {
+            if (!OfferActive)
+                return;
+
+            OfferActive = false;
+            _offer.Clear();
+            _pendingProceed = null;
+
+            if (_stage != null)
+                _stage.ReapplySpeed();
+
+            OfferChanged?.Invoke();
         }
 
         void ApplyImmediate(RewardDefinition card)
@@ -842,7 +941,7 @@ namespace Rush.Stage
                 }
             });
 
-            return Mathf.RoundToInt(monster.Data.GoldReward * percent + flat);
+            return Mathf.RoundToInt(monster.GoldReward * percent + flat);
         }
 
         /// <summary>웨이브 시작 수입 (이자 + 채권). StageController가 웨이브 시작 시 호출.</summary>

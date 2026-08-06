@@ -61,6 +61,28 @@ namespace Rush.Stage
 
         public float NextWaveIn => Mathf.Max(0f, _nextWaveTimer);
 
+        /// <summary>1-base 웨이브 번호로 웨이브 데이터를 얻는다. 범위 밖이면 null.</summary>
+        public WaveData GetWave(int waveNumber)
+        {
+            if (_stageData == null || _stageData.Waves == null)
+                return null;
+
+            int index = waveNumber - 1;
+
+            if (index < 0 || index >= _stageData.Waves.Length)
+                return null;
+
+            return _stageData.Waves[index];
+        }
+
+        /// <summary>해당 웨이브가 중간 보스 웨이브인지 (6/12/18).</summary>
+        public bool IsBossWave(int waveNumber)
+        {
+            var wave = GetWave(waveNumber);
+
+            return wave != null && wave.IsBossWave;
+        }
+
         /// <summary>진행 중인 스테이지인지. 건설/조기소환 등 플레이 입력의 공통 조건.</summary>
         public bool IsPlayable
         {
@@ -215,7 +237,7 @@ namespace Rush.Stage
                 return;
 
             Phase = StagePhase.Victory;
-            GameLog.Info("Stage", "승리 - 10웨이브 방어 완료");
+            GameLog.Info("Stage", $"승리 - {TotalWaves}웨이브 방어 완료");
 
             Notify();
         }
@@ -240,6 +262,10 @@ namespace Rush.Stage
             if (AllWavesStarted)
                 return;
 
+            // 보상 대기 중 패배/승리가 확정됐다면 뒤늦게 도착한 재개 콜백을 무시한다
+            if (Phase == StagePhase.Victory || Phase == StagePhase.Defeat)
+                return;
+
             _waveIndex++;
             _nextWaveTimer = _stageData.WaveInterval;
             Phase = StagePhase.Running;
@@ -261,7 +287,7 @@ namespace Rush.Stage
             Notify();
         }
 
-        /// <summary>지금 조기소환하면 받을 보너스 골드. 기획서(코어 룰) 1.2.</summary>
+        /// <summary>지금 조기소환하면 받을 보너스 골드 = 다음 웨이브 예산의 15% (5 단위 반올림).</summary>
         public int EarlyCallBonus
         {
             get
@@ -269,7 +295,14 @@ namespace Rush.Stage
                 if (!CanCallEarly)
                     return 0;
 
-                return Mathf.RoundToInt(NextWaveIn * _stageData.EarlyCallGoldPerSecond);
+                var next = GetWave(WaveNumber + 1);
+
+                if (next == null)
+                    return 0;
+
+                float raw = next.Budget * _stageData.EarlyCallBudgetFraction;
+
+                return Mathf.RoundToInt(raw / 5f) * 5;
             }
         }
 
@@ -323,18 +356,44 @@ namespace Rush.Stage
 
         public void HandleMonsterDied(Monster monster)
         {
-            // 보상: 막타 귀속/상태 기반 처치 보너스
+            // 보상: 막타 귀속/상태 기반 처치 보너스. 킬 보상은 웨이브 배수 반영값.
+            int baseGold = monster.GoldReward;
             int bonus = RewardSystem.KillGoldBonus(monster);
-            int total = monster.Data.GoldReward + bonus;
 
-            AddGold(total);
+            // 현상금 수거: 용병(병사)이 막타를 치면 골드 배수 (올림, 전장 회수와 합연산)
+            bonus += BountyBonus(monster, baseGold);
+
+            AddGold(baseGold + bonus);
 
             if (bonus > 0)
-                GameLog.Info("Kill", $"{monster.Data.DisplayName} 처치 (+{monster.Data.GoldReward}G, 보너스 +{bonus}G)");
+                GameLog.Info("Kill", $"{monster.Data.DisplayName} 처치 (+{baseGold}G, 보너스 +{bonus}G)");
             else
-                GameLog.Info("Kill", $"{monster.Data.DisplayName} 처치 (+{monster.Data.GoldReward}G)");
+                GameLog.Info("Kill", $"{monster.Data.DisplayName} 처치 (+{baseGold}G)");
+
+            // 중간 보스 처치 보상 (한 판 3회)
+            if (monster.Data.IsBoss && _rewards != null && Phase == StagePhase.Running)
+                _rewards.TryOfferBossReward();
 
             Notify();
+        }
+
+        /// <summary>현상금 수거(분기 스킬): 병사 막타 골드 배수. 올림 처리.</summary>
+        static int BountyBonus(Monster monster, int baseGold)
+        {
+            var source = monster.LastHitSource;
+
+            if (!source.FromSoldier || source.Tower == null)
+                return 0;
+
+            if (!source.Tower.TryGetSkill(BranchSkillType.BountyCollect, out var bounty, out int level))
+                return 0;
+
+            float multiplier = bounty.ValueAt(level);
+
+            if (multiplier <= 1f)
+                return 0;
+
+            return Mathf.CeilToInt(baseGold * (multiplier - 1f));
         }
 
         public void HandleMonsterReachedExit(Monster monster)
@@ -350,6 +409,10 @@ namespace Rush.Stage
                 Life = 0;
                 Phase = StagePhase.Defeat;
                 _spawner.StopAll();
+
+                // 열려 있던 보상 제시는 무효 (선택해도 웨이브가 시작되면 안 된다)
+                if (_rewards != null)
+                    _rewards.CancelOffer();
 
                 GameLog.Info("Stage", "패배 - 생명 소진");
             }
@@ -369,8 +432,28 @@ namespace Rush.Stage
             Notify();
         }
 
+        /// <summary>획득 보상 바 등 UI가 게임을 잠시 멈출 때 사용. 보상 디밍과 별개로 유지된다.</summary>
+        public bool UiPauseActive { get; private set; }
+
+        public void SetUiPause(bool paused)
+        {
+            UiPauseActive = paused;
+
+            ApplySpeed();
+        }
+
         void ApplySpeed()
         {
+            // 보상 선택(디밍)이나 UI 일시정지 중에는 정지를 유지한다. 배속 인덱스만 바뀌고 닫힐 때 반영된다.
+            if (_rewards != null && _rewards.OfferActive)
+                return;
+
+            if (UiPauseActive)
+            {
+                Time.timeScale = 0f;
+                return;
+            }
+
             Time.timeScale = SpeedSteps[_speedIndex];
         }
 

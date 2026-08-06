@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulation Lab - 대량 시뮬레이션 및 자동 밸런싱 기획서</title>
+<style>
+  :root{
+    --bg:#ffffff; --card:#ffffff; --border:#d9d9d9; --accent:#000000; --accent-dark:#000000;
+    --text:#1a1a1a; --sub:#666666; --warn-bg:#f5f5f5; --warn-border:#cccccc;
+    --ok:#000000; --ng:#000000; --code-bg:#f5f5f5;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; padding:40px 24px; background:var(--bg); color:var(--text); font-family:"Pretendard","Malgun Gothic",-apple-system,sans-serif; line-height:1.65;}
+  .wrap{max-width:1080px; margin:0 auto;}
+  header{margin-bottom:36px;}
+  .doc-tag{display:inline-block; background:#1a1a1a; color:#fff; font-size:12px; font-weight:700; padding:4px 10px; border-radius:4px;}
+  h1{font-size:27px; margin:12px 0 6px; color:#000;}
+  .meta{color:var(--sub); font-size:13px;}
+  h2{font-size:19px; margin:46px 0 14px; padding-bottom:8px; border-bottom:2px solid #1a1a1a; display:flex; align-items:center; gap:8px; color:#000;}
+  h2 .num{color:#000; font-weight:800;}
+  h3{font-size:15px; margin:26px 0 10px; color:#000; font-weight:700;}
+  h4{font-size:13.5px; margin:18px 0 8px; color:var(--text);}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:8px; padding:22px 24px; margin-bottom:16px;}
+  table{width:100%; border-collapse:collapse; font-size:13.3px; margin:10px 0;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:#f2f2f2; color:#000; font-weight:700;}
+  tr:nth-child(even) td{background:#fafafa;}
+  code{background:#f0f0f0; color:#1a1a1a; padding:1px 6px; border-radius:4px; font-size:12.3px; font-family:"Consolas","Menlo",monospace;}
+  .flow{display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:16px 0;}
+  .step{background:#f2f2f2; border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:12.8px; font-weight:600; min-width:110px; text-align:center;}
+  .step.action{background:#1a1a1a; color:#fff; border-color:#1a1a1a;}
+  .step.data{background:#eaeaea; border-color:#c8c8c8;}
+  .arrow{color:#666; font-size:18px;}
+  .warn{background:var(--warn-bg); border:1px solid var(--warn-border); border-left:3px solid #1a1a1a; border-radius:6px; padding:14px 16px; font-size:13.3px; margin:14px 0;}
+  .warn b{color:#000;}
+  .note{background:#f5f5f5; border:1px solid #d9d9d9; border-left:3px solid #999; border-radius:6px; padding:14px 16px; font-size:13.3px; margin:14px 0;}
+  .note b{color:#000;}
+  .tag{display:inline-block; font-size:11px; font-weight:700; padding:3px 10px; border-radius:12px;}
+  .tag.ok{background:#1a1a1a; color:#fff;}
+  .tag.ng{background:#fff; color:#000; border:1px solid #1a1a1a;}
+  .tag.def{background:#e8e8e8; color:#000;}
+  td.tagcell{text-align:center; vertical-align:middle; padding:10px 12px;}
+  td.tagcell .tag{margin:2px 0;}
+  pre{background:var(--code-bg); color:#1a1a1a; padding:16px 18px; border-radius:6px; font-size:12.5px; overflow-x:auto; line-height:1.6; border:1px solid #e0e0e0; font-family:"Consolas","Menlo",monospace;}
+  pre .cm{color:#8a8a8a; font-style:italic;}
+  pre .kw{color:#000; font-weight:700;}
+  pre .fn{color:#000; font-weight:700;}
+  pre .str{color:#555;}
+  .footer-note{color:var(--sub); font-size:12px; margin-top:50px; text-align:center;}
+  .toc{font-size:13px; display:flex; flex-direction:column; gap:6px; color:var(--sub);}
+  .toc a{color:#000; text-decoration:underline;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="doc-tag">TOOL 기획서</span>
+  <h1>Simulation Lab - 대량 시뮬레이션 및 자동 밸런싱</h1>
+  <div class="meta">작성일 2026-08-04 · 대상 브랜치 feature/td-core-implementation · 상태: 구상(승인 대기)</div>
+</header>
+
+<div class="card">
+  <div class="toc">
+    <a href="#sec1">1. 개요</a>
+    <a href="#sec2">2. 전체 구조</a>
+    <a href="#sec3">3. 시뮬레이션 실행 방식: 동시 실행 + 가속</a>
+    <a href="#sec4">4. 자동 플레이 정책</a>
+    <a href="#sec5">5. 데이터 수집</a>
+    <a href="#sec6">6. 에디터 윈도우 구성</a>
+    <a href="#sec7">7. 자동 밸런싱</a>
+    <a href="#sec8">8. 기술 제약과 리스크</a>
+    <a href="#sec9">9. 구현 단계</a>
+  </div>
+</div>
+
+<h2 id="sec1"><span class="num">1.</span> 개요</h2>
+<div class="card">
+  <h3>1.1 목적</h3>
+  <p>
+    성향이 서로 다른 <b>가상 유저를 대량으로 만들어</b> (플레이 인스턴스 수십~수백 판)
+    "실제 유저가 많이 플레이했다면" 상황을 근사한다. 각 가상 유저는 자기 취향대로 빌드를 짜고 카드를 고르며,
+    도구는 그 결과를 모아 다음 질문에 답한다.
+  </p>
+  <ul>
+    <li><b>이렇게 빌드를 짠 유저는 어디까지 깨는가?</b> (빌드 유형별 도달 웨이브 / 승률 분포)</li>
+    <li><b>어떤 조합이 좋았는가?</b> (타워 구성 x 카드 조합의 성과 랭킹, 카드별 승률 기여)</li>
+    <li><b>어떤 조합은 답이 없는가?</b> (사장된 전략 / 반대로 이것만 하면 이기는 지배 전략 탐지)</li>
+  </ul>
+  <p>이 답을 근거로 밸런스 수치 조정을 제안하고, 선택한 항목을 에셋에 적용한다.</p>
+
+  <h3>1.2 배경</h3>
+  <ul>
+    <li>수치 조정 도구(Balance Board)는 이미 있으나, <b>조정 결과를 검증하는 수단이 수동 플레이뿐</b>이다. 한 판에 약 5분이 걸려 반복 검증이 비현실적이다.</li>
+    <li>처치/누수/피해 등 핵심 이벤트는 이미 <code>GameLog</code>와 <code>DamageSource</code>를 통해 단일 창구로 흐르고 있어, 수집 훅을 붙이기 좋은 상태다.</li>
+  </ul>
+
+  <h3>1.3 범위</h3>
+  <table>
+    <tr><th>구분</th><th>내용</th><th style="width:110px;">포함</th></tr>
+    <tr><td>동시 배치 시뮬레이션</td><td>스테이지 리그를 한 씬에 격자로 N개 복제해 <b>가상 유저 N명이 동시에</b> 플레이 (가속 병행)</td><td class="tagcell"><span class="tag ok">포함</span></td></tr>
+    <tr><td>라이브 분포 뷰</td><td>씬 뷰에서 보드 격자를 내려다보며 어느 유저가 살아남는지 실시간 관찰 (보드별 상태 타일)</td><td class="tagcell"><span class="tag ok">포함</span></td></tr>
+    <tr><td>가상 유저 프로필</td><td>계열 선호/업그레이드 성향/카드 취향을 시드로 랜덤 생성해 다양한 빌드를 자동 샘플링</td><td class="tagcell"><span class="tag ok">포함</span></td></tr>
+    <tr><td>조합 분석</td><td>빌드 유형별 도달 웨이브, 상위/하위 조합 랭킹, 카드별 승률 기여</td><td class="tagcell"><span class="tag ok">포함</span></td></tr>
+    <tr><td>데이터 수집/리포트</td><td>런/웨이브/개체 3계층 지표 + 빌드 스냅샷 수집, JSON 저장, 윈도우 내 대시보드</td><td class="tagcell"><span class="tag ok">포함</span></td></tr>
+    <tr><td>전역 배율 자동 탐색</td><td>목표 승률 밴드에 들 때까지 난이도 배율 반복 조정</td><td class="tagcell"><span class="tag ok">포함</span></td></tr>
+    <tr><td>종별/카드별 자동 조정</td><td>몬스터 종별 스탯, 카드 수치의 자동 변경</td><td class="tagcell"><span class="tag ng">제안만</span></td></tr>
+    <tr><td>헤드리스 전투 재구현</td><td>Unity 루프와 분리된 순수 C# 시뮬레이터</td><td class="tagcell"><span class="tag ng">제외</span></td></tr>
+  </table>
+
+  <div class="warn">
+    <b>핵심 결정: 전투 로직을 재구현하지 않는다.</b>
+    전투가 MonoBehaviour Update/코루틴에 얹혀 있어 별도 시뮬레이터를 만들면 로직이 이원화되고,
+    이후 전투 수정 때마다 두 벌을 맞춰야 한다. 대신 <b>실제 씬을 고정 스텝으로 가속 실행</b>해
+    "지금 플레이되는 그 게임"을 그대로 측정한다. 해커톤 규모의 최소 침투 원칙에 부합한다.
+  </div>
+</div>
+
+<h2 id="sec2"><span class="num">2.</span> 전체 구조</h2>
+<div class="card">
+  <div class="flow">
+    <div class="step">SimulationLabWindow<br>(에디터 윈도우)</div>
+    <span class="arrow">→</span>
+    <div class="step action">플레이 모드 진입<br>+ 드라이버 주입</div>
+    <span class="arrow">→</span>
+    <div class="step">SimulationDriver<br>(리그 N개 격자 스폰<br>+ 유저 봇 N개)</div>
+    <span class="arrow">→</span>
+    <div class="step data">SimMetrics<br>(리그별 지표 수집)</div>
+    <span class="arrow">→</span>
+    <div class="step">JSON 리포트<br>(SimReports/)</div>
+    <span class="arrow">→</span>
+    <div class="step action">대시보드 표시<br>+ 밸런스 제안</div>
+  </div>
+
+  <table>
+    <tr><th style="width:190px;">구성 요소</th><th>역할</th><th style="width:130px;">위치</th></tr>
+    <tr><td><code>SimulationLabWindow</code></td><td>설정 UI, 배치 실행 제어, 결과 대시보드, 밸런스 제안/적용</td><td>Editor 전용</td></tr>
+    <tr><td><code>SimulationConfig</code></td><td>유저 수, 동시 인스턴스 수, 시드, 정책, 목표 지표를 담는 ScriptableObject. 윈도우와 드라이버가 공유</td><td>에셋</td></tr>
+    <tr><td><code>StageRig</code> 프리팹</td><td>스테이지 1판의 자기완결 묶음: PathRoute + TowerSlot들 + StageController + WaveSpawner + RewardSystem. <b>UI는 포함하지 않는다.</b> 기존 씬 구성을 프리팹화한 것</td><td>에셋</td></tr>
+    <tr><td><code>SimulationDriver</code></td><td>리그를 격자로 N개 스폰, 유저 봇 N개 구동(건설/보상 선택), 전원 종료 감지, 배치 반복</td><td>Runtime (도구 주입)</td></tr>
+    <tr><td><code>SimMetrics</code></td><td>리그별 이벤트 구독 + 피해 훅으로 런/웨이브/개체 지표 누적, 배치 종료 시 직렬화</td><td>Runtime</td></tr>
+    <tr><td><code>TowerBuilder</code></td><td>BuildMenu의 건설 로직을 공용 static 헬퍼로 추출 (봇과 UI가 공유)</td><td>Runtime</td></tr>
+  </table>
+
+  <div class="note">
+    <b>부트스트랩 회피 규칙과의 관계.</b> 드라이버 주입은 게임이 아니라 <b>에디터 도구가 플레이 모드 진입 콜백에서 수행</b>한다.
+    게임 씬/빌드에는 아무것도 남지 않고, 게임 코드는 드라이버의 존재를 모른다.
+    시뮬레이션이 꺼져 있으면 게임은 기존과 완전히 동일하게 동작한다.
+  </div>
+</div>
+
+<h2 id="sec3"><span class="num">3.</span> 시뮬레이션 실행 방식: 동시 실행 + 가속</h2>
+<div class="card">
+  <h3>3.1 동시 실행: 스테이지 리그를 격자로 복제</h3>
+  <p>
+    유저 100명을 한 명씩 순서대로 돌리면 분포가 모이는 데 30분 이상 걸리고, 퍼져나가는 모습을 볼 수도 없다.
+    대신 <b>StageRig 프리팹(경로+슬롯+컨트롤러+스포너+보상)을 한 씬에 격자로 N개 스폰</b>해
+    가상 유저 N명이 동시에 플레이하게 한다.
+  </p>
+  <ul>
+    <li>격자 간격은 <b>최대 사거리·스플래시·연쇄 반경의 2배보다 크게</b> 잡는다.
+      타워/스플래시/병사 탐지가 전부 위치 기반 거리 검사라, 간격만 충분하면 옆 보드를 넘볼 수 없다.</li>
+    <li>각 리그에는 봇 1개(유저 프로필 1명)가 붙는다. 리그 = 런 = 가상 유저 1명.</li>
+    <li>동시 인스턴스 수는 성능에 따라 조절한다 (기본 50, 100명 배치면 50 x 2배치).
+      동시 50개 x 실시간 1~2배 가속이면 <b>유저 100명 분포가 약 5분 안에</b> 나온다.</li>
+    <li><b>라이브 분포 뷰:</b> 리그마다 상태 타일(바닥 판)을 하나 두고 드라이버가 남은 생명/승패에 따라 음영을 바꾼다.
+      씬 뷰에서 격자를 내려다보면 "어떤 유저들이 어디까지 버티는지"가 실시간으로 보인다.</li>
+  </ul>
+
+  <div class="warn">
+    <b>동시 실행의 전제: 전역(static) 상태 정리.</b> 현재 코드는 씬에 스테이지가 1개라고 가정한 전역 참조가 있어
+    그대로는 보드끼리 상태가 섞인다. 필요한 정리는 5.2에 정리했다. 핵심 3가지:
+    (1) 전투 코드가 카드 효과를 읽는 <code>RewardSystem.Active</code> 전역 참조 → 소유 리그의 인스턴스 참조로 교체,
+    (2) 승리 판정이 세는 전역 몬스터 수 → 자기 리그 소유 몬스터만 세도록 소유 구분 추가,
+    (3) 보상 디밍의 전역 <code>timeScale = 0</code> → 시뮬레이션 중에는 시간 정지 없이 봇이 즉시 선택.
+    모두 기계적인 치환이고, 단일 스테이지 플레이 동작은 변하지 않는다.
+  </div>
+
+  <h3>3.2 가속: 고정 스텝 (captureDeltaTime)</h3>
+  <p>
+    배속을 <code>timeScale</code>로만 올리면 프레임당 <code>deltaTime</code>이 커져
+    발사체 이동/쿨다운 판정이 실플레이와 달라진다(고배속 왜곡).
+    대신 <code>Time.captureDeltaTime = 1/30</code>으로 <b>프레임당 게임 시간을 고정</b>하고
+    vSync를 꺼서 CPU가 내는 만큼 빠르게 프레임을 돌린다.
+  </p>
+  <ul>
+    <li>게임 시간은 매 프레임 정확히 1/30초씩 진행 → 판 사이 결과 편차가 프레임레이트와 무관해진다.
+      동시 실행으로 fps가 떨어져도 <b>결과는 불변</b>이고 벽시계 시간만 늘어난다.</li>
+    <li>처리량 = 동시 인스턴스 수 x (fps / 30). 예: 50개 동시 + 60fps = 실시간 대비 100배.</li>
+  </ul>
+
+  <h3>3.3 배치 생명주기</h3>
+  <div class="flow">
+    <div class="step action">플레이 진입 (1회)</div>
+    <span class="arrow">→</span>
+    <div class="step">리그 N개 스폰<br>+ 봇 N개 시작</div>
+    <span class="arrow">→</span>
+    <div class="step data">리그별 Victory / Defeat 감지<br>(각 StageController.Changed)</div>
+    <span class="arrow">→</span>
+    <div class="step">전원 종료 시 기록<br>+ 리그 일괄 파괴</div>
+    <span class="arrow">→</span>
+    <div class="step">다음 배치 스폰<br>(남은 유저가 있으면)</div>
+  </div>
+  <ul>
+    <li>씬 재로드는 쓰지 않는다 (전체가 재시작되므로). 배치 단위로 리그를 일괄 스폰/일괄 파괴한다.</li>
+    <li>배치는 동기식이다: 전원이 끝나야 다음 배치를 스폰한다. StageController.Awake의 전역 레지스트리 Clear가
+      배치 시작 시점(몬스터 0마리)에만 일어나게 하기 위함이다. 끝난 리그는 idle 상태라 부하가 거의 없다.</li>
+    <li>안전장치: 게임 시간 상한(예: 20분)을 넘긴 리그는 강제 종료하고 "타임아웃"으로 기록한다 (승패 판정이 막히는 데이터 오류 탐지용).</li>
+  </ul>
+
+  <h3>3.4 재현성 (시드)와 관전 재생</h3>
+  <ul>
+    <li>봇의 의사결정(프로필 샘플링, 슬롯/계열 추첨, 카드 선택)은 <b>봇 전용 System.Random(시드 = baseSeed + userIndex)</b>을 쓴다.
+      전역 UnityEngine.Random은 동시 실행 시 리그 간 호출 순서가 섞여 재현이 깨지기 때문이다.</li>
+    <li>게임 쪽 확률(보상 뽑기, 확률 발사)은 전역 Random이라 동시 실행에서는 완전 재현이 안 된다.
+      대신 <b>관전 재생은 리그 1개만 단독 스폰</b>하므로 이때는 전역 시드 고정으로 거의 재현된다. 분포 분석에는 영향 없다.</li>
+    <li>리포트에 유저별 시드를 기록하고, 대시보드의 [이 유저 재생]은 해당 시드로 리그 1개를 1배속 단독 실행한다.</li>
+  </ul>
+</div>
+
+<h2 id="sec4"><span class="num">4.</span> 가상 유저 (자동 플레이 정책)</h2>
+<div class="card">
+  <h3>4.1 유저 프로필 = 런 1개의 성향값 묶음</h3>
+  <p>
+    런마다 시드에서 <b>유저 프로필</b>을 하나 뽑는다. 프로필은 "이 유저가 어떤 빌드를 짜는 사람인지"를 결정하는
+    성향값의 묶음이고, 봇은 매 판정 주기(게임 시간 0.5초)마다 이 성향대로 건설/업그레이드/카드 선택을 수행한다.
+    같은 시드는 같은 유저를 재현한다.
+  </p>
+  <table>
+    <tr><th style="width:170px;">성향값</th><th>의미</th><th style="width:220px;">샘플링</th></tr>
+    <tr><td>계열 선호 가중치</td><td>궁병/마도/포병/보병 4계열에 대한 투자 비율. 건설 시 가중 추첨</td><td>디리클레풍 랜덤 (몰빵~균형 사이)</td></tr>
+    <tr><td>업그레이드 성향</td><td>골드가 생겼을 때 신규 건설 vs 기존 강화 중 무엇을 선호하는지</td><td>0.0 ~ 1.0</td></tr>
+    <tr><td>저축 성향</td><td>즉시 소비 vs 다음 웨이브까지 골드 저축 (조기소환/이자 카드와 상호작용)</td><td>0.0 ~ 1.0</td></tr>
+    <tr><td>조기소환 성향</td><td>필드가 비면 조기소환을 얼마나 적극적으로 누르는지</td><td>안 함 / 가끔 / 항상</td></tr>
+    <tr><td>카드 취향</td><td>제시 카드 중 선택 기준: 랜덤 / 등급 우선 / 자기 주력 계열 관련 우선 / 스킵 선호</td><td>4유형 중 추첨</td></tr>
+  </table>
+  <div class="note">
+    <b>프리셋도 유지한다.</b> 랜덤 프로필 외에 고정 프리셋(균형, 단일 계열 몰빵 4종, 올스킵)을 배치에 일정 비율 섞을 수 있다.
+    프리셋은 "기준선"이 되어 랜덤 유저들의 성과를 해석하는 축이 된다.
+    특정 조합을 정확히 재현하고 싶으면 빌드오더 스크립트(슬롯+계열+레벨 순서 고정)를 프로필 대신 지정한다.
+  </div>
+
+  <h3>4.2 실행 방식</h3>
+  <ul>
+    <li>건설 실행은 BuildMenu에서 추출한 공용 헬퍼 <code>TowerBuilder.TryBuild(slot, towerData, stage)</code>를 호출한다.</li>
+    <li>슬롯 선택은 "경로까지의 최단 거리" 정렬을 기본으로 하되, 프로필의 계열 선호에 따라 사거리가 긴 계열은 후열 슬롯도 허용한다 (런 시작 시 TowerSlot 전수 스캔 1회로 베이크).</li>
+    <li>카드 선택은 <code>RewardSystem.OfferChanged</code> 구독 후 공개 API(<code>Pick / Reroll / Skip</code>)를 그대로 호출한다. 다시뽑기는 카드 취향과 맞는 카드가 없을 때 사용한다.</li>
+  </ul>
+</div>
+
+<h2 id="sec5"><span class="num">5.</span> 데이터 수집</h2>
+<div class="card">
+  <h3>5.1 지표 3계층</h3>
+  <table>
+    <tr><th style="width:90px;">계층</th><th>지표</th><th>출처</th></tr>
+    <tr>
+      <td>런 (유저 1명)</td>
+      <td>승/패/타임아웃, 도달(패배) 웨이브, 남은 생명, 최종 골드, 클리어 시간(게임 시간), 시드, 유저 프로필,
+        <b>빌드 스냅샷</b>(최종 타워 구성: 계열 x 레벨 목록과 투자 골드 비중), <b>빌드 오더</b>(건설/강화 타임라인), 픽한 카드 목록</td>
+      <td>StageController 상태 + TowerBuilder 기록 + RewardSystem.OwnedStacks</td>
+    </tr>
+    <tr>
+      <td>웨이브</td>
+      <td>웨이브별 누수 수 / 처치 수, 소요 시간, 시작 시점 생명/골드/타워 구성</td>
+      <td>GameLog 이벤트(Kill/Leak/Wave) 구독</td>
+    </tr>
+    <tr>
+      <td>개체(집계)</td>
+      <td>몬스터 종별: 등장 수, 처치율, 평균 생존 시간, 도달(누수) 기여. 타워 계열별: 총 피해량, 피해 점유율, 처치 수</td>
+      <td>피해 훅(5.2) + Kill/Leak 이벤트</td>
+    </tr>
+  </table>
+
+  <h3>5.2 게임 코드 변경 지점</h3>
+  <p>동시 실행 전제(3.1) 때문에 "씬에 스테이지 1개" 가정의 전역 참조를 소유 참조로 바꾸는 정리가 들어간다.
+    전부 기계적 치환이며 <b>단일 스테이지 플레이의 동작은 변하지 않는다.</b></p>
+  <table>
+    <tr><th style="width:250px;">대상</th><th>변경</th><th style="width:100px;">규모</th></tr>
+    <tr><td><code>RewardSystem.Active</code> 전역 참조</td><td>전투 코드(Tower/Soldier/Monster/Projectile/DamageResolver 등)가 카드 효과를 읽는 static 쿼리 약 28곳을
+      <b>소유 리그의 RewardSystem 인스턴스 참조</b>로 교체. Tower는 Stage를 이미 들고 있고, Monster/Soldier/Projectile에는 초기화 시 참조를 내려준다</td>
+      <td class="tagcell"><span class="tag def">치환 28곳</span></td></tr>
+    <tr><td><code>MonsterRegistry</code> / <code>Soldier</code> 레지스트리</td><td>몬스터/병사에 소유 리그 키를 달고, <code>StageController.CheckVictory</code>는 자기 소유 몬스터만 센다.
+      위치 기반 탐색은 격자 간격으로 격리되므로 그대로 둔다 (동시 수를 늘려 느려지면 리그별 분리로 최적화)</td>
+      <td class="tagcell"><span class="tag def">소유 키</span></td></tr>
+    <tr><td><code>RewardSystem</code> 디밍</td><td>시뮬레이션 플래그가 켜져 있으면 <code>timeScale = 0</code> 정지를 생략 (봇이 같은 프레임에 즉시 선택). 가드 2줄</td>
+      <td class="tagcell"><span class="tag def">2줄</span></td></tr>
+    <tr><td><code>DamageResolver.cs</code></td><td>최종 피해 확정 지점에 <code>SimMetrics.RecordDamage(source, amount, monster)</code> 1줄 (수집기 없으면 no-op)</td><td class="tagcell"><span class="tag def">1줄</span></td></tr>
+    <tr><td><code>BuildMenu.cs</code></td><td>건설 로직을 <code>TowerBuilder</code> static 헬퍼로 추출하고 호출로 대체 (동작 불변)</td><td class="tagcell"><span class="tag def">이동</span></td></tr>
+    <tr><td>UI 오버레이 (<code>MonsterHealthOverlay</code> 등)</td><td>전역 레지스트리를 순회해 그리므로 시뮬레이션 중에는 비활성화</td><td class="tagcell"><span class="tag def">가드</span></td></tr>
+    <tr><td>그 외 게임 코드</td><td>변경 없음. 이벤트 구독과 public API 호출만 사용</td><td class="tagcell"><span class="tag ok">무변경</span></td></tr>
+  </table>
+  <div class="note">
+    <b>부수 효과.</b> <code>RewardSystem.Active</code> 전역 참조 제거는 시뮬레이션이 아니어도 코드 건강에 이로운 정리다
+    (씬에 스테이지가 2개 이상 놓이는 실수에도 안전해진다). 이 정리만 선행 PR로 분리해 먼저 검증한다.
+  </div>
+  <div class="note">
+    <b>GameLog 문자열 파싱은 하지 않는다.</b> 문구가 바뀌면 수집이 조용히 깨진다.
+    수치가 필요한 지표(피해량)는 전용 훅으로 받고, 발생 횟수만 필요한 지표(Kill/Leak/Wave)는 Category 기준으로만 센다.
+  </div>
+
+  <h3>5.3 저장</h3>
+  <ul>
+    <li>배치 1회 = JSON 1개. 프로젝트 루트의 <code>SimReports/</code>에 저장하고 <code>.gitignore</code>에 추가한다 (레포 오염 방지, 공유가 필요하면 수동 커밋).</li>
+    <li>파일명: <code>sim_{스테이지}_{정책}_{yyyyMMdd_HHmmss}.json</code>. 윈도우는 최근 리포트 목록을 읽어 다시 열 수 있다.</li>
+    <li>스프레드시트 분석용 CSV 내보내기(런 단위 1행) 버튼을 둔다.</li>
+  </ul>
+</div>
+
+<h2 id="sec6"><span class="num">6.</span> 에디터 윈도우 구성</h2>
+<div class="card">
+  <p>메뉴: <code>Rush/Simulation Lab</code>. 단일 윈도우, 세로 3구역. UI Toolkit으로 작성하고 Balance Board의 Shell/Note 스타일을 재사용한다.</p>
+<pre>
++--------------------------------------------------------------+
+| [1] 실행 설정                                                 |
+|  스테이지: [StageData]   난이도: [DifficultyPreset]           |
+|  유저 수: [100]  동시 인스턴스: [50]  시드: [1234]             |
+|  고정 스텝: [1/30]  타임아웃: [20분]                           |
+|  유저 구성: 랜덤 프로필 [80]% + 프리셋(균형/몰빵4종/올스킵)    |
+|  [ 배치 실행 ]  [ 중단 ]   진행: 배치 1/2, 생존 31/50, 승 12   |
+|  (실행 중 씬 뷰: 보드 격자 + 상태 타일로 분포 실시간 관찰)     |
++--------------------------------------------------------------+
+| [2] 결과 대시보드 (최근 리포트)                                |
+|  전체 승률 64% (64/100)  평균 도달 웨이브 8.7  평균 잔여 생명 9 |
+|  패배 웨이브 분포:  W5 ##  W7 #####  W9 ###                   |
+|  -- 조합 분석 ------------------------------------------------|
+|  빌드 유형별 성과 (주력 계열 기준 분류):                       |
+|    포병+마도  승률 85%  평균 W9.6   (12명)                    |
+|    궁병 몰빵  승률 71%  평균 W9.1   (14명)                    |
+|    보병 몰빵  승률 12%  평균 W6.2   (9명)   <- 사장 전략 신호  |
+|  상위 조합 TOP5 / 하위 조합 5 (클릭 -> 빌드오더+카드 상세)     |
+|  카드별 승률 기여: 픽한 유저 승률 vs 안 픽은 유저 승률 차이 정렬|
+|  -- 밸런스 지표 ----------------------------------------------|
+|  웨이브별 누수 히트맵: W1..W10 (셀 음영 = 평균 누수)           |
+|  타워 피해 점유율 / 몬스터별 처치율 표                          |
+|  [ CSV 내보내기 ]  [ 리포트 열기... ]  [ 이 유저 재생(시드) ]  |
++--------------------------------------------------------------+
+| [3] 밸런싱                                                    |
+|  목표: 승률 [60]~[80]%   조기 패배(W3 이전) [5]% 이하          |
+|  [ 자동 탐색 실행 ] EnemyHpMultiplier 1.00 -> 1.15 (3회 반복)  |
+|  제안 목록:                                                    |
+|   [x] 오크전사 HP 120 -> 100   (W7 누수 기여 1위)              |
+|   [ ] 보병 Lv2 SoldierHp +15%  (피해 점유율 9% < 하한 10%)     |
+|  [ 선택 항목 적용 ]  (에셋 SetDirty + 저장, Balance Board 방식) |
++--------------------------------------------------------------+
+</pre>
+  <h3>6.1 조합 분석 방법</h3>
+  <ul>
+    <li><b>빌드 유형 분류:</b> 최종 투자 골드의 계열별 비중으로 유저를 분류한다.
+      1개 계열이 70% 이상이면 "몰빵", 상위 2개 계열 합이 80% 이상이면 "듀오(계열A+계열B)", 그 외 "혼합".
+      복잡한 군집화 없이 규칙 기반으로 충분하다.</li>
+    <li><b>유형별 성과:</b> 유형마다 승률, 평균 도달 웨이브, 표본 수를 함께 표기한다. 표본 5명 미만 유형은 회색 처리(신뢰 불가).</li>
+    <li><b>카드별 승률 기여:</b> 카드 K를 "픽한 유저 승률 - 픽하지 않은 유저 승률"로 정렬한다.
+      엄밀한 인과가 아니라 탐색용 신호이며, 표본 수를 함께 보여 과신을 막는다.</li>
+    <li><b>상세 보기:</b> 상위/하위 조합을 클릭하면 해당 유저의 빌드 오더 타임라인과 카드 목록을 보여주고,
+      [이 유저 재생] 버튼으로 같은 시드를 1배속 관전 재생한다.</li>
+  </ul>
+
+  <h3>6.2 공통 규칙</h3>
+  <ul>
+    <li>배치 실행 중에는 [1]의 입력을 잠그고 진행 상태만 갱신한다. 중단 시 완료된 런까지만 리포트에 남긴다.</li>
+    <li>대시보드의 시각 요소(분포/히트맵)는 셀 음영과 막대 길이만 쓰는 단순 표현으로 한다 (그래프 라이브러리 불필요).</li>
+    <li>구현 시 <code>unity-editor-tool-gotchas</code>, <code>Unity-Editor-Layout-SKILL</code> 스킬을 선행 확인한다 (플레이 모드 전환 시 윈도우 상태 보존 등).</li>
+  </ul>
+</div>
+
+<h2 id="sec7"><span class="num">7.</span> 자동 밸런싱</h2>
+<div class="card">
+  <h3>7.1 목표 지표 (기본값, 윈도우에서 수정 가능)</h3>
+  <table>
+    <tr><th>지표</th><th style="width:160px;">목표 밴드</th><th>의도</th></tr>
+    <tr><td>전체 승률 (랜덤 유저 집단)</td><td>50 ~ 70%</td><td>평범하게 하면 이길 수도 질 수도 있는 난이도</td></tr>
+    <tr><td>기준선(균형 프리셋) 승률</td><td>60 ~ 80%</td><td>합리적으로 하면 대체로 이기는 난이도</td></tr>
+    <tr><td>조기 패배율 (W3 이전 패배)</td><td>5% 이하</td><td>초반 붕괴(스노우볼 실패) 방지</td></tr>
+    <tr><td>웨이브 누수 스파이크</td><td>평균의 3배 이하</td><td>특정 웨이브만 벽이 되는 구간 탐지</td></tr>
+    <tr><td>빌드 유형 간 승률 격차</td><td>최고-최저 50%p 이하</td><td>지배 전략 / 사장 전략 방지 (조합 분석과 직결)</td></tr>
+  </table>
+
+  <h3>7.2 2단계 접근: 자동 탐색 + 제안</h3>
+  <div class="flow">
+    <div class="step data">배치 결과</div>
+    <span class="arrow">→</span>
+    <div class="step action">1단계: 전역 배율 자동 탐색</div>
+    <span class="arrow">→</span>
+    <div class="step">승률 밴드 진입</div>
+    <span class="arrow">→</span>
+    <div class="step action">2단계: 룰 기반 제안 생성</div>
+    <span class="arrow">→</span>
+    <div class="step">사람이 검토 후 선택 적용</div>
+  </div>
+  <ul>
+    <li><b>1단계 (자동):</b> 조정 노브를 <code>DifficultyPreset.EnemyHpMultiplier</code> 하나로 한정한 1차원 이분 탐색.
+      승률이 밴드보다 높으면 배율 상향, 낮으면 하향. 배치 실행-측정-조정을 최대 5회 반복하고 이력을 로그로 남긴다.</li>
+    <li><b>2단계 (제안):</b> 다차원 수치(몬스터 종별 스탯, 타워 레벨 스탯, 카드 수치)는 자동 변경하지 않는다.
+      룰에 걸린 항목을 근거와 함께 제안 목록으로 출력하고, 사람이 체크한 항목만 적용한다.</li>
+  </ul>
+  <table>
+    <tr><th>제안 룰 (초기 세트)</th><th>제안 내용</th></tr>
+    <tr><td>사장 전략: 특정 빌드 유형 승률 &lt; 25% (표본 충분 시)</td><td>주력 계열의 Damage 상향 또는 Cost 하향 후보 제시 (몰빵 유형이면 해당 계열 단독 성능 문제로 해석)</td></tr>
+    <tr><td>지배 전략: 특정 빌드 유형 승률 &gt; 90% + 전체 평균과 30%p 이상 격차</td><td>주력 계열 Damage 하향 또는 Cost 상향 후보 제시</td></tr>
+    <tr><td>카드 승률 기여 최상위/최하위 (표본 충분 시)</td><td>해당 카드 Value/확률 하향/상향 후보 제시 (Balance Board 항목으로 링크)</td></tr>
+    <tr><td>웨이브 W 누수 스파이크 발생</td><td>해당 웨이브 누수 기여 1위 몬스터의 HP 또는 MoveSpeed 10% 하향</td></tr>
+    <tr><td>계열 피해 점유율 &lt; 10% (혼합 유저 기준)</td><td>해당 계열 Damage 10% 상향 (또는 Cost 10% 하향)</td></tr>
+    <tr><td>몬스터 종 처치율 &gt; 98% + 누수 기여 0</td><td>위협 없음: HP 상향 또는 GoldReward 하향 후보로 표기</td></tr>
+  </table>
+  <div class="warn">
+    <b>자동 적용 범위를 좁게 유지하는 이유.</b> 다차원 자동 최적화는 판 수가 부족하면 노이즈에 과적합되고,
+    해커톤 일정에서 검증할 시간도 없다. "전역 1개 노브만 자동, 나머지는 근거 있는 제안"이 비용 대비 효과가 가장 크다.
+    적용은 Balance Board와 동일하게 에셋 <code>SetDirty</code> + 저장으로 처리해 되돌리기(시트 기본값 초기화)와 호환된다.
+  </div>
+</div>
+
+<h2 id="sec8"><span class="num">8.</span> 기술 제약과 리스크</h2>
+<div class="card">
+  <table>
+    <tr><th style="width:230px;">항목</th><th>내용 / 대응</th></tr>
+    <tr><td>고정 스텝과 실플레이의 차이</td><td>실플레이는 가변 dt라 미세하게 다르다. 30fps 고정은 실기기 하한과 유사해 밸런스 판단에는 충분하다고 본다. 필요 시 스텝을 1/60로 낮춰 교차 확인.</td></tr>
+    <tr><td>동시 실행 시 보드 간 간섭</td><td>격자 간격을 최대 사거리/스플래시/연쇄 반경의 2배 이상으로 강제하고, 배치 시작 시 간섭 검증(간격 &lt; 상한이면 실행 거부)을 넣는다. 전역 상태는 5.2의 정리로 차단.</td></tr>
+    <tr><td>동시 수를 늘렸을 때 성능</td><td>전역 레지스트리 순회(타워 타겟팅)가 몬스터 총수에 비례해 무거워진다. 동시 인스턴스 수로 조절하고, 부족하면 레지스트리를 리그별로 분리한다. fps가 떨어져도 고정 스텝이라 결과는 불변.</td></tr>
+    <tr><td>봇과 사람의 실력 차</td><td>봇은 "합리적 기준선"이지 사람 플레이가 아니다. 절대 난이도가 아니라 <b>수치 변경 전후의 상대 비교</b>에 주로 사용한다.</td></tr>
+    <tr><td>보상 카드 54종 조합 분산</td><td>런 수가 적으면 카드 운이 승률을 흔든다. 기본 100런 + 시드 고정으로 완화하고, 올스킵 프리셋으로 카드 없는 기준선을 따로 잰다. 조합 분석은 표본 수를 항상 함께 표기한다.</td></tr>
+    <tr><td>Instantiate/Destroy 부하</td><td>가속 중 GC 스파이크로 fps가 떨어질 수 있으나 게임 시간은 고정 스텝이라 결과는 불변, 소요 시간만 늘어난다. 허용.</td></tr>
+    <tr><td>플레이 모드 중 코드 리로드</td><td>배치 중 스크립트 저장 시 도메인 리로드로 배치가 죽는다. 배치 시작 시 <code>EditorApplication.LockReloadAssemblies</code>로 잠그고 종료 시 해제.</td></tr>
+    <tr><td>타임아웃 런</td><td>이동속도 0 보정 등으로 이론상 없어야 하나, 발생 시 시드와 함께 별도 표기해 버그 리포트로 활용.</td></tr>
+  </table>
+</div>
+
+<h2 id="sec9"><span class="num">9.</span> 구현 단계</h2>
+<div class="card">
+  <table>
+    <tr><th style="width:70px;">단계</th><th>산출물</th><th style="width:120px;">예상 규모</th></tr>
+    <tr><td>M0</td><td>전역 상태 정리 선행 PR: <code>RewardSystem.Active</code> 참조 치환 + 레지스트리 소유 키 + 디밍 가드 (게임 동작 불변 확인)</td><td class="tagcell"><span class="tag def">반나절</span></td></tr>
+    <tr><td>M1</td><td>StageRig 프리팹화 + SimulationDriver(격자 스폰/배치 관리) + 유저 프로필 샘플링 + TowerBuilder 추출 + SimMetrics + JSON 저장 + 상태 타일. 윈도우는 실행 설정([1])만</td><td class="tagcell"><span class="tag def">반나절~1일</span></td></tr>
+    <tr><td>M2</td><td>결과 대시보드([2]): 요약, 패배 분포, <b>조합 분석(빌드 유형별 성과 / 상하위 조합 / 카드 기여)</b>, 누수 히트맵, 계열 점유율, CSV 내보내기, 시드 재생</td><td class="tagcell"><span class="tag def">반나절</span></td></tr>
+    <tr><td>M3</td><td>밸런싱([3]): 목표 지표, 전역 배율 자동 탐색, 제안 룰 + 선택 적용</td><td class="tagcell"><span class="tag def">반나절</span></td></tr>
+  </table>
+  <div class="note">
+    <b>단계별로 단독 가치가 있게 자른다.</b> M1만 있어도 "50판 자동으로 돌리고 JSON 확인"이 가능하고,
+    M2까지면 수동 밸런싱의 근거 데이터가 나온다. M3은 시간이 남을 때 얹는다.
+  </div>
+</div>
+
+<div class="footer-note">Simulation Lab 기획서 · 2026-08-04 · nhn-rush</div>
+
+</div>
+</body>
+</html>

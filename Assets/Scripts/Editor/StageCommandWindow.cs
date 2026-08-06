@@ -159,6 +159,7 @@ namespace Rush.EditorTools
 
             var row = MakeButtonRow();
             row.Add(MakeButton("더미 프리팹", RushSetupActions.CreateDummyPrefabs));
+            row.Add(MakeButton("아트 모델 적용", RushSetupActions.ApplyArtModels));
             row.Add(MakeButton("타워 데이터", RushSetupActions.CreateTowerData));
             row.Add(MakeButton("몬스터 데이터", RushSetupActions.CreateMonsterData));
             body.Add(row);

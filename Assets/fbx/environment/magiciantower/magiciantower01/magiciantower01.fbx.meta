@@ -3,7 +3,12 @@ guid: da7b7962d6cf8b04ab4329049d1e34c2
 ModelImporter:
   serializedVersion: 24300
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: magiciantower
+    second: {fileID: 2100000, guid: 2b7f0d3990834694f9686e5276290ec5, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

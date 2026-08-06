@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6e4c12fb4c25eef4494fc2018215d54d, type: 3}
+  m_Name: Monster_Militia
+  m_EditorClassIdentifier: Assembly-CSharp::Rush.Data.MonsterData
+  DisplayName: "\uBBFC\uBCD1"
+  Prefab: {fileID: 2583505143597431629, guid: d42fed1365e7e3a46bb25f4053df03a1, type: 3}
+  MaxHp: 60
+  MoveSpeed: 1.6
+  PhysicalDefense: 0
+  MagicalDefense: 0
+  IsFlying: 0
+  GoldReward: 5
+  LifeDamage: 1
+  IsBoss: 0
+  RegenPerSecond: 0
+  MeleeDamage: 6
+  MeleeInterval: 1
+  RangedDamage: 0
+  RangedRange: 0
+  RangedInterval: 1.5

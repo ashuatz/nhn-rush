@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6e4c12fb4c25eef4494fc2018215d54d, type: 3}
+  m_Name: Monster_HeavyInfantry
+  m_EditorClassIdentifier: Assembly-CSharp::Rush.Data.MonsterData
+  DisplayName: "\uC911\uBCF4\uBCD1"
+  Prefab: {fileID: 6804459673530028518, guid: 52ae1c0d601a52246bb49539cc215bd1, type: 3}
+  MaxHp: 140
+  MoveSpeed: 1.44
+  PhysicalDefense: 2
+  MagicalDefense: 0
+  IsFlying: 0
+  GoldReward: 10
+  LifeDamage: 1
+  IsBoss: 0
+  RegenPerSecond: 0
+  MeleeDamage: 10
+  MeleeInterval: 1
+  RangedDamage: 0
+  RangedRange: 0
+  RangedInterval: 1.5
