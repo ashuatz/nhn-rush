@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Rush.Combat;
+using Rush.Stage;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -200,7 +201,7 @@ namespace Rush.UI
             if (_layer == null)
                 return;
 
-            if (!DisplayEnabled)
+            if (!DisplayEnabled || RewardOfferActive())
             {
                 HideAll();
                 return;
@@ -227,6 +228,14 @@ namespace Rush.UI
             Render();
 
             _lineLayer.MarkDirtyRepaint();
+        }
+
+        /// <summary>보상 선택(디밍) 중에는 카드 위로 HP 바가 겹치므로 표시를 숨긴다.</summary>
+        static bool RewardOfferActive()
+        {
+            var rewards = RewardSystem.Active;
+
+            return rewards != null && rewards.OfferActive;
         }
 
         void HideAll()
