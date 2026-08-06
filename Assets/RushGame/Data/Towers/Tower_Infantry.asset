@@ -17,9 +17,10 @@ MonoBehaviour:
   TowerPrefab: {fileID: 6905048096336245729, guid: 94064f8ff5acc5840a5331851085c693, type: 3}
   ProjectilePrefab: {fileID: 0}
   SoldierPrefab: {fileID: 3539635482475671427, guid: fd1215067252bd745aa18bf568c9316d, type: 3}
+  ImpactPrefab: {fileID: 0}
   ProjectileSpeed: 12
   Levels:
-  - DisplayName: "\uBBFC\uBCD1\uB300 \uCD08\uC18C"
+  - DisplayName: "\uBCD1\uC601 1\uB2E8\uACC4"
     Cost: 70
     Damage: 0
     Range: 2.5
@@ -28,13 +29,15 @@ MonoBehaviour:
     SlowDuration: 0
     SplashRadius: 0
     ArmorPierce: 0
-    SoldierCount: 2
-    SoldierHp: 60
-    SoldierDamage: 6
+    SoldierCount: 3
+    SoldierHp: 80
+    SoldierDamage: 4
+    SoldierDamageMax: 7
     SoldierAttackInterval: 1
-    SoldierRespawnSeconds: 8
-  - DisplayName: "\uC815\uC608 \uBCF4\uBCD1\uB300"
-    Cost: 110
+    SoldierRespawnSeconds: 15
+    SoldierDamageCut: 0
+  - DisplayName: "\uBCD1\uC601 2\uB2E8\uACC4"
+    Cost: 115
     Damage: 0
     Range: 2.5
     AttackInterval: 1
@@ -42,13 +45,15 @@ MonoBehaviour:
     SlowDuration: 0
     SplashRadius: 0
     ArmorPierce: 0
-    SoldierCount: 2
-    SoldierHp: 90
-    SoldierDamage: 9
+    SoldierCount: 3
+    SoldierHp: 130
+    SoldierDamage: 7
+    SoldierDamageMax: 12
     SoldierAttackInterval: 1
-    SoldierRespawnSeconds: 8
-  - DisplayName: "\uC911\uC7A5 \uBCF4\uBCD1\uB300"
-    Cost: 160
+    SoldierRespawnSeconds: 15
+    SoldierDamageCut: 0
+  - DisplayName: "\uBCD1\uC601 3\uB2E8\uACC4"
+    Cost: 185
     Damage: 0
     Range: 2.8
     AttackInterval: 1
@@ -57,21 +62,260 @@ MonoBehaviour:
     SplashRadius: 0
     ArmorPierce: 0
     SoldierCount: 3
-    SoldierHp: 120
-    SoldierDamage: 12
+    SoldierHp: 200
+    SoldierDamage: 10
+    SoldierDamageMax: 18
     SoldierAttackInterval: 1
-    SoldierRespawnSeconds: 8
-  - DisplayName: "\uC655\uC2E4 \uADFC\uC704\uB300"
-    Cost: 240
-    Damage: 0
-    Range: 3
-    AttackInterval: 1
-    SlowPercent: 0
-    SlowDuration: 0
-    SplashRadius: 0
-    ArmorPierce: 0
-    SoldierCount: 3
-    SoldierHp: 160
-    SoldierDamage: 16
-    SoldierAttackInterval: 1
-    SoldierRespawnSeconds: 8
+    SoldierRespawnSeconds: 15
+    SoldierDamageCut: 0
+  BranchA:
+    Name: "\uC81C\uAD6D \uCE5C\uC704\uB300 (\uAE30\uC0AC\uB2E8)"
+    Stat:
+      DisplayName: "\uAE30\uC0AC\uB2E8"
+      Cost: 330
+      Damage: 0
+      Range: 3
+      AttackInterval: 1
+      SlowPercent: 0
+      SlowDuration: 0
+      SplashRadius: 0
+      ArmorPierce: 0
+      SoldierCount: 3
+      SoldierHp: 330
+      SoldierDamage: 13
+      SoldierDamageMax: 25
+      SoldierAttackInterval: 1
+      SoldierRespawnSeconds: 15
+      SoldierDamageCut: 0.25
+    Skills:
+    - DisplayName: "\uC2E0\uC131\uD55C \uC758\uBB34"
+      Description: "\uC720\uB2DB\uC758 \uCCB4\uB825\uC774 1 \uC774\uD558\uB85C \uB5A8\uC5B4\uC9C0\uBA74
+        \uC989\uC2DC \uCCB4\uB825 100% \uD68C\uBCF5 \xB7 60\uCD08 \uCFE8\uD0C0\uC784"
+      Type: 5
+      TotalCost: 300
+      Values:
+      - 1
+      - 1
+      - 1
+      Chances:
+      - 0
+      - 0
+      - 0
+    - DisplayName: "\uC2E0\uC131\uD55C \uAC15\uD0C0"
+      Description: "15% \uD655\uB960\uB85C \uACF5\uACA9\uC774 1/1.5/2\uBC30 \uD53C\uD574\uB97C
+        \uAD11\uC5ED\uC73C\uB85C \uC785\uD798"
+      Type: 6
+      TotalCost: 330
+      Values:
+      - 1
+      - 1.5
+      - 2
+      Chances:
+      - 0
+      - 0
+      - 0
+    - DisplayName: "\uAD73\uC740 \uC758\uC9C0"
+      Description: "\uCD5C\uB300 \uCCB4\uB825 +40/80/120 \xB7 3\uB808\uBCA8\uC5D0
+        \uBC29\uC5B4\uB825 1\uB2E8\uACC4 \uCD94\uAC00"
+      Type: 7
+      TotalCost: 270
+      Values:
+      - 40
+      - 80
+      - 120
+      Chances:
+      - 0
+      - 0
+      - 0
+  BranchB:
+    Name: "\uC601\uC6C5 \uC6A9\uBCD1\uB2E8"
+    Stat:
+      DisplayName: "\uC6A9\uBCD1\uB2E8"
+      Cost: 330
+      Damage: 0
+      Range: 3
+      AttackInterval: 1
+      SlowPercent: 0
+      SlowDuration: 0
+      SplashRadius: 0
+      ArmorPierce: 0
+      SoldierCount: 3
+      SoldierHp: 210
+      SoldierDamage: 24
+      SoldierDamageMax: 40
+      SoldierAttackInterval: 1
+      SoldierRespawnSeconds: 15
+      SoldierDamageCut: 0
+    Skills:
+    - DisplayName: "\uD604\uC0C1\uAE08 \uC218\uAC70"
+      Description: "\uC6A9\uBCD1\uC774 \uC801\uC744 \uC8FD\uC774\uBA74 \uACE8\uB4DC\uC758
+        1.4/1.7/2\uBC30 \uD68D\uB4DD (\uC62C\uB9BC) \xB7 \uC804\uC7A5 \uD68C\uC218\uC640
+        \uD569\uC5F0\uC0B0"
+      Type: 8
+      TotalCost: 300
+      Values:
+      - 1.4
+      - 1.7
+      - 2
+      Chances:
+      - 0
+      - 0
+      - 0
+    - DisplayName: "\uBE60\uB978 \uCDA9\uC6D0"
+      Description: "\uBD80\uD65C \uB300\uAE30 \uC2DC\uAC04 2/4/6\uCD08 \uAC10\uC18C"
+      Type: 9
+      TotalCost: 240
+      Values:
+      - 2
+      - 4
+      - 6
+      Chances:
+      - 0
+      - 0
+      - 0
+    - DisplayName: "\uC7A5\uBE44 \uAC1C\uC870"
+      Description: "\uACF5\uACA9\uB825 +15/20/25 \xB7 3\uB808\uBCA8\uC5D0 15% \uD655\uB960\uB85C
+        \uBC29\uC5B4\uB825 \uBB34\uC2DC \uACF5\uACA9"
+      Type: 10
+      TotalCost: 330
+      Values:
+      - 15
+      - 20
+      - 25
+      Chances:
+      - 0
+      - 0
+      - 0
+  Motion:
+    Kind: 0
+    ShotCount: 0
+    ShotInterval: 0.08
+    EndScatter: 0
+    SpinPerSecond: 0
+    SampleMin: 0.2
+    SampleMax: 0.4
+    BulgeFactor: 0
+    BulgeMin: 0
+    BulgeMax: 0
+    BulgeWorldUp: 0
+    RollSteps: 2
+    WanderAmplitude: 0
+    WanderTurn: 0.6
+    TimeCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 1
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 1
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+  Extras:
+    ProcEnabled: 1
+    ProcChance: 0.15
+    ProcCount: 1
+    ProcDamageScale: 1.5
+    ProcSplashRadius: 1
+    ProcSpeed: 9
+    ProcPrefab: {fileID: 0}
+    ProcImpactPrefab: {fileID: 0}
+    ProcMotion:
+      Kind: 0
+      ShotCount: 0
+      ShotInterval: 0.08
+      EndScatter: 0
+      SpinPerSecond: 0
+      SampleMin: 0.2
+      SampleMax: 0.4
+      BulgeFactor: 0
+      BulgeMin: 0
+      BulgeMax: 0
+      BulgeWorldUp: 0
+      RollSteps: 2
+      WanderAmplitude: 0
+      WanderTurn: 0.6
+      TimeCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 1
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 1
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+    OnKillEnabled: 1
+    OnKillCount: 3
+    OnKillDamageScale: 0.6
+    OnKillSearchRadius: 5
+    OnKillSpeed: 11
+    OnKillPrefab: {fileID: 0}
+    OnKillImpactPrefab: {fileID: 0}
+    OnKillMotion:
+      Kind: 0
+      ShotCount: 0
+      ShotInterval: 0.08
+      EndScatter: 0
+      SpinPerSecond: 0
+      SampleMin: 0.2
+      SampleMax: 0.4
+      BulgeFactor: 0
+      BulgeMin: 0
+      BulgeMax: 0
+      BulgeWorldUp: 0
+      RollSteps: 2
+      WanderAmplitude: 0
+      WanderTurn: 0.6
+      TimeCurve:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 1
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 1
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4

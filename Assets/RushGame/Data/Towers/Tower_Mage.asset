@@ -20,7 +20,7 @@ MonoBehaviour:
   ImpactPrefab: {fileID: 5883734786819255152, guid: 4ffc407ce6c051e45b6a966eba691102, type: 3}
   ProjectileSpeed: 10
   Levels:
-  - DisplayName: "\uACAC\uC2B5 \uB9C8\uBC95\uC0AC \uD0D1"
+  - DisplayName: "\uB9C8\uBC95\uC0AC\uD0D1 1\uB2E8\uACC4"
     Cost: 100
     Damage: 12
     Range: 4.5
@@ -32,10 +32,12 @@ MonoBehaviour:
     SoldierCount: 0
     SoldierHp: 0
     SoldierDamage: 0
+    SoldierDamageMax: 0
     SoldierAttackInterval: 0
     SoldierRespawnSeconds: 0
-  - DisplayName: "\uC0C1\uAE09 \uB9C8\uBC95\uC0AC \uD0D1"
-    Cost: 160
+    SoldierDamageCut: 0
+  - DisplayName: "\uB9C8\uBC95\uC0AC\uD0D1 2\uB2E8\uACC4"
+    Cost: 165
     Damage: 18
     Range: 4.5
     AttackInterval: 1.4
@@ -46,10 +48,12 @@ MonoBehaviour:
     SoldierCount: 0
     SoldierHp: 0
     SoldierDamage: 0
+    SoldierDamageMax: 0
     SoldierAttackInterval: 0
     SoldierRespawnSeconds: 0
-  - DisplayName: "\uB300\uB9C8\uBC95\uC0AC \uD0D1"
-    Cost: 240
+    SoldierDamageCut: 0
+  - DisplayName: "\uB9C8\uBC95\uC0AC\uD0D1 3\uB2E8\uACC4"
+    Cost: 265
     Damage: 26
     Range: 5
     AttackInterval: 1.4
@@ -60,22 +64,106 @@ MonoBehaviour:
     SoldierCount: 0
     SoldierHp: 0
     SoldierDamage: 0
+    SoldierDamageMax: 0
     SoldierAttackInterval: 0
     SoldierRespawnSeconds: 0
-  - DisplayName: "\uB300\uD604\uC790 \uD0D1"
-    Cost: 360
-    Damage: 36
-    Range: 5
-    AttackInterval: 1.4
-    SlowPercent: 0.35
-    SlowDuration: 3
-    SplashRadius: 0
-    ArmorPierce: 0
-    SoldierCount: 0
-    SoldierHp: 0
-    SoldierDamage: 0
-    SoldierAttackInterval: 0
-    SoldierRespawnSeconds: 0
+    SoldierDamageCut: 0
+  BranchA:
+    Name: "\uD751\uB9C8\uBC95\uC0AC"
+    Stat:
+      DisplayName: "\uD751\uB9C8\uBC95\uC0AC"
+      Cost: 420
+      Damage: 46
+      Range: 5
+      AttackInterval: 1.7
+      SlowPercent: 0.3
+      SlowDuration: 2.5
+      SplashRadius: 0
+      ArmorPierce: 0
+      SoldierCount: 0
+      SoldierHp: 0
+      SoldierDamage: 0
+      SoldierDamageMax: 0
+      SoldierAttackInterval: 0
+      SoldierRespawnSeconds: 0
+      SoldierDamageCut: 0
+    Skills:
+    - DisplayName: "\uC8FD\uC74C\uC758 \uAD11\uC120"
+      Description: "20\uCD08\uB9C8\uB2E4 \uB2E4\uC74C \uAE30\uBCF8 \uACF5\uACA9\uC774
+        \uC0AC\uAC70\uB9AC \uB0B4 \uCCB4\uB825\uC774 \uAC00\uC7A5 \uB9CE\uC740 \uC801\uC5D0\uAC8C
+        300/650/1000 \uB9C8\uBC95 \uD53C\uD574"
+      Type: 11
+      TotalCost: 420
+      Values:
+      - 300
+      - 650
+      - 1000
+      Chances:
+      - 0
+      - 0
+      - 0
+    - DisplayName: "\uD53C\uC758 \uD5A5\uC5F0"
+      Description: "\uAE30\uBCF8 \uACF5\uACA9\uC73C\uB85C \uC801\uC744 \uC81C\uAC70\uD558\uBA74
+        \uB2E4\uC74C \uAE30\uBCF8 \uACF5\uACA9 \uD53C\uD574 +15/20/25% \xB7 \uC911\uCCA9
+        \uC5C6\uC74C \xB7 \uC8FD\uC74C\uC758 \uAD11\uC120\uC5D0\uB3C4 \uC801\uC6A9"
+      Type: 12
+      TotalCost: 360
+      Values:
+      - 0.15
+      - 0.2
+      - 0.25
+      Chances:
+      - 0
+      - 0
+      - 0
+  BranchB:
+    Name: "\uD658\uC601\uC220\uC0AC"
+    Stat:
+      DisplayName: "\uD658\uC601\uC220\uC0AC"
+      Cost: 420
+      Damage: 30
+      Range: 5.5
+      AttackInterval: 1.3
+      SlowPercent: 0.4
+      SlowDuration: 3
+      SplashRadius: 0
+      ArmorPierce: 0
+      SoldierCount: 0
+      SoldierHp: 0
+      SoldierDamage: 0
+      SoldierDamageMax: 0
+      SoldierAttackInterval: 0
+      SoldierRespawnSeconds: 0
+      SoldierDamageCut: 0
+    Skills:
+    - DisplayName: "\uAE38\uC783\uC740 \uBC29\uB791\uC790"
+      Description: "\uAE30\uBCF8 \uACF5\uACA9\uC774 1/2/4% \uD655\uB960\uB85C \uC801\uC744
+        \uC2DC\uC791 \uC9C0\uC810\uC73C\uB85C \uB418\uB3CC\uB824\uBCF4\uB0C4 \xB7
+        \uC911\uAC04 \uBCF4\uC2A4\uAE09 \uC774\uC0C1 \uC81C\uC678"
+      Type: 13
+      TotalCost: 390
+      Values:
+      - 0
+      - 0
+      - 0
+      Chances:
+      - 0.01
+      - 0.02
+      - 0.04
+    - DisplayName: "\uC815\uC2E0\uCC28\uB824!"
+      Description: "30\uCD08\uB9C8\uB2E4 \uC0AC\uAC70\uB9AC \uB0B4 5/7/9\uBA85\uC758
+        \uC801\uC774 3\uCD08\uAC04 \uC11C\uB85C\uB97C \uACF5\uACA9 \xB7 \uC801\uC758
+        \uACF5\uACA9\uC740 \uB9C8\uBC95\uC0AC\uC758 \uACF5\uACA9\uC73C\uB85C \uAC04\uC8FC"
+      Type: 14
+      TotalCost: 420
+      Values:
+      - 5
+      - 7
+      - 9
+      Chances:
+      - 0
+      - 0
+      - 0
   Motion:
     Kind: 3
     ShotCount: 1

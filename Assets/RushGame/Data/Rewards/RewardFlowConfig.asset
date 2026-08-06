@@ -12,16 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bd12f82e4613924408432018b4e3db42, type: 3}
   m_Name: RewardFlowConfig
   m_EditorClassIdentifier: Assembly-CSharp::Rush.Data.RewardFlowConfig
-  FirstRewardWave: 2
+  FirstRewardWave: 1
   EveryNWaves: 1
   CardsPerOffer: 3
-  RerollsPerOffer: 1
+  RerollsPerRun: 5
   RerollCost: 0
-  SkipGold: 40
-  WeightCommon: 60
-  WeightRare: 25
-  WeightHeroic: 11
-  WeightLegendary: 4
+  TargetCommon: 60.14
+  TargetRare: 26.92
+  TargetHeroic: 12.25
+  TargetLegendary: 0.68
   Cards:
   - {fileID: 11400000, guid: 5edd1dfacd5ecc04c8e0c2c0e22f18ab, type: 2}
   - {fileID: 11400000, guid: d62c69f6a3e0a0a46bf47b9cf4541b79, type: 2}
