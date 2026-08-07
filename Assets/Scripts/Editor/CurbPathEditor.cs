@@ -56,6 +56,9 @@ namespace Rush.EditorTools
             DrawPathTools();
 
             EditorGUILayout.Space(6f);
+            DrawRandomTools();
+
+            EditorGUILayout.Space(6f);
             DrawBakeTools();
 
             EditorGUILayout.Space(6f);
@@ -91,6 +94,24 @@ namespace Rush.EditorTools
             }
         }
 
+        void DrawRandomTools()
+        {
+            var path = target as CurbPath;
+
+            EditorGUILayout.LabelField("랜덤", EditorStyles.boldLabel);
+
+            if (path.middles != null && path.middles.Count > 1)
+                EditorGUILayout.HelpBox($"중간 조각 {path.middles.Count}종을 랜덤으로 섞어 배치한다.", MessageType.None);
+
+            if (!GUILayout.Button("시드 다시 뽑기"))
+                return;
+
+            Undo.RecordObject(path, "커브 랜덤 시드 변경");
+            path.randomSeed = Random.Range(1, int.MaxValue);
+            EditorUtility.SetDirty(path);
+            Refresh(CurbPreviewMode.Active);
+        }
+
         void DrawBakeTools()
         {
             var path = target as CurbPath;
@@ -112,8 +133,8 @@ namespace Rush.EditorTools
             if (path.output == null)
                 EditorGUILayout.HelpBox("아직 출력 오브젝트가 없다. '프리뷰 갱신'을 누르면 자식 CurbMesh를 만들고 그 뒤로는 편집이 바로 반영된다.", MessageType.Info);
 
-            if (path.middle == null)
-                EditorGUILayout.HelpBox("중간 조각 메시가 비어 있어 임시 폴백 단면을 쓰고 있다. ProBuilder FBX를 middle에 넣어라.", MessageType.Info);
+            if (path.FirstMiddle == null)
+                EditorGUILayout.HelpBox("중간 조각 메시가 비어 있어 임시 폴백 단면을 쓰고 있다. ProBuilder FBX를 middles에 넣어라.", MessageType.Info);
 
             if (CurbBakeUtility.IsPreviewOnly(path))
                 EditorGUILayout.HelpBox("현재 메시는 저장되지 않는 프리뷰다. Bake를 눌러 에셋으로 남겨라.", MessageType.Warning);

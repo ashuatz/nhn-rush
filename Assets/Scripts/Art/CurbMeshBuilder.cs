@@ -51,7 +51,7 @@ namespace Rush.Art
             }
 
             bool closed = path.IsClosed;
-            var polyline = new Polyline(Smooth(rawPoints, path.smoothIterations, closed), closed);
+            var polyline = new Polyline(RoundCorners(rawPoints, path.cornerRadius, closed), closed);
 
             if (polyline.Length < Epsilon)
             {
@@ -61,18 +61,14 @@ namespace Rush.Art
 
             float scale = Mathf.Max(Epsilon, path.pieceScale);
 
-            Mesh middleMesh = path.middle;
+            var middlePieces = CollectMiddlePieces(path);
 
-            if (middleMesh == null)
-                middleMesh = CurbBuiltinProfile.SharedMesh;
-
-            var middlePiece = SourcePiece.Create(middleMesh, path.forwardAxis, path.flipForward);
-
-            if (middlePiece == null)
+            if (middlePieces.Count == 0)
             {
                 message = "중간 조각 메시를 읽을 수 없다.";
                 return false;
             }
+
 
             SourcePiece startPiece = null;
             SourcePiece endPiece = null;
@@ -106,31 +102,18 @@ namespace Rush.Art
 
             float available = polyline.Length - startLength - endLength;
 
-            float middleNominal = middlePiece.length * scale;
+            var plan = BuildMiddlePlan(path, middlePieces, available, scale, out bool clampedCount, out string planError);
 
-            if (path.middleLengthOverride > Epsilon)
-                middleNominal = path.middleLengthOverride;
-
-            if (middleNominal < Epsilon)
+            if (!string.IsNullOrEmpty(planError))
             {
-                message = "중간 조각의 진행축 길이가 0이다. 진행축(forwardAxis) 설정을 확인하라.";
+                message = planError;
                 return false;
             }
 
-            int middleCount = 0;
+            int subMeshCount = 1;
 
-            if (available > Epsilon)
-                middleCount = Mathf.Max(1, Mathf.RoundToInt(available / middleNominal));
-
-            bool clampedCount = false;
-
-            if (path.maxPieces > 0 && middleCount > path.maxPieces)
-            {
-                middleCount = path.maxPieces;
-                clampedCount = true;
-            }
-
-            int subMeshCount = Mathf.Max(1, middlePiece.SubMeshCount);
+            for (int i = 0; i < middlePieces.Count; i++)
+                subMeshCount = Mathf.Max(subMeshCount, middlePieces[i].SubMeshCount);
 
             if (startPiece != null)
                 subMeshCount = Mathf.Max(subMeshCount, startPiece.SubMeshCount);
@@ -139,20 +122,25 @@ namespace Rush.Art
                 subMeshCount = Mathf.Max(subMeshCount, endPiece.SubMeshCount);
 
             var accumulator = new MeshAccumulator(subMeshCount);
-            accumulator.useColors = UseColors(startPiece, middlePiece, endPiece);
+            accumulator.useColors = UseColors(startPiece, middlePieces, endPiece);
 
             float cursor = 0f;
 
             if (startPiece != null && startLength > Epsilon)
             {
-                accumulator.Append(startPiece, polyline, cursor, startLength, scale, path.sectionOffset);
+                accumulator.Append(startPiece, polyline, cursor, startLength, scale, path.sectionOffset, Quaternion.identity);
                 cursor += startLength;
             }
 
-            AppendMiddles(accumulator, middlePiece, polyline, cursor, available, middleNominal, middleCount, path, scale);
+            for (int i = 0; i < plan.Count; i++)
+            {
+                MiddleInstance instance = plan[i];
+                accumulator.Append(instance.piece, polyline, cursor, instance.length, instance.scale, path.sectionOffset, instance.rotation);
+                cursor += instance.length;
+            }
 
             if (endPiece != null && endLength > Epsilon)
-                accumulator.Append(endPiece, polyline, polyline.Length - endLength, endLength, scale, path.sectionOffset);
+                accumulator.Append(endPiece, polyline, polyline.Length - endLength, endLength, scale, path.sectionOffset, Quaternion.identity);
 
             if (accumulator.vertices.Count == 0)
             {
@@ -160,7 +148,7 @@ namespace Rush.Art
                 return false;
             }
 
-            bool nonTriangle = HasNonTriangleSubmesh(startPiece, middlePiece, endPiece);
+            bool nonTriangle = HasNonTriangleSubmesh(startPiece, middlePieces, endPiece);
 
             if (accumulator.TriangleCount == 0)
             {
@@ -196,10 +184,13 @@ namespace Rush.Art
             return true;
         }
 
-        static bool HasNonTriangleSubmesh(SourcePiece start, SourcePiece middle, SourcePiece end)
+        static bool HasNonTriangleSubmesh(SourcePiece start, List<SourcePiece> middles, SourcePiece end)
         {
-            if (middle != null && middle.hasNonTriangleSubmesh)
-                return true;
+            for (int i = 0; i < middles.Count; i++)
+            {
+                if (middles[i].hasNonTriangleSubmesh)
+                    return true;
+            }
 
             if (start != null && start.hasNonTriangleSubmesh)
                 return true;
@@ -210,41 +201,178 @@ namespace Rush.Art
             return false;
         }
 
-        static void AppendMiddles(MeshAccumulator accumulator, SourcePiece piece, Polyline polyline, float cursor,
-            float available, float nominal, int count, CurbPath path, float scale)
+        /// <summary>지정된 중간 조각들을 읽는다. 하나도 없으면 임시 폴백 단면을 쓴다.</summary>
+        static List<SourcePiece> CollectMiddlePieces(CurbPath path)
         {
-            if (count <= 0)
+            var pieces = new List<SourcePiece>();
+
+            if (path.middles != null)
+            {
+                for (int i = 0; i < path.middles.Count; i++)
+                {
+                    SourcePiece piece = SourcePiece.Create(path.middles[i], path.forwardAxis, path.flipForward);
+
+                    if (piece != null)
+                        pieces.Add(piece);
+                }
+            }
+
+            if (pieces.Count > 0)
+                return pieces;
+
+            SourcePiece fallback = SourcePiece.Create(CurbBuiltinProfile.SharedMesh, path.forwardAxis, path.flipForward);
+
+            if (fallback != null)
+                pieces.Add(fallback);
+
+            return pieces;
+        }
+
+        /// <summary>중간 조각 한 개의 배치 정보.</summary>
+        struct MiddleInstance
+        {
+            public SourcePiece piece;
+            public float length;
+            public float scale;
+            public Quaternion rotation;
+        }
+
+        /// <summary>
+        /// 남는 길이를 채울 중간 조각 목록을 만든다.
+        /// 조각 선택/배율/회전은 시드 기반이라 프리뷰와 베이크 결과가 항상 같다.
+        /// </summary>
+        static List<MiddleInstance> BuildMiddlePlan(CurbPath path, List<SourcePiece> pieces, float available, float scale,
+            out bool clamped, out string error)
+        {
+            var plan = new List<MiddleInstance>();
+            clamped = false;
+            error = string.Empty;
+
+            if (available < Epsilon)
+                return plan;
+
+            int limit = Mathf.Max(1, path.maxPieces);
+            var random = new System.Random(path.randomSeed);
+            float total = 0f;
+
+            while (total < available)
+            {
+                if (plan.Count >= limit)
+                {
+                    clamped = true;
+                    break;
+                }
+
+                SourcePiece piece = pieces[random.Next(pieces.Count)];
+                float randomScale = RandomRange(random, path.randomScaleRange);
+                float length = NominalLength(path, piece, scale, randomScale);
+
+                if (length < Epsilon)
+                {
+                    error = "중간 조각의 진행축 길이가 0이다. 진행축(forwardAxis) 설정을 확인하라.";
+                    return plan;
+                }
+
+                var instance = new MiddleInstance();
+                instance.piece = piece;
+                instance.length = length;
+                instance.scale = scale * randomScale;
+                instance.rotation = RandomRotation(random, path.randomRotation);
+
+                plan.Add(instance);
+                total += length;
+            }
+
+            if (plan.Count == 0)
+                return plan;
+
+            // 마지막 조각이 절반 이상 넘치면 넣지 않는 쪽이 자연스럽다.
+            float lastLength = plan[plan.Count - 1].length;
+
+            if (plan.Count > 1 && total - available > lastLength * 0.5f)
+            {
+                total -= lastLength;
+                plan.RemoveAt(plan.Count - 1);
+            }
+
+            FitPlan(plan, path.fitMode, available, total);
+
+            return plan;
+        }
+
+        /// <summary>조각 길이 합을 남은 경로 길이에 정확히 맞춘다.</summary>
+        static void FitPlan(List<MiddleInstance> plan, CurbFitMode mode, float available, float total)
+        {
+            if (plan.Count == 0 || total < Epsilon)
                 return;
 
-            // 전체를 균등하게 늘려 맞춘다.
-            if (path.fitMode == CurbFitMode.StretchAll)
+            if (mode == CurbFitMode.StretchAll)
             {
-                float each = available / count;
+                float ratio = available / total;
 
-                for (int i = 0; i < count; i++)
+                for (int i = 0; i < plan.Count; i++)
                 {
-                    accumulator.Append(piece, polyline, cursor, each, scale, path.sectionOffset);
-                    cursor += each;
+                    MiddleInstance instance = plan[i];
+                    instance.length *= ratio;
+                    plan[i] = instance;
                 }
 
                 return;
             }
 
             // 마지막 하나만 남는 길이를 흡수한다.
-            for (int i = 0; i < count - 1; i++)
-            {
-                accumulator.Append(piece, polyline, cursor, nominal, scale, path.sectionOffset);
-                cursor += nominal;
-            }
-
-            float lastLength = available - nominal * (count - 1);
-            accumulator.Append(piece, polyline, cursor, Mathf.Max(Epsilon, lastLength), scale, path.sectionOffset);
+            MiddleInstance last = plan[plan.Count - 1];
+            float others = total - last.length;
+            last.length = Mathf.Max(Epsilon, available - others);
+            plan[plan.Count - 1] = last;
         }
 
-        static bool UseColors(SourcePiece start, SourcePiece middle, SourcePiece end)
+        static float NominalLength(CurbPath path, SourcePiece piece, float scale, float randomScale)
         {
-            if (middle != null && middle.HasColors)
-                return true;
+            if (path.middleLengthOverride > Epsilon)
+                return path.middleLengthOverride * randomScale;
+
+            return piece.length * scale * randomScale;
+        }
+
+        static float RandomRange(System.Random random, Vector2 range)
+        {
+            float min = Mathf.Max(0.01f, Mathf.Min(range.x, range.y));
+            float max = Mathf.Max(min, Mathf.Max(range.x, range.y));
+
+            if (max - min < Epsilon)
+                return min;
+
+            return Mathf.Lerp(min, max, (float)random.NextDouble());
+        }
+
+        static Quaternion RandomRotation(System.Random random, Vector3 range)
+        {
+            if (range.sqrMagnitude < Epsilon)
+                return Quaternion.identity;
+
+            float pitch = RandomSymmetric(random, range.x);
+            float yaw = RandomSymmetric(random, range.y);
+            float roll = RandomSymmetric(random, range.z);
+
+            return Quaternion.Euler(pitch, yaw, roll);
+        }
+
+        static float RandomSymmetric(System.Random random, float amount)
+        {
+            if (Mathf.Abs(amount) < Epsilon)
+                return 0f;
+
+            return Mathf.Lerp(-amount, amount, (float)random.NextDouble());
+        }
+
+        static bool UseColors(SourcePiece start, List<SourcePiece> middles, SourcePiece end)
+        {
+            for (int i = 0; i < middles.Count; i++)
+            {
+                if (middles[i].HasColors)
+                    return true;
+            }
 
             if (start != null && start.HasColors)
                 return true;
@@ -278,42 +406,81 @@ namespace Rush.Art
             return result;
         }
 
-        /// <summary>Chaikin 방식으로 코너를 둥글게 만든다. 열린 경로는 양 끝점을 유지한다.</summary>
-        static List<Vector3> Smooth(List<Vector3> source, int iterations, bool closed)
+        /// <summary>
+        /// 각 코너를 지정한 반경만큼만 둥글게 깎는다. 직선 구간은 그대로 직선으로 남는다.
+        /// 반경은 인접한 변 길이의 절반을 넘지 않게 코너마다 따로 잘린다.
+        /// </summary>
+        static List<Vector3> RoundCorners(List<Vector3> source, float radius, bool closed)
         {
-            var current = source;
+            if (radius < Epsilon || source.Count < 3)
+                return source;
 
-            for (int pass = 0; pass < iterations; pass++)
+            var result = new List<Vector3>(source.Count * 4);
+
+            int first = 1;
+            int last = source.Count - 1;
+
+            // 닫힌 경로는 모든 점이 코너다.
+            if (closed)
             {
-                if (current.Count < 3)
-                    return current;
-
-                var next = new List<Vector3>(current.Count * 2);
-
-                if (!closed)
-                    next.Add(current[0]);
-
-                int segmentCount = current.Count;
-
-                if (!closed)
-                    segmentCount = current.Count - 1;
-
-                for (int i = 0; i < segmentCount; i++)
-                {
-                    Vector3 a = current[i];
-                    Vector3 b = current[(i + 1) % current.Count];
-
-                    next.Add(Vector3.Lerp(a, b, 0.25f));
-                    next.Add(Vector3.Lerp(a, b, 0.75f));
-                }
-
-                if (!closed)
-                    next.Add(current[current.Count - 1]);
-
-                current = next;
+                first = 0;
+                last = source.Count;
             }
 
-            return current;
+            if (!closed)
+                result.Add(source[0]);
+
+            for (int i = first; i < last; i++)
+            {
+                Vector3 current = source[i];
+                Vector3 previous = source[(i - 1 + source.Count) % source.Count];
+                Vector3 next = source[(i + 1) % source.Count];
+
+                Vector3 toPrevious = previous - current;
+                Vector3 toNext = next - current;
+
+                float previousLength = toPrevious.magnitude;
+                float nextLength = toNext.magnitude;
+
+                if (previousLength < Epsilon || nextLength < Epsilon)
+                {
+                    result.Add(current);
+                    continue;
+                }
+
+                // 거의 일직선이면 깎을 필요가 없다.
+                float bend = Vector3.Angle(-toPrevious, toNext);
+
+                if (bend < 1f)
+                {
+                    result.Add(current);
+                    continue;
+                }
+
+                float limited = Mathf.Min(radius, previousLength * 0.5f, nextLength * 0.5f);
+                Vector3 arcStart = current + toPrevious / previousLength * limited;
+                Vector3 arcEnd = current + toNext / nextLength * limited;
+
+                int steps = Mathf.Clamp(Mathf.RoundToInt(bend / 10f), 2, 16);
+
+                for (int s = 0; s <= steps; s++)
+                {
+                    float t = (float)s / steps;
+                    result.Add(QuadraticBezier(arcStart, current, arcEnd, t));
+                }
+            }
+
+            if (!closed)
+                result.Add(source[source.Count - 1]);
+
+            return result;
+        }
+
+        static Vector3 QuadraticBezier(Vector3 a, Vector3 b, Vector3 c, float t)
+        {
+            float inverse = 1f - t;
+
+            return inverse * inverse * a + 2f * inverse * t * b + t * t * c;
         }
 
         static void Decompose(CurbForwardAxis axis, bool flip, Vector3 value, out float along, out Vector2 lateral)
@@ -541,7 +708,7 @@ namespace Rush.Art
             }
 
             public void Append(SourcePiece piece, Polyline polyline, float startDistance, float pieceLength,
-                float scale, Vector2 offset)
+                float scale, Vector2 offset, Quaternion pieceRotation)
             {
                 if (piece == null)
                     return;
@@ -555,20 +722,29 @@ namespace Rush.Art
                 if (piece.length > Epsilon && pieceLength > Epsilon)
                     normalAlongFactor = scale * piece.length / pieceLength;
 
+                // 조각 랜덤 회전은 조각 중심을 기준으로 돌린다.
+                float centerDistance = startDistance + pieceLength * 0.5f;
+
                 int baseIndex = vertices.Count;
 
                 for (int i = 0; i < piece.VertexCount; i++)
                 {
-                    float distance = startDistance + piece.alongNormalized[i] * pieceLength;
-                    polyline.Frame(distance, out Vector3 origin, out Quaternion rotation);
-
                     Vector2 section = piece.lateral[i];
-                    var local = new Vector3(section.x * scale + offset.x, section.y * scale + offset.y, 0f);
+                    var local = new Vector3(section.x * scale, section.y * scale,
+                        (piece.alongNormalized[i] - 0.5f) * pieceLength);
+
+                    local = pieceRotation * local;
+
+                    // 회전으로 밀린 진행축 성분은 경로 위 거리로 되돌려 반영한다.
+                    polyline.Frame(centerDistance + local.z, out Vector3 origin, out Quaternion rotation);
+
+                    var placed = new Vector3(local.x + offset.x, local.y + offset.y, 0f);
 
                     Vector3 frameNormal = piece.frameNormals[i];
                     frameNormal.z *= normalAlongFactor;
+                    frameNormal = pieceRotation * frameNormal;
 
-                    vertices.Add(origin + rotation * local);
+                    vertices.Add(origin + rotation * placed);
                     normals.Add(rotation * frameNormal.normalized);
                     uv.Add(piece.uv[i]);
 

@@ -307,7 +307,7 @@ namespace Rush.EditorTools
             }
 
             // 지정이 없으면 조각 FBX의 머티리얼을 가져와 채워 준다.
-            Material[] resolved = ResolveMaterialsFromSource(path.middle);
+            Material[] resolved = ResolveMaterialsFromSource(path.FirstMiddle);
 
             if (resolved == null || resolved.Length == 0)
                 return;

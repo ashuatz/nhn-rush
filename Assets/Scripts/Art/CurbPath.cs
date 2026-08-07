@@ -43,16 +43,15 @@ namespace Rush.Art
         [Tooltip("경로를 닫힌 고리로 처리한다. 닫히면 캡을 넣지 않는다.")]
         public bool closed;
 
-        [Tooltip("코너를 둥글게 만드는 스무딩 횟수. 0이면 꺾인 그대로.")]
-        [Range(0, 4)]
-        public int smoothIterations = 2;
+        [Tooltip("코너를 둥글게 깎는 반경(월드 단위). 0이면 꺾인 그대로. 인접한 변 길이의 절반까지만 적용된다.")]
+        public float cornerRadius = 0.5f;
 
         [Header("조각 메시")]
         [Tooltip("경로 시작 마감 조각. 비우면 중간 조각으로 채운다.")]
         public Mesh startCap;
 
-        [Tooltip("반복되는 중간 조각. 비우면 임시 폴백 단면을 사용한다.")]
-        public Mesh middle;
+        [Tooltip("반복되는 중간 조각 후보. 둘 이상이면 조각마다 랜덤으로 고른다. 비우면 임시 폴백 단면을 사용한다.")]
+        public List<Mesh> middles = new List<Mesh>();
 
         [Tooltip("경로 끝 마감 조각. 비우면 중간 조각으로 채운다.")]
         public Mesh endCap;
@@ -75,6 +74,16 @@ namespace Rush.Art
         [Tooltip("중간 조각 1개의 기준 길이를 월드 단위로 직접 지정한다. pieceScale이 적용되지 않은 최종 길이다. 0이면 메시 바운즈에서 계산.")]
         public float middleLengthOverride;
 
+        [Header("랜덤")]
+        [Tooltip("랜덤 시드. 같은 시드면 프리뷰와 베이크 결과가 항상 같다.")]
+        public int randomSeed = 12345;
+
+        [Tooltip("조각마다 더할 랜덤 회전의 최대 각도(도). x=피치, y=요, z=롤. 경로 진행 방향 기준이다.")]
+        public Vector3 randomRotation;
+
+        [Tooltip("조각마다 곱할 랜덤 배율 범위. x=최소, y=최대. (1,1)이면 랜덤 없음.")]
+        public Vector2 randomScaleRange = Vector2.one;
+
         [Header("출력")]
         [Tooltip("생성 메시를 받을 자식 MeshFilter. 비어 있으면 베이크 시 자동 생성한다.")]
         public MeshFilter output;
@@ -94,6 +103,24 @@ namespace Rush.Art
                     return sourceLine.positionCount;
 
                 return Points.Count;
+            }
+        }
+
+        /// <summary>머티리얼 참조 등에 쓸 대표 중간 조각. 없으면 null.</summary>
+        public Mesh FirstMiddle
+        {
+            get
+            {
+                if (middles == null)
+                    return null;
+
+                for (int i = 0; i < middles.Count; i++)
+                {
+                    if (middles[i] != null)
+                        return middles[i];
+                }
+
+                return null;
             }
         }
 
