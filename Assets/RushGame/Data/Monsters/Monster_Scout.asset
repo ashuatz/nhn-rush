@@ -15,7 +15,7 @@ MonoBehaviour:
   DisplayName: "\uC815\uCC30\uBCD1"
   Prefab: {fileID: 8487037665959498374, guid: be2ef683c81f55b4ea61e1a36fde48cf, type: 3}
   MaxHp: 70
-  MoveSpeed: 3.2
+  MoveSpeed: 2.24
   PhysicalDefense: 0
   MagicalDefense: 1
   IsFlying: 0

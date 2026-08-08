@@ -82,13 +82,56 @@ namespace Rush.Stage
         /// 스폰 1마리가 탈 루트. 순번대로 돌려 루트별 물량을 균등하게 맞춘다.
         /// 배열 순서를 A1/B1/A2/B2로 두면 시작 지점도 번갈아 나온다.
         /// </summary>
-        PathRoute NextRoute()
+        PathRoute NextRoute(List<PathRoute> routes)
         {
-            var route = _routes[_nextRouteIndex % _routes.Count];
+            var route = routes[_nextRouteIndex % routes.Count];
 
             _nextRouteIndex++;
 
             return route;
+        }
+
+        /// <summary>
+        /// 웨이브가 쓸 루트 목록. RouteIds가 비어 있으면 전체 루트를 쓴다.
+        /// 지정한 ID를 하나도 못 찾으면 웨이브를 통째로 날리는 대신 전체 루트로 되돌린다.
+        /// </summary>
+        List<PathRoute> ResolveRoutes(WaveData wave)
+        {
+            if (wave.RouteIds == null || wave.RouteIds.Length == 0)
+                return _routes;
+
+            var filtered = new List<PathRoute>(wave.RouteIds.Length);
+
+            foreach (var id in wave.RouteIds)
+            {
+                PathRoute found = null;
+
+                foreach (var route in _routes)
+                {
+                    if (!string.Equals(route.RouteId, id, System.StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    found = route;
+                    break;
+                }
+
+                if (found == null)
+                {
+                    GameLog.Warn("Wave", $"루트 {id}를 찾지 못해 제외");
+                    continue;
+                }
+
+                if (!filtered.Contains(found))
+                    filtered.Add(found);
+            }
+
+            if (filtered.Count == 0)
+            {
+                GameLog.Warn("Wave", "지정한 루트를 하나도 못 찾아 전체 루트로 진행");
+                return _routes;
+            }
+
+            return filtered;
         }
 
         public void StartWave(WaveData wave, float enemyHpMultiplier)
@@ -109,11 +152,17 @@ namespace Rush.Stage
             bool hasFixed = wave.Entries != null && wave.Entries.Length > 0;
             bool anySpawn = false;
 
+            // 웨이브별 루트 제한. 조기소환으로 웨이브가 겹쳐도 서로 영향이 없도록 코루틴에 넘긴다.
+            var routes = ResolveRoutes(wave);
+
+            if (routes != _routes)
+                GameLog.Info("Wave", $"루트 제한: {string.Join("/", wave.RouteIds)}");
+
             if (hasFixed)
             {
                 foreach (var entry in wave.Entries)
                 {
-                    StartCoroutine(RunEntry(entry, enemyHpMultiplier, statMultiplier));
+                    StartCoroutine(RunEntry(entry, routes, enemyHpMultiplier, statMultiplier));
                     anySpawn = true;
                 }
             }
@@ -127,7 +176,7 @@ namespace Rush.Stage
 
                 if (stream != null)
                 {
-                    StartCoroutine(RunRandomStream(stream, enemyHpMultiplier, statMultiplier));
+                    StartCoroutine(RunRandomStream(stream, routes, enemyHpMultiplier, statMultiplier));
                     anySpawn = true;
                 }
             }
@@ -228,19 +277,22 @@ namespace Rush.Stage
             return null;
         }
 
-        IEnumerator RunRandomStream(List<MonsterData> stream, float enemyHpMultiplier, float statMultiplier)
+        IEnumerator RunRandomStream(List<MonsterData> stream, List<PathRoute> routes,
+            float enemyHpMultiplier, float statMultiplier)
         {
             _runningEntries++;
 
-            // 후반 웨이브는 마릿수가 많아 스트림이 웨이브 간격(30초)을 넘지 않게 간격을 줄인다
+            // 후반 웨이브는 마릿수가 많아 스트림이 웨이브 간격을 넘지 않게 간격을 줄인다.
+            // 기준 창을 WaveInterval에 연동해, 페이싱을 조정해도 스폰 분포가 같이 따라오게 한다.
             float interval = Mathf.Max(0.1f, _stage.Data.RandomSpawnInterval);
+            float window = Mathf.Max(1f, _stage.Data.WaveInterval - 2f);
 
             if (stream.Count > 1)
-                interval = Mathf.Clamp(28f / stream.Count, 0.08f, interval);
+                interval = Mathf.Clamp(window / stream.Count, 0.08f, interval);
 
             for (int i = 0; i < stream.Count; i++)
             {
-                Spawn(stream[i], enemyHpMultiplier, statMultiplier);
+                Spawn(stream[i], routes, enemyHpMultiplier, statMultiplier);
 
                 if (i < stream.Count - 1)
                     yield return new WaitForSeconds(interval);
@@ -249,7 +301,8 @@ namespace Rush.Stage
             _runningEntries--;
         }
 
-        IEnumerator RunEntry(SpawnEntry entry, float enemyHpMultiplier, float statMultiplier)
+        IEnumerator RunEntry(SpawnEntry entry, List<PathRoute> routes,
+            float enemyHpMultiplier, float statMultiplier)
         {
             if (entry == null || entry.Monster == null)
             {
@@ -264,7 +317,7 @@ namespace Rush.Stage
 
             for (int i = 0; i < entry.Count; i++)
             {
-                Spawn(entry.Monster, enemyHpMultiplier, statMultiplier);
+                Spawn(entry.Monster, routes, enemyHpMultiplier, statMultiplier);
 
                 if (i < entry.Count - 1)
                     yield return new WaitForSeconds(entry.Interval);
@@ -273,7 +326,7 @@ namespace Rush.Stage
             _runningEntries--;
         }
 
-        void Spawn(MonsterData data, float enemyHpMultiplier, float statMultiplier)
+        void Spawn(MonsterData data, List<PathRoute> routes, float enemyHpMultiplier, float statMultiplier)
         {
             if (data.Prefab == null)
             {
@@ -281,7 +334,7 @@ namespace Rush.Stage
                 return;
             }
 
-            var route = NextRoute();
+            var route = NextRoute(routes);
             Vector3 spawnPoint = route.GetPoint(0);
 
             var go = Instantiate(data.Prefab, spawnPoint, Quaternion.identity, transform);

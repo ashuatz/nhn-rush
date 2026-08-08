@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Rush.Data.StageData
   StartLife: 20
   StartGold: 300
-  FirstWaveDelay: 15
-  WaveInterval: 30
+  FirstWaveDelay: 25
+  WaveInterval: 45
   EarlyCallBudgetFraction: 0.15
   RandomPool:
   - {fileID: 11400000, guid: 22f90338bd6ead049a2a6a3040d40cc0, type: 2}
@@ -24,11 +24,13 @@ MonoBehaviour:
   - {fileID: 11400000, guid: f3cdb30139f535c4484655f5727e84d9, type: 2}
   - {fileID: 11400000, guid: f77d3ea8b9f5e384aba7d22512663511, type: 2}
   - {fileID: 11400000, guid: 99cc260222301534e92cbd8d118cbb3e, type: 2}
-  RandomSpawnInterval: 0.8
+  RandomSpawnInterval: 1.2
   Waves:
   - Budget: 320
     StatMultiplier: 1
     IsBossWave: 0
+    RouteIds:
+    - A1
     Entries:
     - Monster: {fileID: 11400000, guid: 22f90338bd6ead049a2a6a3040d40cc0, type: 2}
       Count: 64

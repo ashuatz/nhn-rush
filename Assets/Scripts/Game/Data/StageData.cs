@@ -30,6 +30,9 @@ namespace Rush.Data
         [Tooltip("중간 보스 웨이브 여부 (6/12/18). 시작 시 보상 제시를 생략하고 보스 처치 보상을 준다")]
         public bool IsBossWave;
 
+        [Tooltip("이 웨이브가 쓸 루트 ID (A1/A2/B1/B2). 비우면 전체 루트를 순번대로 쓴다")]
+        public string[] RouteIds;
+
         [Tooltip("고정 스폰 구성. 남은 예산이 있으면 무작위 구성이 뒤에 붙는다")]
         public SpawnEntry[] Entries;
     }
