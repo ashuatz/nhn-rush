@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Rush.EditorTools
 {
     /// <summary>
-    /// 로그라이트 보상 시트(스프레드시트) 54종의 코드 사본.
+    /// 로그라이트 보상 시트(스프레드시트) 57종의 코드 사본.
     /// 시트가 기획 원본이고, 여기는 ID 기준으로 에셋을 생성/갱신하는 카탈로그다.
     /// 재실행 시 텍스트/분류(이름/설명/등급/필터/효과 종류)는 시트 기준으로 갱신하고,
     /// 수치(Value/Value2/Chance/Duration/StackLimit/Enabled)는 Balance Board에서 조정한 값을 존중한다.
@@ -118,6 +118,7 @@ namespace Rush.EditorTools
             Row("B1A", Ctrl, H, "전선 확장", "병영 유닛 1기가 적 2기를 동시에 저지", "병영 한정 · 전선이 없으면 무효", Inf, DamageTag.None, 1, RewardEffectType.SoldierMultiBlock, 1f),
             Row("B1B", Ctrl, H, "방패 밀치기", "병영 유닛의 공격이 15% 확률로 적을 뒤로 밀어냄 · 밀려난 적은 저지가 풀려 다시 붙잡아야 함", "병영 한정", Inf, DamageTag.None, 1, RewardEffectType.SoldierKnockbackChance, 0f, 1.2f, 0.15f),
             Row("B2A", Ctrl, H, "충격파", "포병 폭발에 맞은 적이 15% 확률로 1초간 기절 · 기절이 끝나면 3초간 기절 면역", "포병 한정", Arty, DamageTag.None, 1, RewardEffectType.StunChance, 0f, 3f, 0.15f, 1f),
+            Row("C13", Fire, H, "연발 장전", "공격할 때마다 15% 확률로 추가 발사체 1발 (피해 150% · 소범위 광역)", "연사가 빠른 타워일수록 발동이 잦다", Any, DamageTag.None, 1, RewardEffectType.BonusProcShot, 1.5f, 1f, 0.15f),
 
             // ---------- 전설 ----------
             Row("B2B", Fire, L, "융단 폭격", "포병 공격이 두 지점으로 나뉘어 착탄 (각 60% 피해)", "적이 흩어져 있어야 이득 · 단일 표적에는 총 피해가 줄어든다", Arty, DamageTag.Splash, 1, RewardEffectType.ArtillerySplitShot, 0.60f),
@@ -127,6 +128,8 @@ namespace Rush.EditorTools
             Row("C10", Fire, L, "속성 각인", "마법 피해가 대상의 마법 저항을 완전히 무시 (이뮨 포함)", "마법 피해원이 없으면 무효", Any, DamageTag.Magic, 1, RewardEffectType.IgnoreMagicResistAll),
             Row("C11", Ctrl, L, "무기력", "감속·저지 상태의 적은 공격력도 30% 감소", "전선이나 감속이 없으면 무효", Any, DamageTag.None, 1, RewardEffectType.ControlledAttackWeaken, 0.30f),
             Row("C12", Fire, L, "파쇄 교리", "모든 피해가 30% 확률로 물리 방어를 무시하고 들어감", "방어 0단계 적에겐 차이 없음", Any, DamageTag.None, 1, RewardEffectType.IgnorePhysDefChance, 0f, 0f, 0.30f),
+            Row("C14", Fire, L, "처형 예포", "이 타워가 적을 처치하면 주변 적에게 추가 발사체 3발 (각 피해 60%)", "주변에 다른 적이 없으면 무효 · 추가 발사체는 다시 추가 발사를 유발하지 않음", Any, DamageTag.None, 1, RewardEffectType.BonusOnKillShot, 0.60f, 3f),
+            Row("C15", Fire, L, "행운의 부적", "확률로 발동하는 효과가 실패하면 1회 다시 판정한다 (20% -> 36%)", "확률 판정이 붙은 보상·스킬을 갖고 있어야 의미가 있음 · 즉사 판정과 보상 카드 추첨에는 적용되지 않음", Any, DamageTag.None, 1, RewardEffectType.LuckReroll, 1f),
         };
 
         /// <summary>

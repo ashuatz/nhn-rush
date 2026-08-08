@@ -50,7 +50,7 @@ namespace Rush.Combat
             {
                 float shred = RewardSystem.MagicResistShredChance();
 
-                if (shred > 0f && Random.value < shred)
+                if (Luck.Roll(shred))
                     target.LowerMagicStage();
             }
         }
@@ -76,7 +76,7 @@ namespace Rush.Combat
             {
                 float pierceChance = RewardSystem.PhysPierceChance(source);
 
-                if (pierceChance > 0f && Random.value < pierceChance)
+                if (Luck.Roll(pierceChance))
                     return rawDamage;
             }
 

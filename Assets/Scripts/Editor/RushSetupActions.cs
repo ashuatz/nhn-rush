@@ -1577,7 +1577,7 @@ namespace Rush.EditorTools
 
         // ---------- 6-1. 보상 데이터 ----------
 
-        /// <summary>보상 카드 56종과 플로우 설정을 생성/동기화한다. 수치는 기존 조정값을 존중한다.</summary>
+        /// <summary>보상 카드 57종과 플로우 설정을 생성/동기화한다. 수치는 기존 조정값을 존중한다.</summary>
         public static RewardFlowConfig CreateRewardAssets(bool forceValues = false)
         {
             CreateFolders();

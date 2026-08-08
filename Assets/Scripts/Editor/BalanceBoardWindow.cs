@@ -7,7 +7,7 @@ using UnityEngine.UIElements;
 namespace Rush.EditorTools
 {
     /// <summary>
-    /// 밸런스 전용 윈도우. 보상 플로우 수치와 카드 54종의 수치를 한 화면에서 조절한다.
+    /// 밸런스 전용 윈도우. 보상 플로우 수치와 카드 57종의 수치를 한 화면에서 조절한다.
     /// 플레이 중에 바꿔도 다음 판정부터 바로 반영되며(시스템이 매번 에셋을 읽는다),
     /// 플레이 중 변경분은 플레이를 끝낼 때 디스크에 저장된다.
     /// </summary>
@@ -188,7 +188,7 @@ namespace Rush.EditorTools
 
         VisualElement BuildCardSection()
         {
-            var section = Shell("보상 카드 (54종)", out var body);
+            var section = Shell("보상 카드 (57종)", out var body);
 
             var filterRow = new VisualElement();
             filterRow.style.flexDirection = FlexDirection.Row;

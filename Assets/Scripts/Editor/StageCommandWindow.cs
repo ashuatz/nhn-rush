@@ -298,7 +298,7 @@ namespace Rush.EditorTools
         {
             var section = CreateSectionShell("추가 발사", "EXTRA", out var body);
 
-            body.Add(MakeDescription("위 '공격 연출'에서 고른 타워에 적용된다. 기본은 켜짐이며, 나중에 어떤 시스템이 이 값을 제어할지는 아직 정하지 않았다."));
+            body.Add(MakeDescription("위 '공격 연출'에서 고른 타워에 적용된다. 실제 발동은 보상 C13(연발 장전) / C14(처형 예포)가 제어하며, 여기 켜기는 보상 없이 연출을 보기 위한 개발자 강제 켜기다 (기본 꺼짐)."));
             body.Add(MakeDescription("플레이 중에 바꿔도 다음 발사부터 바로 반영된다 (이미 날아가는 발사체는 발사 시점 설정 유지). 플레이 중 조정한 값은 플레이를 끝낼 때 에셋에 저장된다. 단, 플레이 도중 스크립트가 재컴파일되면 디스크 값으로 되돌아간다."));
 
             _extrasBody = new VisualElement();

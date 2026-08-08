@@ -204,7 +204,7 @@ MonoBehaviour:
       m_PostInfinity: 2
       m_RotationOrder: 4
   Extras:
-    ProcEnabled: 1
+    ProcEnabled: 0
     ProcChance: 0.15
     ProcCount: 1
     ProcDamageScale: 1.5
@@ -251,7 +251,7 @@ MonoBehaviour:
         m_PreInfinity: 2
         m_PostInfinity: 2
         m_RotationOrder: 4
-    OnKillEnabled: 1
+    OnKillEnabled: 0
     OnKillCount: 3
     OnKillDamageScale: 0.6
     OnKillSearchRadius: 5
