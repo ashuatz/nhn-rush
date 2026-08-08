@@ -3,7 +3,12 @@ guid: 8614f01b9ed519b4081f759db532412a
 ModelImporter:
   serializedVersion: 24300
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: AnemyHeavy
+    second: {fileID: 2100000, guid: 4489c8c36862a784095f852b81b1fdd3, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

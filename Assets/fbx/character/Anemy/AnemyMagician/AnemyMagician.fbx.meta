@@ -3,7 +3,12 @@ guid: c554549292651d445a12ca735c6b2cfd
 ModelImporter:
   serializedVersion: 24300
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: AnemyMagician
+    second: {fileID: 2100000, guid: 354c57905062b8641a961b0ca6a397a2, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
