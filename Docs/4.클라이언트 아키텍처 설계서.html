@@ -45,8 +45,8 @@
   <h1>클라이언트 아키텍처 설계서 — 타워디펜스 코어</h1>
   <div class="meta">대상: Unity 6000.3 클라이언트 · 작성일: 2026-08-01 · 근거 문서: <a href="1.타워디펜스 코어 룰 기획서.html">1.타워디펜스 코어 룰 기획서</a>, <a href="3.몬스터 유닛 리스트 기획서.html">3.몬스터 유닛 리스트 기획서</a></div>
   <div class="card" style="margin-top:16px;">
-    <div class="note" style="margin-top:0;"><b>이 문서의 위치</b> — 코어 룰 기획서(타워 4계열 x Lv4, 몬스터 9종, 10웨이브, 단일 경로 + 고정 슬롯)를 구현하기 위한 <b>클라이언트 클래스 구조와 흐름</b>을 정의한다. 해커톤(48시간) 규모에 맞춰 <b>최소 클래스 구성</b>을 원칙으로 한다.</div>
-    <div class="warn" style="margin-top:0;"><b>기획 반영 현황은 <a href="기획_반영_현황.md">기획_반영_현황.md</a>에서 추적한다.</b> 시트에 새로 추가된 항목, 적용 완료분, 미적용분(경로 4루트 구성 등)이 그쪽에 정리돼 있다.</div>
+    <div class="note" style="margin-top:0;"><b>이 문서의 위치</b> — 코어 룰 기획서(타워 4계열 x Lv4, 몬스터 9종, 10웨이브, 경로 4루트 + 고정 슬롯)를 구현하기 위한 <b>클라이언트 클래스 구조와 흐름</b>을 정의한다. 해커톤(48시간) 규모에 맞춰 <b>최소 클래스 구성</b>을 원칙으로 한다.</div>
+    <div class="warn" style="margin-top:0;"><b>기획 반영 현황은 <a href="기획_반영_현황.md">기획_반영_현황.md</a>에서 추적한다.</b> 시트/스케치에 새로 추가된 항목, 적용 완료분, 미적용분이 그쪽에 정리돼 있다.</div>
     <div class="toc">
       <a href="#s1">1. 설계 원칙</a>
       <a href="#s2">2. 레이어 구조 (데이터 / 씬 / 런타임)</a>
@@ -169,7 +169,7 @@
     <tr><th>클래스</th><th>책임</th><th>근거</th></tr>
     <tr><td><code>StageController</code></td><td>스테이지의 중심. 골드·생명 보유, 웨이브 진행 상태머신(준비 → 진행 → 승리/패배), 조기소환 요청 처리(보너스 골드 지급), 몬스터의 처치/도달 이벤트 수신. UI와 디버그가 구독하는 <b>유일한 이벤트 허브</b>.</td><td>코어 룰 §1</td></tr>
     <tr><td><code>WaveSpawner</code></td><td><code>StageData</code>의 웨이브 정보를 받아 몬스터 프리팹을 순서대로 Instantiate. 진행 중 웨이브의 잔여 스폰 관리.</td><td>코어 룰 §1.1</td></tr>
-    <tr><td><code>PathRoute</code></td><td>웨이포인트(Transform 자식) 목록. 몬스터가 따라가는 단일 경로. 에디트 모드 기즈모로 경로를 그려서 확인.</td><td>코어 룰 §4</td></tr>
+    <tr><td><code>PathRoute</code></td><td>웨이포인트(Transform 자식) 목록. 몬스터가 따라가는 경로 하나. 스테이지는 루트 4개(A1/A2/B1/B2)로 구성되며 시작 2곳 x 종료 2곳이다. 에디트 모드 기즈모로 루트별 색을 그려서 확인.</td><td>코어 룰 §4</td></tr>
     <tr><td><code>TowerSlot</code></td><td>고정 건설 위치 1칸. 점유 중인 타워 참조, 클릭 시 <code>BuildMenu</code> 호출.</td><td>코어 룰 §4</td></tr>
     <tr><td><code>MonsterRegistry</code></td><td>활성 몬스터 목록(등록/해제). 타워 타겟 탐색은 물리 캐스트 대신 이 목록 순회로 처리 — 단순하고 디버그가 쉽다.</td><td>구현 편의</td></tr>
     </tbody>

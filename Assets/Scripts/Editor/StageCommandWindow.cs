@@ -26,6 +26,9 @@ namespace Rush.EditorTools
 
         const int MaxStatusLines = 8;
 
+        const string LuckPreviewName = "__LuckFxPreview";
+        const float LuckPreviewSeconds = 0.9f;
+
         readonly List<string> _statusLines = new List<string>();
 
         static readonly string[] PreviewTowers = { "Tower_Archer", "Tower_Mage", "Tower_Artillery" };
@@ -170,10 +173,90 @@ namespace Rush.EditorTools
             row2.Add(MakeButton("PanelSettings", () => RushSetupActions.CreatePanelSettings()));
             body.Add(row2);
 
+            var row3 = MakeButtonRow();
+            row3.Add(MakeButton("행운 연출 미리보기", PreviewLuckFx));
+            body.Add(row3);
+
             var balanceButton = MakeButton("Balance Board 열기 (수치 조절)", BalanceBoardWindow.Open);
             body.Add(balanceButton);
 
             return section;
+        }
+
+        /// <summary>
+        /// 행운 발동(C15) 연출을 에디트 모드에서 한 번 재생해 본다.
+        /// 씬 뷰 중심에 임시 인스턴스를 띄워 수동 시뮬레이션하고, 재생이 끝나면 스스로 지운다.
+        /// 저장되지 않도록 DontSave로 두므로 씬을 더럽히지 않는다.
+        /// </summary>
+        static void PreviewLuckFx()
+        {
+            RushSetupActions.EnsureFxPrefabs();
+
+            var prefab = RushSetupActions.LoadLuckSparkPrefab();
+
+            if (prefab == null)
+            {
+                Debug.LogWarning("[Rush] 행운 연출 프리팹이 없다. 셰이더(Rush/FX/Luck Ray)를 찾지 못했을 수 있다.");
+                return;
+            }
+
+            var stale = GameObject.Find(LuckPreviewName);
+
+            if (stale != null)
+                DestroyImmediate(stale);
+
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            instance.name = LuckPreviewName;
+            instance.hideFlags = HideFlags.DontSave;
+            instance.transform.position = LuckPreviewPosition();
+
+            var particles = instance.GetComponent<ParticleSystem>();
+
+            if (particles == null)
+            {
+                DestroyImmediate(instance);
+                return;
+            }
+
+            Selection.activeGameObject = instance;
+
+            double startedAt = EditorApplication.timeSinceStartup;
+
+            EditorApplication.CallbackFunction step = null;
+            step = () =>
+            {
+                if (instance == null)
+                {
+                    EditorApplication.update -= step;
+                    return;
+                }
+
+                float elapsed = (float)(EditorApplication.timeSinceStartup - startedAt);
+
+                if (elapsed > LuckPreviewSeconds)
+                {
+                    EditorApplication.update -= step;
+                    DestroyImmediate(instance);
+                    SceneView.RepaintAll();
+
+                    return;
+                }
+
+                particles.Simulate(elapsed, true, true);
+                SceneView.RepaintAll();
+            };
+
+            EditorApplication.update += step;
+        }
+
+        static Vector3 LuckPreviewPosition()
+        {
+            var view = SceneView.lastActiveSceneView;
+
+            if (view == null)
+                return Vector3.zero;
+
+            return view.pivot;
         }
 
         // ---------- 섹션: 씬 셋업 ----------
@@ -194,15 +277,15 @@ namespace Rush.EditorTools
 
             row.Add(MakeButton("경로 비주얼 다시 베이크", () =>
             {
-                var route = FindFirstObjectByType<PathRoute>();
+                var routes = FindObjectsByType<PathRoute>(FindObjectsSortMode.None);
 
-                if (route == null)
+                if (routes.Length == 0)
                 {
                     OnReported("씬에 PathRoute가 없음 - 먼저 씬 셋업 실행");
                     return;
                 }
 
-                RushSetupActions.BakePathVisual(route);
+                RushSetupActions.BakePathVisual(routes);
                 EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             }));
 
@@ -573,30 +656,39 @@ namespace Rush.EditorTools
             if (slot == null)
                 return false;
 
-            var route = FindFirstObjectByType<PathRoute>();
+            var routes = FindObjectsByType<PathRoute>(FindObjectsSortMode.None);
 
-            if (route == null || route.PointCount < 2)
+            if (routes.Length == 0)
                 return false;
 
             // 타워 총구 높이는 Tower.MuzzlePosition과 같게 맞춘다
             start = slot.BuildPosition + Vector3.up * 1.2f;
 
+            // 표적은 이 슬롯에서 가장 가까운 웨이포인트 (루트 4개 전체에서 고른다)
             Vector3 origin = slot.transform.position;
             float bestSqr = float.MaxValue;
+            bool found = false;
 
-            for (int i = 0; i < route.PointCount; i++)
+            foreach (var route in routes)
             {
-                Vector3 candidate = route.GetPoint(i);
-                float distSqr = (candidate - origin).sqrMagnitude;
-
-                if (distSqr >= bestSqr)
+                if (route.PointCount < 2)
                     continue;
 
-                bestSqr = distSqr;
-                end = candidate + Vector3.up * 0.4f;
+                for (int i = 0; i < route.PointCount; i++)
+                {
+                    Vector3 candidate = route.GetPoint(i);
+                    float distSqr = (candidate - origin).sqrMagnitude;
+
+                    if (distSqr >= bestSqr)
+                        continue;
+
+                    bestSqr = distSqr;
+                    end = candidate + Vector3.up * 0.4f;
+                    found = true;
+                }
             }
 
-            return true;
+            return found;
         }
 
         static TowerSlot GetPreviewSlot()

@@ -56,8 +56,28 @@ namespace Rush.Combat
             return Mathf.RoundToInt(data.GoldReward * statMultiplier);
         }
 
-        /// <summary>경로 진행 거리 (정확한 값). 타워 타겟팅 우선순위에 쓴다.</summary>
+        /// <summary>경로 진행 거리 (정확한 값). 넉백/귀환 등 같은 루트 안의 계산에 쓴다.</summary>
         public float PathProgress => _distance;
+
+        /// <summary>
+        /// 경로 진행률 0~1. 루트마다 길이가 달라 진행 거리를 그대로 비교하면
+        /// 짧은 루트에서 출구에 더 붙은 적을 놓치므로, 루트 간 비교는 이 값으로 한다.
+        /// </summary>
+        public float PathProgressRatio
+        {
+            get
+            {
+                if (_route == null)
+                    return 0f;
+
+                float total = _route.TotalLength;
+
+                if (total <= 0.0001f)
+                    return 0f;
+
+                return _distance / total;
+            }
+        }
 
         public bool IsAlive { get; private set; }
 

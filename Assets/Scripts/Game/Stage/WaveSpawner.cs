@@ -18,17 +18,22 @@ namespace Rush.Stage
         [SerializeField] GameObject _spawnFx;
 
         StageController _stage;
-        PathRoute _path;
+        readonly List<PathRoute> _routes = new List<PathRoute>(4);
+        int _nextRouteIndex;
         bool _ready;
         int _runningEntries;
 
         public bool IsSpawning => _runningEntries > 0;
 
-        /// <summary>스폰 가능한 상태인지 반환한다. 경로가 없거나 웨이포인트가 부족하면 false.</summary>
-        public bool Initialize(StageController stage, PathRoute path)
+        /// <summary>
+        /// 스폰 가능한 상태인지 반환한다. 쓸 수 있는 루트가 하나도 없으면 false.
+        /// 웨이포인트가 모자란 루트는 조용히 빼지 않고 경고를 남긴 뒤 제외한다.
+        /// </summary>
+        public bool Initialize(StageController stage, PathRoute[] paths)
         {
             _stage = stage;
-            _path = path;
+            _routes.Clear();
+            _nextRouteIndex = 0;
             _ready = false;
 
             if (stage == null)
@@ -37,21 +42,53 @@ namespace Rush.Stage
                 return false;
             }
 
-            if (path == null)
+            if (paths == null || paths.Length == 0)
             {
                 GameLog.Warn("Wave", "PathRoute 참조가 없어 스포너를 초기화할 수 없음");
                 return false;
             }
 
-            if (path.PointCount < 2)
+            foreach (var path in paths)
             {
-                GameLog.Warn("Wave", $"경로 웨이포인트가 {path.PointCount}개 - 최소 2개 필요");
+                if (path == null)
+                {
+                    GameLog.Warn("Wave", "루트 목록에 빈 항목이 있음");
+                    continue;
+                }
+
+                if (path.PointCount < 2)
+                {
+                    GameLog.Warn("Wave", $"루트 {path.RouteId}: 웨이포인트가 {path.PointCount}개 - 최소 2개 필요");
+                    continue;
+                }
+
+                _routes.Add(path);
+            }
+
+            if (_routes.Count == 0)
+            {
+                GameLog.Warn("Wave", "쓸 수 있는 루트가 없음");
                 return false;
             }
 
             _ready = true;
 
+            GameLog.Info("Wave", $"루트 {_routes.Count}개로 스폰 분배");
+
             return true;
+        }
+
+        /// <summary>
+        /// 스폰 1마리가 탈 루트. 순번대로 돌려 루트별 물량을 균등하게 맞춘다.
+        /// 배열 순서를 A1/B1/A2/B2로 두면 시작 지점도 번갈아 나온다.
+        /// </summary>
+        PathRoute NextRoute()
+        {
+            var route = _routes[_nextRouteIndex % _routes.Count];
+
+            _nextRouteIndex++;
+
+            return route;
         }
 
         public void StartWave(WaveData wave, float enemyHpMultiplier)
@@ -244,7 +281,10 @@ namespace Rush.Stage
                 return;
             }
 
-            var go = Instantiate(data.Prefab, _path.GetPoint(0), Quaternion.identity, transform);
+            var route = NextRoute();
+            Vector3 spawnPoint = route.GetPoint(0);
+
+            var go = Instantiate(data.Prefab, spawnPoint, Quaternion.identity, transform);
             var monster = go.GetComponent<Monster>();
 
             if (monster == null)
@@ -253,11 +293,11 @@ namespace Rush.Stage
                 monster = go.AddComponent<Monster>();
             }
 
-            monster.Initialize(data, _path, enemyHpMultiplier, statMultiplier,
+            monster.Initialize(data, route, enemyHpMultiplier, statMultiplier,
                 _stage.HandleMonsterDied, _stage.HandleMonsterReachedExit);
 
             // 스폰 지점에 연기를 한 번 터뜨려 갑자기 나타나는 느낌을 줄인다
-            Rush.Fx.OneShotFx.Spawn(_spawnFx, _path.GetPoint(0));
+            Rush.Fx.OneShotFx.Spawn(_spawnFx, spawnPoint);
         }
     }
 }
