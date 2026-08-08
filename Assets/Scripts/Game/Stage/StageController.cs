@@ -28,7 +28,7 @@ namespace Rush.Stage
 
         [SerializeField] StageData _stageData;
         [SerializeField] DifficultyPreset _difficulty;
-        [SerializeField] PathRoute _path;
+        [SerializeField] PathRoute[] _paths;
         [SerializeField] WaveSpawner _spawner;
         [SerializeField] RewardSystem _rewards;
 
@@ -37,7 +37,38 @@ namespace Rush.Stage
         float _nextWaveTimer;
 
         public StageData Data => _stageData;
-        public PathRoute Path => _path;
+
+        /// <summary>스테이지의 몬스터 루트 4개 (A1/A2/B1/B2). 배열 순서가 스폰 분배 순서다.</summary>
+        public PathRoute[] Paths => _paths;
+
+        /// <summary>
+        /// origin에서 가장 가까운 루트. 병사 집결지처럼 "어느 길을 막을지"를 정할 때 쓴다.
+        /// 유효한 루트가 하나도 없으면 null.
+        /// </summary>
+        public PathRoute NearestPath(Vector3 origin)
+        {
+            if (_paths == null)
+                return null;
+
+            PathRoute best = null;
+            float bestSqr = float.MaxValue;
+
+            foreach (var path in _paths)
+            {
+                if (path == null || path.PointCount < 2)
+                    continue;
+
+                path.ClosestPoint(origin, out float sqrDistance);
+
+                if (sqrDistance >= bestSqr)
+                    continue;
+
+                best = path;
+                bestSqr = sqrDistance;
+            }
+
+            return best;
+        }
 
         public StagePhase Phase { get; private set; }
         public int Gold { get; private set; }
@@ -186,7 +217,7 @@ namespace Rush.Stage
                 valid = false;
             }
 
-            if (_path == null)
+            if (_paths == null || _paths.Length == 0)
             {
                 GameLog.Warn("Stage", "PathRoute 참조가 비어 있음");
                 valid = false;
@@ -201,8 +232,8 @@ namespace Rush.Stage
             if (!valid)
                 return false;
 
-            // 경로 유효성은 스포너가 판정한다 (웨이포인트 2개 미만이면 스폰 불가)
-            return _spawner.Initialize(this, _path);
+            // 루트별 유효성은 스포너가 판정한다 (웨이포인트 2개 미만인 루트는 분배에서 빠진다)
+            return _spawner.Initialize(this, _paths);
         }
 
         void Update()

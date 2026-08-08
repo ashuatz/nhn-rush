@@ -63,11 +63,12 @@ namespace Rush.Combat
                 if (distSqr > rangeSqr)
                     continue;
 
-                if (monster.PathProgress <= bestProgress)
+                // 루트마다 길이가 다르므로 진행률로 비교한다 (출구에 가장 가까운 적 우선)
+                if (monster.PathProgressRatio <= bestProgress)
                     continue;
 
                 best = monster;
-                bestProgress = monster.PathProgress;
+                bestProgress = monster.PathProgressRatio;
             }
 
             return best;
@@ -100,16 +101,17 @@ namespace Rush.Combat
                 if (distSqr > rangeSqr)
                     continue;
 
-                if (!monster.IsBlocked && monster.PathProgress > bestFreeProgress)
+                // 루트마다 길이가 다르므로 진행률로 비교한다
+                if (!monster.IsBlocked && monster.PathProgressRatio > bestFreeProgress)
                 {
                     bestFree = monster;
-                    bestFreeProgress = monster.PathProgress;
+                    bestFreeProgress = monster.PathProgressRatio;
                 }
 
-                if (monster.PathProgress > bestAnyProgress)
+                if (monster.PathProgressRatio > bestAnyProgress)
                 {
                     bestAny = monster;
-                    bestAnyProgress = monster.PathProgress;
+                    bestAnyProgress = monster.PathProgressRatio;
                 }
             }
 

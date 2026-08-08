@@ -164,49 +164,24 @@ namespace Rush.Combat
             _respawnTimer = RespawnSeconds();
         }
 
-        /// <summary>타워 위치에서 가장 가까운 경로 위 지점을 병사 집결지로 삼는다.</summary>
+        /// <summary>
+        /// 타워 위치에서 가장 가까운 경로 위 지점을 병사 집결지로 삼는다.
+        /// 루트가 4개이므로 그중 가장 가까운 루트 하나만 막는다 (교차 지점에 세우면 두 루트를 함께 덮는다).
+        /// </summary>
         Vector3 ComputeRallyPoint()
         {
-            var path = Stage != null ? Stage.Path : null;
-
-            if (path == null || path.PointCount < 2)
+            if (Stage == null)
                 return transform.position;
 
             Vector3 origin = transform.position;
             origin.y = 0f;
 
-            Vector3 best = path.GetPoint(0);
-            float bestSqr = float.MaxValue;
+            var path = Stage.NearestPath(origin);
 
-            for (int i = 0; i < path.PointCount - 1; i++)
-            {
-                Vector3 a = path.GetPoint(i);
-                Vector3 b = path.GetPoint(i + 1);
-                Vector3 candidate = ClosestPointOnSegment(a, b, origin);
+            if (path == null)
+                return transform.position;
 
-                float distSqr = (candidate - origin).sqrMagnitude;
-
-                if (distSqr >= bestSqr)
-                    continue;
-
-                best = candidate;
-                bestSqr = distSqr;
-            }
-
-            return best;
-        }
-
-        static Vector3 ClosestPointOnSegment(Vector3 a, Vector3 b, Vector3 point)
-        {
-            Vector3 ab = b - a;
-            float lengthSqr = ab.sqrMagnitude;
-
-            if (lengthSqr < 0.0001f)
-                return a;
-
-            float t = Mathf.Clamp01(Vector3.Dot(point - a, ab) / lengthSqr);
-
-            return a + ab * t;
+            return path.ClosestPoint(origin, out _);
         }
     }
 }

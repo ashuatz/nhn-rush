@@ -38,30 +38,119 @@ namespace Rush.EditorTools
         public const string BuildGhostShader = "Rush/FX/Build Ghost";
         public const string DebrisChunkShader = "Rush/FX/Debris Chunk";
         public const string SmokePuffShader = "Rush/FX/Smoke Puff";
+        public const string LuckRayShader = "Rush/FX/Luck Ray";
 
-        /// <summary>기본 경로 웨이포인트. 씬 복구 시에도 이 정의를 기준으로 보충한다.</summary>
-        static readonly Vector3[] DefaultWaypoints =
+        /// <summary>경로 루트 하나의 기본 정의. 씬 복구 시에도 이 정의를 기준으로 보충한다.</summary>
+        struct RouteDefinition
         {
-            new Vector3(-11f, 0f, -5f),
-            new Vector3(-4f, 0f, -5f),
-            new Vector3(-4f, 0f, 4f),
-            new Vector3(4f, 0f, 4f),
-            new Vector3(4f, 0f, -4f),
-            new Vector3(11f, 0f, -4f),
+            public string Id;
+            public Vector3[] Waypoints;
+        }
+
+        /// <summary>
+        /// 기본 경로 4루트. 시작 지점 2곳(A 좌상 / B 좌하)에서 각각 두 갈래로 갈라져
+        /// 종료 지점 2곳(1 우상 / 2 우하)으로 들어간다. 네 루트는 맵 중앙에서 서로 교차한다.
+        /// 배열 순서가 스폰 분배 순서이므로 시작 지점이 번갈아 나오도록 A1/B1/A2/B2로 둔다.
+        /// 좌표는 씬(Stage01)에서 손으로 다듬은 배치를 되받은 값이다.
+        /// </summary>
+        static readonly RouteDefinition[] DefaultRoutes =
+        {
+            new RouteDefinition
+            {
+                Id = "A1",
+                Waypoints = new[]
+                {
+                    new Vector3(-14.13f, 0f, 7.14f),
+                    new Vector3(-9.73f, 0f, 1.81f),
+                    new Vector3(-8.33f, 0f, -1.77f),
+                    new Vector3(-4.86f, 0f, -4.48f),
+                    new Vector3(0.70f, 0f, -4.40f),
+                    new Vector3(5.00f, 0f, -2.00f),
+                    new Vector3(6.03f, 0f, 1.15f),
+                    new Vector3(7.62f, 0f, 3.50f),
+                    new Vector3(12.00f, 0f, 5.50f),
+                },
+            },
+            new RouteDefinition
+            {
+                Id = "B1",
+                Waypoints = new[]
+                {
+                    new Vector3(-12.91f, 0f, -7.91f),
+                    new Vector3(-11.00f, 0f, -2.00f),
+                    new Vector3(-9.50f, 0f, 1.50f),
+                    new Vector3(-5.74f, 0f, 4.54f),
+                    new Vector3(-1.00f, 0f, 4.80f),
+                    new Vector3(3.00f, 0f, 3.50f),
+                    new Vector3(5.50f, 0f, 0.50f),
+                    new Vector3(7.00f, 0f, -3.50f),
+                    new Vector3(9.19f, 0f, -6.87f),
+                    new Vector3(12.47f, 0f, -7.35f),
+                },
+            },
+            new RouteDefinition
+            {
+                Id = "A2",
+                Waypoints = new[]
+                {
+                    new Vector3(-14.13f, 0f, 7.14f),
+                    new Vector3(-9.58f, 0f, 5.89f),
+                    new Vector3(-3.63f, 0f, 4.96f),
+                    new Vector3(-0.13f, 0f, 4.98f),
+                    new Vector3(3.34f, 0f, 3.78f),
+                    new Vector3(6.43f, 0f, -0.66f),
+                    new Vector3(7.03f, 0f, -3.56f),
+                    new Vector3(9.03f, 0f, -6.98f),
+                    new Vector3(12.47f, 0f, -7.35f),
+                },
+            },
+            new RouteDefinition
+            {
+                Id = "B2",
+                Waypoints = new[]
+                {
+                    new Vector3(-12.91f, 0f, -7.91f),
+                    new Vector3(-8.37f, 0f, -6.18f),
+                    new Vector3(-4.98f, 0f, -4.97f),
+                    new Vector3(-1.26f, 0f, -5.23f),
+                    new Vector3(2.84f, 0f, -4.04f),
+                    new Vector3(4.85f, 0f, -2.36f),
+                    new Vector3(5.98f, 0f, 1.13f),
+                    new Vector3(7.47f, 0f, 3.42f),
+                    new Vector3(12.00f, 0f, 5.50f),
+                },
+            },
         };
 
-        /// <summary>기본 타워 슬롯 위치. 슬롯 루트는 항상 스케일 1 (자식 비주얼만 납작하게).</summary>
+        /// <summary>
+        /// 기본 타워 슬롯 위치. 슬롯 루트는 항상 스케일 1 (자식 비주얼만 납작하게).
+        /// 좌표는 씬(Stage01)에서 손으로 다듬은 배치를 되받은 값이며, 왼쪽에서 오른쪽 순이다.
+        /// </summary>
         static readonly Vector3[] DefaultSlotPositions =
         {
-            new Vector3(-8f, 0f, -3f),
-            new Vector3(-6f, 0f, -7f),
-            new Vector3(-2f, 0f, -2f),
-            new Vector3(-6f, 0f, 2f),
-            new Vector3(-1f, 0f, 6f),
-            new Vector3(1.5f, 0f, 2f),
-            new Vector3(6.5f, 0f, 0f),
-            new Vector3(7f, 0f, -6.5f),
+            new Vector3(-11.80f, 0f, 1.34f),
+            new Vector3(-9.57f, 0f, -1.32f),
+            new Vector3(-9.23f, 0f, 3.24f),
+            new Vector3(-7.44f, 0f, 0.95f),
+            new Vector3(-4.83f, 0f, -6.98f),
+            new Vector3(-3.34f, 0f, 3.32f),
+            new Vector3(-1.79f, 0f, -2.96f),
+            new Vector3(0.40f, 0f, 6.31f),
+            new Vector3(1.20f, 0f, 2.82f),
+            new Vector3(1.60f, 0f, -6.12f),
+            new Vector3(3.87f, 0f, -0.12f),
+            new Vector3(6.62f, 0f, 4.39f),
+            new Vector3(7.00f, 0f, -6.50f),
+            new Vector3(7.88f, 0f, -0.22f),
+            new Vector3(9.22f, 0f, 6.35f),
+            new Vector3(11.28f, 0f, -5.35f),
         };
+
+        /// <summary>
+        /// 슬롯이 경로에 이보다 가까우면 길 위에 올라탄 것으로 본다 (검증 경고).
+        /// 경로 폭 1.6의 반(0.8) + 슬롯 받침 발자국 1.1의 반(0.55)이 실제로 닿기 시작하는 거리다.
+        /// </summary>
+        const float SlotPathClearance = 1.35f;
 
         public static event Action<string> Reported;
 
@@ -180,7 +269,7 @@ namespace Rush.EditorTools
             Report("더미 프리팹(큐브) 생성 완료");
         }
 
-        /// <summary>파티클 연출 프리팹(사망 파편 / 연기 퍼프)을 보장한다.</summary>
+        /// <summary>파티클 연출 프리팹(사망 파편 / 연기 퍼프 / 행운 발동)을 보장한다.</summary>
         public static void EnsureFxPrefabs()
         {
             var debrisMat = EnsureFxMaterial("Mat_Debris", DebrisChunkShader);
@@ -194,7 +283,188 @@ namespace Rush.EditorTools
             if (smokeMat != null)
                 EnsureSmokePuffPrefab(smokeMat);
 
+            EnsureLuckSparkPrefab();
+
             LinkMonsterDeathFx(debris);
+        }
+
+        /// <summary>행운 발동 연출 프리팹. 없으면 null.</summary>
+        public static GameObject LoadLuckSparkPrefab()
+        {
+            return AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabDir}/Fx_LuckSpark.prefab");
+        }
+
+        /// <summary>
+        /// 행운 발동(C15) 연출. 금색 불티가 안쪽으로 모여든 뒤 짧은 빛기둥이 솟는다.
+        /// 기둥과 불티는 같은 셰이더를 쓰되 높이 페이드만 다르게 둔 별도 머티리얼이다.
+        /// </summary>
+        static GameObject EnsureLuckSparkPrefab()
+        {
+            string path = $"{PrefabDir}/Fx_LuckSpark.prefab";
+            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+
+            if (existing != null)
+                return existing;
+
+            var rayMat = EnsureLuckMaterial("Mat_LuckRay", heightFade: 1f, intensity: 1.6f);
+            var sparkMat = EnsureLuckMaterial("Mat_LuckSpark", heightFade: 0f, intensity: 2.2f);
+
+            if (rayMat == null || sparkMat == null)
+                return null;
+
+            // ---------- 루트: 빛기둥 ----------
+            var root = new GameObject("Fx_LuckSpark");
+            var beam = root.AddComponent<ParticleSystem>();
+
+            var beamMain = beam.main;
+            beamMain.duration = 0.5f;
+            beamMain.loop = false;
+            beamMain.playOnAwake = false;
+            beamMain.startLifetime = new ParticleSystem.MinMaxCurve(0.34f);
+            beamMain.startSpeed = new ParticleSystem.MinMaxCurve(0f);
+            beamMain.simulationSpace = ParticleSystemSimulationSpace.World;
+            beamMain.maxParticles = 4;
+
+            // 원통 메시는 높이 2 / 지름 1이라, 가늘고 긴 기둥이 되도록 축마다 다르게 준다
+            beamMain.startSize3D = true;
+            beamMain.startSizeX = new ParticleSystem.MinMaxCurve(0.55f);
+            beamMain.startSizeY = new ParticleSystem.MinMaxCurve(1.3f);
+            beamMain.startSizeZ = new ParticleSystem.MinMaxCurve(0.55f);
+
+            var beamEmission = beam.emission;
+            beamEmission.rateOverTime = 0f;
+
+            // 불티가 모일 시간을 준 뒤에 터진다
+            beamEmission.SetBursts(new[] { new ParticleSystem.Burst(0.18f, 1) });
+
+            // 원통 중심이 파티클 원점이므로 밑동이 지면에 닿도록 위로 올린다
+            var beamShape = beam.shape;
+            beamShape.enabled = true;
+            beamShape.shapeType = ParticleSystemShapeType.Sphere;
+            beamShape.radius = 0.01f;
+            beamShape.position = new Vector3(0f, 1.3f, 0f);
+
+            // 솟아오르듯 세로로만 늘어난다
+            var beamSize = beam.sizeOverLifetime;
+            beamSize.enabled = true;
+            beamSize.separateAxes = true;
+            beamSize.x = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(
+                new Keyframe(0f, 0.4f),
+                new Keyframe(0.25f, 1f),
+                new Keyframe(1f, 0.7f)));
+            beamSize.y = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(
+                new Keyframe(0f, 0.25f),
+                new Keyframe(0.35f, 1f),
+                new Keyframe(1f, 1.1f)));
+            beamSize.z = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(
+                new Keyframe(0f, 0.4f),
+                new Keyframe(0.25f, 1f),
+                new Keyframe(1f, 0.7f)));
+
+            var beamColor = beam.colorOverLifetime;
+            beamColor.enabled = true;
+            beamColor.color = new ParticleSystem.MinMaxGradient(MakeFlashGradient(0.15f));
+
+            var beamRenderer = root.GetComponent<ParticleSystemRenderer>();
+            beamRenderer.renderMode = ParticleSystemRenderMode.Mesh;
+            beamRenderer.mesh = GetPrimitiveMesh(PrimitiveType.Cylinder);
+            beamRenderer.sharedMaterial = rayMat;
+            beamRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            beamRenderer.receiveShadows = false;
+            beamRenderer.alignment = ParticleSystemRenderSpace.World;
+
+            // ---------- 자식: 모여드는 불티 ----------
+            var sparkGo = new GameObject("Sparks");
+            sparkGo.transform.SetParent(root.transform, false);
+
+            var sparks = sparkGo.AddComponent<ParticleSystem>();
+
+            var sparkMain = sparks.main;
+            sparkMain.duration = 0.5f;
+            sparkMain.loop = false;
+            sparkMain.playOnAwake = false;
+            sparkMain.startLifetime = new ParticleSystem.MinMaxCurve(0.22f, 0.3f);
+            sparkMain.startSpeed = new ParticleSystem.MinMaxCurve(0f);
+            sparkMain.startSize = new ParticleSystem.MinMaxCurve(0.08f, 0.16f);
+            sparkMain.simulationSpace = ParticleSystemSimulationSpace.World;
+            sparkMain.maxParticles = 24;
+
+            var sparkEmission = sparks.emission;
+            sparkEmission.rateOverTime = 0f;
+            sparkEmission.SetBursts(new[] { new ParticleSystem.Burst(0f, 10, 14) });
+
+            // 바깥 껍질에서 생겨나 안쪽으로 빨려 들어간다 (에너지가 모이는 느낌)
+            var sparkShape = sparks.shape;
+            sparkShape.enabled = true;
+            sparkShape.shapeType = ParticleSystemShapeType.Sphere;
+            sparkShape.radius = 1.0f;
+            sparkShape.radiusThickness = 0f;
+            sparkShape.position = new Vector3(0f, 0.9f, 0f);
+
+            var sparkVelocity = sparks.velocityOverLifetime;
+            sparkVelocity.enabled = true;
+            sparkVelocity.space = ParticleSystemSimulationSpace.Local;
+            sparkVelocity.radial = new ParticleSystem.MinMaxCurve(-4.5f, -6.5f);
+
+            var sparkSize = sparks.sizeOverLifetime;
+            sparkSize.enabled = true;
+            sparkSize.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(
+                new Keyframe(0f, 0.5f),
+                new Keyframe(0.6f, 1f),
+                new Keyframe(1f, 0f)));
+
+            var sparkColor = sparks.colorOverLifetime;
+            sparkColor.enabled = true;
+            sparkColor.color = new ParticleSystem.MinMaxGradient(MakeFlashGradient(0.2f));
+
+            var sparkRenderer = sparkGo.GetComponent<ParticleSystemRenderer>();
+            sparkRenderer.renderMode = ParticleSystemRenderMode.Mesh;
+            sparkRenderer.mesh = GetPrimitiveMesh(PrimitiveType.Sphere);
+            sparkRenderer.sharedMaterial = sparkMat;
+            sparkRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            sparkRenderer.receiveShadows = false;
+
+            root.AddComponent<OneShotFx>();
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
+            UnityEngine.Object.DestroyImmediate(root);
+
+            return prefab;
+        }
+
+        /// <summary>알파가 빠르게 차올랐다 사라지는 그라디언트 (번쩍 -> 잔광).</summary>
+        static Gradient MakeFlashGradient(float peakAt)
+        {
+            var gradient = new Gradient();
+            gradient.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[]
+                {
+                    new GradientAlphaKey(0f, 0f),
+                    new GradientAlphaKey(1f, peakAt),
+                    new GradientAlphaKey(0f, 1f),
+                });
+
+            return gradient;
+        }
+
+        /// <summary>행운 연출용 가산 머티리얼. 기둥과 불티가 높이 페이드/밝기만 다르다.</summary>
+        static Material EnsureLuckMaterial(string name, float heightFade, float intensity)
+        {
+            var mat = EnsureFxMaterial(name, LuckRayShader);
+
+            if (mat == null)
+                return null;
+
+            if (mat.HasProperty("_HeightFade"))
+                mat.SetFloat("_HeightFade", heightFade);
+
+            if (mat.HasProperty("_Intensity"))
+                mat.SetFloat("_Intensity", intensity);
+
+            EditorUtility.SetDirty(mat);
+
+            return mat;
         }
 
         /// <summary>몬스터 프리팹에 사망 파편 연출을 연결한다 (비어 있을 때만).</summary>
@@ -1577,7 +1847,7 @@ namespace Rush.EditorTools
 
         // ---------- 6-1. 보상 데이터 ----------
 
-        /// <summary>보상 카드 56종과 플로우 설정을 생성/동기화한다. 수치는 기존 조정값을 존중한다.</summary>
+        /// <summary>보상 카드 57종과 플로우 설정을 생성/동기화한다. 수치는 기존 조정값을 존중한다.</summary>
         public static RewardFlowConfig CreateRewardAssets(bool forceValues = false)
         {
             CreateFolders();
@@ -1623,6 +1893,13 @@ namespace Rush.EditorTools
             SetupScene();
         }
 
+        /// <summary>씬에서 손으로 배치한 경로/슬롯의 이름과 순서를 정리하고 경로 비주얼을 다시 굽는다.</summary>
+        [MenuItem("Rush/씬 레이아웃 정리 (이름 + 경로 비주얼)")]
+        public static void RunNormalizeSceneLayout()
+        {
+            NormalizeSceneLayout();
+        }
+
         public static void CreateAllAssets()
         {
             CreateFolders();
@@ -1663,12 +1940,12 @@ namespace Rush.EditorTools
 
             SetupCamera();
             SetupGround();
-            var path = SetupPath();
-            BakePathVisual(path);
+            var paths = SetupPaths();
+            BakePathVisual(paths);
             SetupSlots();
             UpgradeSlotVisuals();
             var ghostPreview = BakeBuildGhosts();
-            var stage = SetupStageController(path);
+            var stage = SetupStageController(paths);
             SetupGameUI(stage, ghostPreview);
 
             AddSceneToBuildSettings();
@@ -1716,27 +1993,64 @@ namespace Rush.EditorTools
             ground.GetComponent<MeshRenderer>().sharedMaterial = EnsureMaterial("Mat_Ground", new Color(0.35f, 0.38f, 0.32f));
         }
 
-        /// <summary>경로 루트와 웨이포인트를 보장한다. 루트만 있고 포인트가 모자라면 기본 정의로 보충한다.</summary>
-        static PathRoute SetupPath()
+        /// <summary>
+        /// 경로 루트 4개와 웨이포인트를 보장한다. 루트만 있고 포인트가 모자라면 기본 정의로 보충한다.
+        /// 웨이포인트를 씬에서 옮겨 뒀다면 그 위치는 건드리지 않는다 (개수만 채운다).
+        /// </summary>
+        static PathRoute[] SetupPaths()
         {
-            var pathGo = GameObject.Find("Path");
+            // 단일 경로 시절의 최상위 "Path" 오브젝트는 4루트 구조로 대체됐다
+            var legacy = GameObject.Find("Path");
 
-            if (pathGo == null)
-                pathGo = new GameObject("Path");
-
-            for (int i = pathGo.transform.childCount; i < DefaultWaypoints.Length; i++)
+            if (legacy != null && legacy.transform.parent == null)
             {
-                var wp = new GameObject($"P{i}");
-                wp.transform.SetParent(pathGo.transform);
-                wp.transform.position = DefaultWaypoints[i];
+                UnityEngine.Object.DestroyImmediate(legacy);
+                Report("단일 경로(Path)를 제거하고 4루트로 교체함");
             }
 
-            var route = pathGo.GetComponent<PathRoute>();
+            var rootGo = GameObject.Find("Paths");
+
+            if (rootGo == null)
+                rootGo = new GameObject("Paths");
+
+            var routes = new PathRoute[DefaultRoutes.Length];
+
+            for (int i = 0; i < DefaultRoutes.Length; i++)
+                routes[i] = SetupRoute(rootGo.transform, DefaultRoutes[i]);
+
+            Report($"경로 루트 {routes.Length}개 준비 완료");
+
+            return routes;
+        }
+
+        static PathRoute SetupRoute(Transform parent, RouteDefinition def)
+        {
+            string routeName = $"Path_{def.Id}";
+            var routeTransform = parent.Find(routeName);
+
+            if (routeTransform == null)
+            {
+                var go = new GameObject(routeName);
+                go.transform.SetParent(parent);
+                routeTransform = go.transform;
+            }
+
+            for (int i = routeTransform.childCount; i < def.Waypoints.Length; i++)
+            {
+                var wp = new GameObject($"P{i}");
+                wp.transform.SetParent(routeTransform);
+                wp.transform.position = def.Waypoints[i];
+            }
+
+            var route = routeTransform.GetComponent<PathRoute>();
 
             if (route == null)
-                route = pathGo.AddComponent<PathRoute>();
+                route = routeTransform.gameObject.AddComponent<PathRoute>();
 
+            route.SetRouteId(def.Id);
             route.CachePoints();
+
+            EditorUtility.SetDirty(route);
 
             return route;
         }
@@ -1745,17 +2059,11 @@ namespace Rush.EditorTools
         /// 경로를 바닥 타일로 베이크한다. 런타임 생성 없이 에디트 모드에서 바로 눈으로 확인할 수 있다.
         /// 다시 호출하면 기존 타일을 지우고 현재 웨이포인트 기준으로 재생성한다.
         /// </summary>
-        public static void BakePathVisual(PathRoute route)
+        public static void BakePathVisual(PathRoute[] routes)
         {
-            if (route == null)
+            if (routes == null || routes.Length == 0)
             {
                 Report("경로가 없어 경로 비주얼을 만들 수 없음");
-                return;
-            }
-
-            if (route.PointCount < 2)
-            {
-                Report("웨이포인트가 2개 미만이라 경로 비주얼을 만들 수 없음");
                 return;
             }
 
@@ -1774,33 +2082,277 @@ namespace Rush.EditorTools
             var startMat = EnsureMaterial("Mat_PathStart", new Color(0.35f, 0.75f, 0.4f));
             var endMat = EnsureMaterial("Mat_PathEnd", new Color(0.8f, 0.3f, 0.3f));
 
-            for (int i = 0; i < route.PointCount - 1; i++)
-            {
-                Vector3 a = route.GetPoint(i);
-                Vector3 b = route.GetPoint(i + 1);
-                Vector3 dir = b - a;
-                float length = dir.magnitude;
+            // 시작/종료 지점은 루트끼리 공유하므로 마커가 겹치지 않게 좌표로 한 번만 찍는다
+            var markerPoints = new List<Vector3>(4);
 
-                if (length < 0.01f)
+            // 라벨은 루트 ID가 아니라 좌표로 정한다. B1은 이름이 1로 끝나지만 종료는 2번 지점이다.
+            var startPoints = CollectEndpoints(routes, start: true);
+            var exitPoints = CollectEndpoints(routes, start: false);
+
+            int baked = 0;
+
+            foreach (var route in routes)
+            {
+                if (route == null || route.PointCount < 2)
                     continue;
 
-                var tile = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                tile.name = $"PathSegment_{i:00}";
-                UnityEngine.Object.DestroyImmediate(tile.GetComponent<Collider>());
+                var group = new GameObject($"Route_{route.RouteId}");
+                group.transform.SetParent(root.transform);
+                group.isStatic = true;
 
-                tile.transform.SetParent(root.transform);
-                tile.transform.position = (a + b) * 0.5f + Vector3.up * (TileHeight * 0.5f);
-                tile.transform.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
+                for (int i = 0; i < route.PointCount - 1; i++)
+                {
+                    Vector3 a = route.GetPoint(i);
+                    Vector3 b = route.GetPoint(i + 1);
+                    Vector3 dir = b - a;
+                    float length = dir.magnitude;
 
-                // 길이에 폭을 더해 꺾이는 모서리를 메운다
-                tile.transform.localScale = new Vector3(PathWidth, TileHeight, length + PathWidth);
-                tile.GetComponent<MeshRenderer>().sharedMaterial = pathMat;
+                    if (length < 0.01f)
+                        continue;
+
+                    var tile = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    tile.name = $"PathSegment_{i:00}";
+                    UnityEngine.Object.DestroyImmediate(tile.GetComponent<Collider>());
+
+                    tile.transform.SetParent(group.transform);
+                    tile.transform.position = (a + b) * 0.5f + Vector3.up * (TileHeight * 0.5f);
+                    tile.transform.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
+
+                    // 길이에 폭을 더해 꺾이는 모서리를 메운다
+                    tile.transform.localScale = new Vector3(PathWidth, TileHeight, length + PathWidth);
+                    tile.GetComponent<MeshRenderer>().sharedMaterial = pathMat;
+                }
+
+                Vector3 startPoint = route.GetPoint(0);
+                Vector3 exitPoint = route.GetPoint(route.PointCount - 1);
+
+                TryCreateSharedMarker(root.transform, markerPoints,
+                    $"SpawnMarker_{LabelOf(startPoints, startPoint, StartLabels)}", startPoint, startMat, PathWidth);
+
+                TryCreateSharedMarker(root.transform, markerPoints,
+                    $"ExitMarker_{LabelOf(exitPoints, exitPoint, ExitLabels)}", exitPoint, endMat, PathWidth);
+
+                baked++;
             }
 
-            CreatePathMarker(root.transform, "SpawnMarker", route.GetPoint(0), startMat, PathWidth);
-            CreatePathMarker(root.transform, "ExitMarker", route.GetPoint(route.PointCount - 1), endMat, PathWidth);
+            if (baked == 0)
+            {
+                Report("웨이포인트가 2개 이상인 루트가 없어 경로 비주얼을 만들 수 없음");
+                return;
+            }
 
-            Report("경로 비주얼 베이크 완료");
+            Report($"경로 비주얼 베이크 완료 (루트 {baked}개)");
+        }
+
+        /// <summary>
+        /// 씬에서 손으로 배치한 경로/슬롯을 정리한다. 위치는 절대 건드리지 않고 이름과 순서만 맞춘다.
+        /// 웨이포인트를 복제하거나 슬롯을 늘리면 "Slot_07 (3)" 같은 이름이 남으므로 정기적으로 돌린다.
+        /// 정리 후 경로 비주얼을 현재 좌표로 다시 베이크한다.
+        /// </summary>
+        public static void NormalizeSceneLayout()
+        {
+            var routes = UnityEngine.Object.FindObjectsByType<PathRoute>(FindObjectsSortMode.None);
+
+            if (routes.Length == 0)
+            {
+                Report("씬에 경로 루트가 없어 정리를 건너뜀");
+                return;
+            }
+
+            int renamedWaypoints = NormalizeRouteNames(routes);
+            int renamedSlots = NormalizeSlotNames();
+
+            // 루트를 RouteId 순서(A1/B1/A2/B2)로 정렬해 베이크 순서와 계층 순서를 맞춘다
+            System.Array.Sort(routes, CompareRouteOrder);
+
+            SortRoutesInHierarchy(routes);
+
+            BakePathVisual(routes);
+
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+
+            Report($"씬 정리 완료 (웨이포인트 {renamedWaypoints}개 / 슬롯 {renamedSlots}개 이름 정리)");
+        }
+
+        /// <summary>루트 오브젝트 이름을 RouteId에 맞추고 웨이포인트를 P00부터 다시 번호 매긴다.</summary>
+        static int NormalizeRouteNames(PathRoute[] routes)
+        {
+            int renamed = 0;
+
+            foreach (var route in routes)
+            {
+                string expectedName = $"Path_{route.RouteId}";
+
+                if (route.name != expectedName)
+                {
+                    Undo.RecordObject(route.gameObject, "Normalize route name");
+                    route.name = expectedName;
+                }
+
+                var transform = route.transform;
+
+                for (int i = 0; i < transform.childCount; i++)
+                {
+                    var child = transform.GetChild(i);
+                    string expected = $"P{i:00}";
+
+                    if (child.name == expected)
+                        continue;
+
+                    Undo.RecordObject(child.gameObject, "Normalize waypoint name");
+                    child.name = expected;
+                    renamed++;
+                }
+
+                route.CachePoints();
+                EditorUtility.SetDirty(route);
+            }
+
+            return renamed;
+        }
+
+        /// <summary>
+        /// 슬롯 이름을 Slot_01부터 다시 매긴다. 순서는 왼쪽 위에서 오른쪽 아래로 (x 오름차순, 같으면 z 내림차순).
+        /// 복제로 생긴 "Slot_07 (3)" 같은 이름이 사라지고, 셋업/검증 로그에서 슬롯을 특정할 수 있게 된다.
+        /// </summary>
+        static int NormalizeSlotNames()
+        {
+            var slots = UnityEngine.Object.FindObjectsByType<TowerSlot>(FindObjectsSortMode.None);
+
+            if (slots.Length == 0)
+                return 0;
+
+            System.Array.Sort(slots, CompareSlotOrder);
+
+            int renamed = 0;
+
+            var previousNames = new string[slots.Length];
+
+            // 이름이 겹치는 중간 상태를 피하려고 임시 이름을 거쳐 두 번에 나눠 바꾼다
+            for (int i = 0; i < slots.Length; i++)
+            {
+                previousNames[i] = slots[i].name;
+                slots[i].name = $"__SlotTemp_{i:00}";
+            }
+
+            for (int i = 0; i < slots.Length; i++)
+            {
+                string expected = $"Slot_{i + 1:00}";
+
+                Undo.RecordObject(slots[i].gameObject, "Normalize slot name");
+                slots[i].name = expected;
+                slots[i].transform.SetSiblingIndex(i);
+
+                if (previousNames[i] != expected)
+                    renamed++;
+            }
+
+            return renamed;
+        }
+
+        static int CompareSlotOrder(TowerSlot a, TowerSlot b)
+        {
+            Vector3 pa = a.transform.position;
+            Vector3 pb = b.transform.position;
+
+            int byX = pa.x.CompareTo(pb.x);
+
+            if (byX != 0)
+                return byX;
+
+            return pb.z.CompareTo(pa.z);
+        }
+
+        /// <summary>스폰 분배가 시작 지점을 번갈아 쓰도록 A1/B1/A2/B2 순서로 맞춘다.</summary>
+        static int CompareRouteOrder(PathRoute a, PathRoute b)
+        {
+            return RouteOrderKey(a.RouteId).CompareTo(RouteOrderKey(b.RouteId));
+        }
+
+        static int RouteOrderKey(string routeId)
+        {
+            for (int i = 0; i < DefaultRoutes.Length; i++)
+            {
+                if (DefaultRoutes[i].Id == routeId)
+                    return i;
+            }
+
+            return int.MaxValue;
+        }
+
+        static void SortRoutesInHierarchy(PathRoute[] ordered)
+        {
+            for (int i = 0; i < ordered.Length; i++)
+                ordered[i].transform.SetSiblingIndex(i);
+        }
+
+        /// <summary>기획 스케치의 지점 표기. 시작은 위(A)에서 아래(B), 종료는 위(1)에서 아래(2) 순이다.</summary>
+        static readonly string[] StartLabels = { "A", "B" };
+        static readonly string[] ExitLabels = { "1", "2" };
+
+        /// <summary>
+        /// 루트들의 시작점(또는 종료점)을 좌표로 묶어 위에서 아래 순으로 돌려준다.
+        /// 여러 루트가 한 지점을 공유하므로 중복은 제거한다.
+        /// </summary>
+        static List<Vector3> CollectEndpoints(PathRoute[] routes, bool start)
+        {
+            var points = new List<Vector3>(4);
+
+            foreach (var route in routes)
+            {
+                if (route == null || route.PointCount < 2)
+                    continue;
+
+                Vector3 point = start ? route.GetPoint(0) : route.GetPoint(route.PointCount - 1);
+                bool duplicate = false;
+
+                foreach (var existing in points)
+                {
+                    if ((existing - point).sqrMagnitude >= 0.01f)
+                        continue;
+
+                    duplicate = true;
+                    break;
+                }
+
+                if (!duplicate)
+                    points.Add(point);
+            }
+
+            points.Sort((a, b) => b.z.CompareTo(a.z));
+
+            return points;
+        }
+
+        static string LabelOf(List<Vector3> points, Vector3 point, string[] labels)
+        {
+            for (int i = 0; i < points.Count; i++)
+            {
+                if ((points[i] - point).sqrMagnitude >= 0.01f)
+                    continue;
+
+                if (i < labels.Length)
+                    return labels[i];
+
+                return (i + 1).ToString();
+            }
+
+            return "?";
+        }
+
+        /// <summary>이미 마커를 찍은 좌표면 건너뛴다. 시작 지점 2곳 / 종료 지점 2곳만 남는다.</summary>
+        static void TryCreateSharedMarker(Transform parent, List<Vector3> used,
+            string name, Vector3 position, Material material, float width)
+        {
+            foreach (var point in used)
+            {
+                if ((point - position).sqrMagnitude < 0.01f)
+                    return;
+            }
+
+            used.Add(position);
+
+            CreatePathMarker(parent, name, position, material, width);
         }
 
         static void CreatePathMarker(Transform parent, string name, Vector3 position, Material material, float width)
@@ -1819,6 +2371,10 @@ namespace Rush.EditorTools
         /// 타워 슬롯을 이름 기준으로 하나씩 보장한다. 일부만 지워진 씬도 빠진 것만 복구한다.
         /// 슬롯 루트는 스케일 1을 유지하고 납작한 판은 자식 Visual이 담당한다
         /// (루트가 비균등 스케일이면 그 위에 세운 타워/병사가 찌그러진다).
+        /// </summary>
+        /// <summary>
+        /// 기본 슬롯을 이름 기준으로 하나씩 보장한다. 씬에서 옮기거나 늘려 둔 슬롯은 그대로 둔다
+        /// (경로와 어긋난 배치는 되돌리지 않고 씬 검증이 경고만 낸다).
         /// </summary>
         static void SetupSlots()
         {
@@ -2248,7 +2804,7 @@ namespace Rush.EditorTools
             return mat;
         }
 
-        static StageController SetupStageController(PathRoute path)
+        static StageController SetupStageController(PathRoute[] paths)
         {
             var stageGo = GameObject.Find("Stage");
 
@@ -2278,7 +2834,7 @@ namespace Rush.EditorTools
             var so = new SerializedObject(stage);
             FillIfEmpty(so, "_stageData", stageData);
             FillIfEmpty(so, "_difficulty", difficulty);
-            FillIfEmpty(so, "_path", path);
+            FillArrayIfEmpty(so, "_paths", paths);
             FillIfEmpty(so, "_spawner", spawner);
             FillIfEmpty(so, "_rewards", rewards);
             so.ApplyModifiedPropertiesWithoutUndo();
@@ -2286,6 +2842,7 @@ namespace Rush.EditorTools
             var rewardSo = new SerializedObject(rewards);
             FillIfEmpty(rewardSo, "_stage", stage);
             FillIfEmpty(rewardSo, "_config", rewardConfig);
+            FillIfEmpty(rewardSo, "_luckFx", LoadLuckSparkPrefab());
             rewardSo.ApplyModifiedPropertiesWithoutUndo();
 
             var spawnerSo = new SerializedObject(spawner);
@@ -2309,6 +2866,43 @@ namespace Rush.EditorTools
                 return;
 
             property.objectReferenceValue = value;
+        }
+
+        /// <summary>
+        /// 배열 필드를 채운다. 비어 있거나 항목에 빈 참조가 있으면 셋업 값으로 다시 만든다.
+        /// 사용자가 순서를 바꿔 두기만 한 경우(길이가 같고 전부 채워져 있음)는 건드리지 않는다.
+        /// </summary>
+        static void FillArrayIfEmpty(SerializedObject so, string propertyPath, UnityEngine.Object[] values)
+        {
+            var property = so.FindProperty(propertyPath);
+
+            if (property == null)
+            {
+                Report($"필드 {propertyPath}를 찾을 수 없음 - 스크립트와 셋업 코드가 어긋남");
+                return;
+            }
+
+            if (!property.isArray)
+            {
+                Report($"필드 {propertyPath}가 배열이 아님");
+                return;
+            }
+
+            bool needsFill = property.arraySize != values.Length;
+
+            for (int i = 0; !needsFill && i < property.arraySize; i++)
+            {
+                if (property.GetArrayElementAtIndex(i).objectReferenceValue == null)
+                    needsFill = true;
+            }
+
+            if (!needsFill)
+                return;
+
+            property.arraySize = values.Length;
+
+            for (int i = 0; i < values.Length; i++)
+                property.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
         }
 
         static void SetupGameUI(StageController stage, BuildGhostPreview ghostPreview)
@@ -2685,12 +3279,39 @@ namespace Rush.EditorTools
             }
 
             var so = new SerializedObject(stage);
-            string[] fields = { "_stageData", "_difficulty", "_path", "_spawner", "_rewards" };
+            string[] fields = { "_stageData", "_difficulty", "_spawner", "_rewards" };
 
             foreach (var field in fields)
             {
-                if (so.FindProperty(field).objectReferenceValue == null)
+                var property = so.FindProperty(field);
+
+                if (property == null)
+                {
+                    issues.Add($"[씬] StageController.{field} 필드를 찾을 수 없음 - 스크립트와 셋업 코드가 어긋남");
+                    continue;
+                }
+
+                if (property.objectReferenceValue == null)
                     issues.Add($"[씬] StageController.{field} 참조 비어 있음");
+            }
+
+            var pathsProperty = so.FindProperty("_paths");
+
+            if (pathsProperty == null || !pathsProperty.isArray)
+            {
+                issues.Add("[씬] StageController._paths 필드를 찾을 수 없음 - 스크립트와 셋업 코드가 어긋남");
+            }
+            else if (pathsProperty.arraySize != DefaultRoutes.Length)
+            {
+                issues.Add($"[씬] StageController._paths가 {pathsProperty.arraySize}개 - {DefaultRoutes.Length}개 필요 (씬 셋업 실행)");
+            }
+            else
+            {
+                for (int i = 0; i < pathsProperty.arraySize; i++)
+                {
+                    if (pathsProperty.GetArrayElementAtIndex(i).objectReferenceValue == null)
+                        issues.Add($"[씬] StageController._paths[{i}] 참조 비어 있음");
+                }
             }
 
             var rewards = UnityEngine.Object.FindFirstObjectByType<RewardSystem>();
@@ -2716,10 +3337,16 @@ namespace Rush.EditorTools
             if (UnityEngine.Object.FindFirstObjectByType<MonsterHealthOverlay>() == null)
                 issues.Add("[씬] MonsterHealthOverlay(GameUI) 없음");
 
-            var path = UnityEngine.Object.FindFirstObjectByType<PathRoute>();
+            var routes = UnityEngine.Object.FindObjectsByType<PathRoute>(FindObjectsSortMode.None);
 
-            if (path == null || path.PointCount < 2)
-                issues.Add("[씬] PathRoute가 없거나 웨이포인트가 2개 미만");
+            if (routes.Length != DefaultRoutes.Length)
+                issues.Add($"[씬] 경로 루트가 {routes.Length}개 - {DefaultRoutes.Length}개(A1/A2/B1/B2) 필요");
+
+            foreach (var route in routes)
+            {
+                if (route.PointCount < 2)
+                    issues.Add($"[씬] 루트 {route.RouteId}: 웨이포인트가 2개 미만");
+            }
 
             if (GameObject.Find("PathVisual") == null)
                 issues.Add("[씬] 경로 비주얼(PathVisual)이 없음 - 경로 베이크 실행 필요");
@@ -2731,6 +3358,23 @@ namespace Rush.EditorTools
 
             foreach (var slot in slots)
             {
+                // 슬롯이 길 위에 올라타면 건설 클릭과 경로 비주얼이 겹친다
+                Vector3 origin = slot.transform.position;
+                origin.y = 0f;
+
+                foreach (var route in routes)
+                {
+                    if (route.PointCount < 2)
+                        continue;
+
+                    route.ClosestPoint(origin, out float sqrDistance);
+
+                    if (sqrDistance >= SlotPathClearance * SlotPathClearance)
+                        continue;
+
+                    issues.Add($"[씬] {slot.name}: 루트 {route.RouteId}와 {Mathf.Sqrt(sqrDistance):F2} 거리 - {SlotPathClearance} 이상 필요");
+                }
+
                 var scale = slot.transform.lossyScale;
 
                 // 비균등 스케일 슬롯 밑에 타워를 세우면 타워/병사 비주얼이 찌그러진다

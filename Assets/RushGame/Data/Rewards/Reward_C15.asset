@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8fa6bc1d58367543bcc8dd543e82086, type: 3}
+  m_Name: Reward_C15
+  m_EditorClassIdentifier: Assembly-CSharp::Rush.Data.RewardDefinition
+  Id: C15
+  DisplayName: "\uD589\uC6B4\uC758 \uBD80\uC801"
+  Category: 0
+  Rarity: 3
+  Description: "\uD655\uB960\uB85C \uBC1C\uB3D9\uD558\uB294 \uD6A8\uACFC\uAC00 \uC2E4\uD328\uD558\uBA74
+    1\uD68C \uB2E4\uC2DC \uD310\uC815\uD55C\uB2E4 (20% -> 36%)"
+  ConditionNote: "\uD655\uB960 \uD310\uC815\uC774 \uBD99\uC740 \uBCF4\uC0C1\xB7\uC2A4\uD0AC\uC744
+    \uAC16\uACE0 \uC788\uC5B4\uC57C \uC758\uBBF8\uAC00 \uC788\uC74C \xB7 \uC989\uC0AC
+    \uD310\uC815\uACFC \uBCF4\uC0C1 \uCE74\uB4DC \uCD94\uCCA8\uC5D0\uB294 \uC801\uC6A9\uB418\uC9C0
+    \uC54A\uC74C"
+  TowerFilter: 0
+  Tag: 0
+  Effect: 130
+  Value: 1
+  Value2: 0
+  Chance: 0
+  Duration: 0
+  StackLimit: 1
+  Enabled: 1
+  DisabledReason: 

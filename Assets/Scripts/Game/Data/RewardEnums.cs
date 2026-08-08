@@ -97,6 +97,11 @@ namespace Rush.Data
         ChainExplosion = 103,
         KnockbackChance = 104,
         StunChance = 105,
+        BonusProcShot = 106,
+        BonusOnKillShot = 107,
+
+        // 확률 판정 보정 (Value = 재굴림 횟수)
+        LuckReroll = 130,
 
         // 미구현 (전제 시스템 없음)
         DamageRangeNarrow = 200,

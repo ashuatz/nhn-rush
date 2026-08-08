@@ -257,10 +257,10 @@ namespace Rush.Combat
         /// <summary>분기 스킬 착탄 효과 (생존한 표적 대상): 방깎 / 귀환 / 기절.</summary>
         void ApplyBranchRiders(Monster target)
         {
-            if (_config.PhysShredChance > 0f && Random.value < _config.PhysShredChance)
+            if (Luck.Roll(_config.PhysShredChance, target.transform.position))
                 target.LowerPhysStage();
 
-            if (_config.TeleportChance > 0f && !target.Data.IsBoss && Random.value < _config.TeleportChance)
+            if (!target.Data.IsBoss && Luck.Roll(_config.TeleportChance, target.transform.position))
                 target.TeleportToStart();
 
             if (_config.StunDuration > 0f)

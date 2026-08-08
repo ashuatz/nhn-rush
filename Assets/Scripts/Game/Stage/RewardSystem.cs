@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Rush.Combat;
 using Rush.Data;
+using Rush.Fx;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -22,6 +23,9 @@ namespace Rush.Stage
 
         [SerializeField] StageController _stage;
         [SerializeField] RewardFlowConfig _config;
+
+        [Tooltip("행운(C15) 재굴림이 실패를 뒤집었을 때 그 자리에 재생할 연출")]
+        [SerializeField] GameObject _luckFx;
 
         readonly Dictionary<RewardDefinition, int> _stacks = new Dictionary<RewardDefinition, int>();
         readonly List<RewardDefinition> _offer = new List<RewardDefinition>(3);
@@ -52,6 +56,12 @@ namespace Rush.Stage
             }
         }
 
+        /// <summary>
+        /// 확률 판정 재굴림 횟수 (C15). Luck.Roll이 매 판정마다 읽으므로 카드 획득 시에만 다시 계산한다.
+        /// static이라 씬을 넘어가도 남으므로 Awake/OnDestroy에서 반드시 0으로 되돌린다.
+        /// </summary>
+        public static int LuckRerolls { get; private set; }
+
         public IReadOnlyList<RewardDefinition> CurrentOffer => _offer;
 
         public int RerollsLeft => _rerollsLeft;
@@ -66,12 +76,17 @@ namespace Rush.Stage
         {
             Active = this;
             _stacks.Clear();
+            LuckRerolls = 0;
         }
 
         void OnDestroy()
         {
+            // 중복 인스턴스가 늦게 파괴될 때 현재 활성 인스턴스의 상태를 지우지 않도록 소유권을 확인한다
             if (Active == this)
+            {
                 Active = null;
+                LuckRerolls = 0;
+            }
         }
 
         public int StackOf(RewardDefinition def)
@@ -312,6 +327,7 @@ namespace Rush.Stage
             _stacks[card] = count + 1;
             Version++;
 
+            RecomputeLuck();
             ApplyImmediate(card);
 
             GameLog.Info("Reward", $"[{card.Id}] {card.DisplayName} 획득 ({count + 1}/{card.StackLimit})");
@@ -425,6 +441,29 @@ namespace Rush.Stage
                 _stage.ReapplySpeed();
 
             OfferChanged?.Invoke();
+        }
+
+        /// <summary>행운 재굴림이 판정을 뒤집었을 때의 연출. Luck이 호출한다.</summary>
+        public static void PlayLuckFx(Vector3 position)
+        {
+            if (Active == null || Active._luckFx == null)
+                return;
+
+            OneShotFx.Spawn(Active._luckFx, position);
+        }
+
+        /// <summary>재굴림 횟수를 다시 집계한다 (C15). 매 판정마다 순회하지 않도록 획득 시점에만 부른다.</summary>
+        void RecomputeLuck()
+        {
+            int total = 0;
+
+            ForEachOwned((def, stacks) =>
+            {
+                if (def.Effect == RewardEffectType.LuckReroll)
+                    total += Mathf.RoundToInt(def.Value) * stacks;
+            });
+
+            LuckRerolls = Mathf.Max(0, total);
         }
 
         void ApplyImmediate(RewardDefinition card)
@@ -782,7 +821,7 @@ namespace Rush.Stage
                 if (def.Effect != RewardEffectType.SoldierKnockbackChance)
                     return;
 
-                if (Random.value < def.Chance)
+                if (Luck.Roll(def.Chance, target.transform.position))
                     target.Knockback(def.Value2);
             });
         }
@@ -802,12 +841,12 @@ namespace Rush.Stage
                 switch (def.Effect)
                 {
                     case RewardEffectType.KnockbackChance:
-                        if (SourceMatches(def, src) && Random.value < def.Chance)
+                        if (SourceMatches(def, src) && Luck.Roll(def.Chance, target.transform.position))
                             target.Knockback(def.Value2);
                         break;
 
                     case RewardEffectType.StunChance:
-                        if (SourceMatches(def, src) && Random.value < def.Chance)
+                        if (SourceMatches(def, src) && Luck.Roll(def.Chance, target.transform.position))
                             target.ApplyStun(def.Duration, def.Value2);
                         break;
                 }
@@ -877,6 +916,79 @@ namespace Rush.Stage
             });
 
             return value;
+        }
+
+        /// <summary>
+        /// 연발 장전 (C13): 공격할 때마다 확률로 추가 발사체가 나간다.
+        /// Chance = 발동 확률, Value = 피해 배율, Value2 = 발수. 중첩 시 확률은 독립 결합.
+        /// </summary>
+        public static bool TryGetProcShot(TowerType type, out float chance, out int count, out float damageScale)
+        {
+            chance = 0f;
+            count = 0;
+            damageScale = 0f;
+
+            if (Active == null)
+                return false;
+
+            float keep = 1f;
+            int shots = 0;
+            float scale = 0f;
+
+            Active.ForEachOwned((def, stacks) =>
+            {
+                if (def.Effect != RewardEffectType.BonusProcShot || !def.AppliesTo(type))
+                    return;
+
+                for (int i = 0; i < stacks; i++)
+                    keep *= 1f - def.Chance;
+
+                shots = Mathf.Max(shots, Mathf.RoundToInt(def.Value2));
+                scale = Mathf.Max(scale, def.Value);
+            });
+
+            chance = 1f - keep;
+
+            if (chance <= 0f)
+                return false;
+
+            count = Mathf.Max(1, shots);
+            damageScale = scale;
+
+            return true;
+        }
+
+        /// <summary>
+        /// 처형 예포 (C14): 처치 시 주변 적으로 추가 발사체가 튄다.
+        /// Value = 피해 배율, Value2 = 발수.
+        /// </summary>
+        public static bool TryGetOnKillShot(TowerType type, out int count, out float damageScale)
+        {
+            count = 0;
+            damageScale = 0f;
+
+            if (Active == null)
+                return false;
+
+            int shots = 0;
+            float scale = 0f;
+
+            Active.ForEachOwned((def, stacks) =>
+            {
+                if (def.Effect != RewardEffectType.BonusOnKillShot || !def.AppliesTo(type))
+                    return;
+
+                shots = Mathf.Max(shots, Mathf.RoundToInt(def.Value2));
+                scale = Mathf.Max(scale, def.Value);
+            });
+
+            if (shots <= 0)
+                return false;
+
+            count = shots;
+            damageScale = scale;
+
+            return true;
         }
 
         /// <summary>연쇄 반응 (G02): 광역 처치 시 폭발 비율/반경. 없으면 fraction 0.</summary>

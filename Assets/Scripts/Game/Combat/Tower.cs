@@ -568,26 +568,26 @@ namespace Rush.Combat
             }
 
             // 죽음의 광선: 20초마다 다음 기본 공격이 사거리 내 체력 최다 적에게 마법 피해
-            if (TryCastDeathRay(stat))
-                return true;
-
             // 집속로켓: 12초마다 다음 기본 공격이 무작위 적에게 동시 발사 + 1초 기절
-            if (TryCastClusterRocket(stat))
-                return true;
+            // 둘 중 하나가 나가면 기본 발사는 건너뛰지만, "공격 1회"인 것은 같다
+            bool skillFired = TryCastDeathRay(stat) || TryCastClusterRocket(stat);
 
-            int shots = 1;
-
-            if (Data.Motion != null && Data.Motion.ShotCount > 1)
-                shots = Data.Motion.ShotCount;
-
-            if (shots == 1)
+            if (!skillFired)
             {
-                FireOne(target, stat, stat.Damage);
-            }
-            else
-            {
-                // 연발은 피해를 균등 분배해 DPS를 유지한다
-                StartCoroutine(FireVolley(stat, shots));
+                int shots = 1;
+
+                if (Data.Motion != null && Data.Motion.ShotCount > 1)
+                    shots = Data.Motion.ShotCount;
+
+                if (shots == 1)
+                {
+                    FireOne(target, stat, stat.Damage);
+                }
+                else
+                {
+                    // 연발은 피해를 균등 분배해 DPS를 유지한다
+                    StartCoroutine(FireVolley(stat, shots));
+                }
             }
 
             // 확률 판정은 발사체 수와 무관하게 "공격 1회"당 한 번만 한다
@@ -635,7 +635,12 @@ namespace Rush.Combat
             DamageResolver.Apply(best, damage, DamageType.Magical, 0f, source);
 
             if (best != null && !best.IsAlive)
+            {
                 NotifyKillByThisTower();
+
+                // 발사체를 거치지 않는 처치라 처치 시 발사(C14)를 여기서 직접 요청한다
+                FireOnKillShots(best.transform.position, best);
+            }
 
             GameLog.Info("Skill", $"{skill.DisplayName} 발동 ({damage:F0})");
 
@@ -813,7 +818,7 @@ namespace Rush.Combat
             // 정확한 조준: 크리티컬 확률, 크리티컬은 2배 피해
             if (TryGetSkill(BranchSkillType.CriticalAim, out var crit, out int critLevel))
             {
-                if (Random.value < crit.ChanceAt(critLevel))
+                if (Luck.Roll(crit.ChanceAt(critLevel), transform.position))
                     mul *= 2f;
             }
 
@@ -876,7 +881,11 @@ namespace Rush.Combat
 
         // ---------- 추가 발사 ----------
 
-        /// <summary>공격할 때마다 확률로 추가 발사체를 쏜다.</summary>
+        /// <summary>
+        /// 공격할 때마다 확률로 추가 발사체를 쏜다.
+        /// 발동 수치는 보상 C13(연발 장전)이 정하고, 프리팹/궤적/속도는 타워의 AttackExtras를 쓴다.
+        /// AttackExtras의 켜짐 토글은 보상 없이 연출을 확인하기 위한 개발자 강제 켜기다.
+        /// </summary>
         void TryProcShot(Monster target, TowerLevelStat stat)
         {
             if (IsSold)
@@ -884,7 +893,29 @@ namespace Rush.Combat
 
             var extras = Data.Extras;
 
-            if (extras == null || !extras.ProcEnabled)
+            if (extras == null)
+                return;
+
+            float chance = 0f;
+            int shotCount = 0;
+            float damageScale = 0f;
+
+            if (extras.ProcEnabled)
+            {
+                chance = extras.ProcChance;
+                shotCount = extras.ProcCount;
+                damageScale = extras.ProcDamageScale;
+            }
+
+            if (RewardSystem.TryGetProcShot(Data.Type, out float rewardChance, out int rewardCount, out float rewardScale))
+            {
+                // 개발자 강제 켜기와 보상은 독립 확률로 합친다
+                chance = 1f - (1f - chance) * (1f - rewardChance);
+                shotCount = Mathf.Max(shotCount, rewardCount);
+                damageScale = Mathf.Max(damageScale, rewardScale);
+            }
+
+            if (chance <= 0f)
                 return;
 
             if (extras.ProcPrefab == null)
@@ -893,7 +924,7 @@ namespace Rush.Combat
                 return;
             }
 
-            if (Random.value > extras.ProcChance)
+            if (!Luck.Roll(chance, transform.position))
                 return;
 
             var mods = RewardSystem.GetStatMods(Data.Type);
@@ -904,7 +935,7 @@ namespace Rush.Combat
                 ImpactPrefab = extras.ProcImpactPrefab,
                 DamageType = Data.DamageType,
                 Speed = extras.ProcSpeed,
-                Damage = stat.Damage * mods.DamageMul * extras.ProcDamageScale,
+                Damage = stat.Damage * mods.DamageMul * damageScale,
                 ArmorPierce = stat.ArmorPierce,
                 SplashRadius = extras.ProcSplashRadius * mods.SplashMul,
                 SlowPercent = 0f,
@@ -913,14 +944,17 @@ namespace Rush.Combat
                 BonusOwner = null,
             };
 
-            for (int i = 0; i < Mathf.Max(1, extras.ProcCount); i++)
+            for (int i = 0; i < Mathf.Max(1, shotCount); i++)
                 Spawn(extras.ProcPrefab, config, target, MuzzlePosition);
 
             if (GameLog.VerboseCombat)
-                GameLog.Info("Proc", $"{stat.DisplayName} 확률 발사 ({extras.ProcChance:P0})");
+                GameLog.Info("Proc", $"{stat.DisplayName} 확률 발사 ({chance:P0})");
         }
 
-        /// <summary>이 타워가 적을 죽였을 때 주변 적으로 튀는 발사체. Projectile이 호출한다.</summary>
+        /// <summary>
+        /// 이 타워가 적을 죽였을 때 주변 적으로 튀는 발사체. Projectile이 호출한다.
+        /// 발수/피해는 보상 C14(처형 예포)가 정하고, 프리팹/궤적/탐색 반경은 AttackExtras를 쓴다.
+        /// </summary>
         public void FireOnKillShots(Vector3 origin, Monster killed)
         {
             if (IsSold)
@@ -928,7 +962,25 @@ namespace Rush.Combat
 
             var extras = Data.Extras;
 
-            if (extras == null || !extras.OnKillEnabled)
+            if (extras == null)
+                return;
+
+            int shotCount = 0;
+            float damageScale = 0f;
+
+            if (extras.OnKillEnabled)
+            {
+                shotCount = extras.OnKillCount;
+                damageScale = extras.OnKillDamageScale;
+            }
+
+            if (RewardSystem.TryGetOnKillShot(Data.Type, out int rewardCount, out float rewardScale))
+            {
+                shotCount = Mathf.Max(shotCount, rewardCount);
+                damageScale = Mathf.Max(damageScale, rewardScale);
+            }
+
+            if (shotCount <= 0)
                 return;
 
             if (extras.OnKillPrefab == null)
@@ -938,7 +990,7 @@ namespace Rush.Combat
             }
 
             MonsterRegistry.CollectNearest(origin, extras.OnKillSearchRadius, Data.CanTargetFlying,
-                extras.OnKillCount, killed, _bonusTargets);
+                shotCount, killed, _bonusTargets);
 
             if (_bonusTargets.Count == 0)
                 return;
@@ -952,7 +1004,7 @@ namespace Rush.Combat
                 ImpactPrefab = extras.OnKillImpactPrefab,
                 DamageType = Data.DamageType,
                 Speed = extras.OnKillSpeed,
-                Damage = stat.Damage * mods.DamageMul * extras.OnKillDamageScale,
+                Damage = stat.Damage * mods.DamageMul * damageScale,
                 ArmorPierce = stat.ArmorPierce,
                 SplashRadius = 0f,
                 SlowPercent = 0f,
@@ -961,7 +1013,7 @@ namespace Rush.Combat
                 BonusOwner = null,
             };
 
-            int count = Mathf.Max(1, extras.OnKillCount);
+            int count = Mathf.Max(1, shotCount);
 
             for (int i = 0; i < count; i++)
             {
