@@ -20,8 +20,17 @@ namespace Rush.Combat
         /// <summary>데이터 오류(0 이하 이동속도)로 경로가 멈추는 것을 막는 최소 속도.</summary>
         const float MinMoveSpeed = 0.5f;
 
+        /// <summary>경로 끝에 도달했다고 볼 반경. 몸체는 프로브보다 뒤에 있으므로 별도 판정이 필요하다.</summary>
+        const float ArriveRadius = 0.25f;
+
         /// <summary>사망 파편 연출. 에디터 셋업에서 채운다.</summary>
         [SerializeField] GameObject _deathFx;
+
+        /// <summary>프로브(경로 위 선행점)를 몸체보다 얼마나 앞에 둘지. 클수록 코너가 완만해진다.</summary>
+        [SerializeField] float _probeLead = 1.6f;
+
+        /// <summary>몸체의 최대 선회 속도(도/초). 낮을수록 크게 돈다.</summary>
+        [SerializeField] float _turnSpeed = 300f;
 
         Action<Monster> _onDied;
         Action<Monster> _onReachedExit;
@@ -146,6 +155,9 @@ namespace Rush.Combat
             _distance = 0f;
             transform.position = _route.GetPositionAtDistance(0f) + Vector3.up * _yOffset;
 
+            // 스폰 직후 첫 프레임에 크게 도는 것을 막기 위해 프로브 쪽을 미리 바라본다
+            FaceProbeImmediately();
+
             MonsterRegistry.Register(this);
         }
 
@@ -239,22 +251,83 @@ namespace Rush.Combat
             if (IsSlowed)
                 speed *= 1f - _slowPercent;
 
-            _distance += speed * Time.deltaTime;
+            float step = speed * Time.deltaTime;
 
+            _distance = Mathf.Min(_distance + step, _route.TotalLength);
+
+            // 진행 거리를 다 쓴 뒤에는 선회 제한 없이 종점으로 직진한다.
+            // 선회 반경 안쪽에 종점이 들어오면 추종만으로는 영원히 맴돌아 웨이브가 끝나지 않는다.
             if (_distance >= _route.TotalLength)
+            {
+                MoveToExit(step);
+                return;
+            }
+
+            // 프로브: 경로 위에서 진행 거리보다 선행 거리만큼 앞선 점.
+            // 몸체를 경로에 직접 찍지 않고 이 점을 향해 선회시키므로 웨이포인트 꺾임이 호로 펴진다.
+            Vector3 probe = _route.GetPositionAtDistance(_distance + _probeLead);
+
+            SteerTowards(probe, step);
+        }
+
+        /// <summary>경로 진행이 끝난 뒤 종점까지의 마무리 이동. 도달하면 출구 처리.</summary>
+        void MoveToExit(float step)
+        {
+            Vector3 end = _route.GetPositionAtDistance(_route.TotalLength) + Vector3.up * _yOffset;
+
+            Vector3 toEnd = end - transform.position;
+            toEnd.y = 0f;
+
+            if (toEnd.sqrMagnitude <= ArriveRadius * ArriveRadius)
             {
                 ReachExit();
                 return;
             }
 
-            Vector3 next = _route.GetPositionAtDistance(_distance) + Vector3.up * _yOffset;
-            Vector3 delta = next - transform.position;
-            delta.y = 0f;
+            transform.position = Vector3.MoveTowards(transform.position, end, step);
+            transform.rotation = Quaternion.LookRotation(toEnd.normalized, Vector3.up);
+        }
+
+        /// <summary>진행 방향을 프로브 쪽으로 선회 속도 한도 안에서 돌린 뒤 그 방향으로 한 스텝 전진한다.</summary>
+        void SteerTowards(Vector3 probe, float step)
+        {
+            Vector3 forward = transform.forward;
+            forward.y = 0f;
+
+            if (forward.sqrMagnitude < 0.000001f)
+                forward = Vector3.forward;
+
+            forward.Normalize();
+
+            Vector3 toProbe = probe - transform.position;
+            toProbe.y = 0f;
+
+            // 프로브가 사실상 겹치면 방향을 유지한 채 전진만 한다
+            if (toProbe.sqrMagnitude > 0.000001f)
+            {
+                float maxRadians = _turnSpeed * Mathf.Deg2Rad * Time.deltaTime;
+
+                forward = Vector3.RotateTowards(forward, toProbe.normalized, maxRadians, 0f);
+            }
+
+            // 높이는 경로를 그대로 따르고 선회는 수평면에서만 한다
+            Vector3 next = transform.position + forward * step;
+            next.y = _route.GetPositionAtDistance(_distance).y + _yOffset;
 
             transform.position = next;
+            transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
+        }
 
-            if (delta.sqrMagnitude > 0.000001f)
-                transform.rotation = Quaternion.LookRotation(delta.normalized, Vector3.up);
+        /// <summary>스폰/귀환처럼 위치를 순간이동시킨 직후 방향을 프로브 쪽으로 즉시 맞춘다.</summary>
+        void FaceProbeImmediately()
+        {
+            Vector3 toProbe = _route.GetPositionAtDistance(_distance + _probeLead) - transform.position;
+            toProbe.y = 0f;
+
+            if (toProbe.sqrMagnitude < 0.000001f)
+                return;
+
+            transform.rotation = Quaternion.LookRotation(toProbe.normalized, Vector3.up);
         }
 
         void ReachExit()
@@ -380,6 +453,9 @@ namespace Rush.Combat
 
             _distance = Mathf.Max(0f, _distance - pathDistance);
             transform.position = _route.GetPositionAtDistance(_distance) + Vector3.up * _yOffset;
+
+            // 스냅한 위치에서 이전 방향을 그대로 두면 몇 프레임 동안 경로 밖으로 달린다
+            FaceProbeImmediately();
         }
 
         /// <summary>기절. 면역 시간 동안은 다시 걸리지 않는다.</summary>
@@ -420,6 +496,8 @@ namespace Rush.Combat
 
             _distance = 0f;
             transform.position = _route.GetPositionAtDistance(0f) + Vector3.up * _yOffset;
+
+            FaceProbeImmediately();
 
             GameLog.Info("Skill", $"{Data.DisplayName} 시작 지점으로 귀환");
         }
@@ -473,6 +551,19 @@ namespace Rush.Combat
 
             _blockedBy.NotifyTargetGone(this);
             _blockedBy = null;
+        }
+
+        /// <summary>선행 거리/선회 속도를 눈으로 맞추기 위한 프로브 표시. 선택 중인 몬스터만 그린다.</summary>
+        void OnDrawGizmosSelected()
+        {
+            if (_route == null)
+                return;
+
+            Vector3 probe = _route.GetPositionAtDistance(_distance + _probeLead) + Vector3.up * _yOffset;
+
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawSphere(probe, 0.12f);
+            Gizmos.DrawLine(transform.position, probe);
         }
     }
 }
