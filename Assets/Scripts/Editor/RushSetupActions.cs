@@ -31,6 +31,11 @@ namespace Rush.EditorTools
         const string SceneDir = Root + "/Scenes";
         const string ScenePath = SceneDir + "/Stage01.unity";
 
+        // 게임플레이 연출 셰이더 (Assets/Shaders/Gameplay)
+        public const string RangeSphereShader = "Rush/FX/Range Sphere";
+        public const string SelectionRingShader = "Rush/FX/Selection Ring";
+        public const string BuildGhostShader = "Rush/FX/Build Ghost";
+
         /// <summary>기본 경로 웨이포인트. 씬 복구 시에도 이 정의를 기준으로 보충한다.</summary>
         static readonly Vector3[] DefaultWaypoints =
         {
@@ -1423,8 +1428,9 @@ namespace Rush.EditorTools
             BakePathVisual(path);
             SetupSlots();
             UpgradeSlotVisuals();
+            var ghostPreview = BakeBuildGhosts();
             var stage = SetupStageController(path);
-            SetupGameUI(stage);
+            SetupGameUI(stage, ghostPreview);
 
             AddSceneToBuildSettings();
 
@@ -1583,8 +1589,8 @@ namespace Rush.EditorTools
                 slotRoot = new GameObject("Slots");
 
             var slotMat = EnsureMaterial("Mat_Slot", new Color(0.55f, 0.5f, 0.35f));
-            var ringMat = EnsureMaterial("Mat_SlotRing", new Color(1f, 0.9f, 0.3f));
-            var rangeMat = EnsureRangeMaterial();
+            var ringMat = EnsureFxMaterial("Mat_SlotRing", SelectionRingShader);
+            var rangeMat = EnsureFxMaterial("Mat_Range", RangeSphereShader);
 
             for (int i = 0; i < DefaultSlotPositions.Length; i++)
             {
@@ -1593,15 +1599,89 @@ namespace Rush.EditorTools
 
                 if (existing != null)
                 {
-                    // 루트가 과거 버전(비균등 스케일 큐브)이면 새 구조로 교체한다
-                    if (existing.GetComponent<MeshFilter>() == null && existing.localScale == Vector3.one)
+                    // 이미 있는 슬롯은 위치를 사용자가 옮겼을 수 있으므로 통째로 다시 만들지 않는다.
+                    // 루트가 과거 버전(비균등 스케일 큐브)일 때만 교체하고, 그 외에는 표시 오브젝트만 보정한다
+                    if (!IsLegacySlotRoot(existing))
+                    {
+                        EnsureSlotIndicators(existing, ringMat, rangeMat);
                         continue;
+                    }
 
                     UnityEngine.Object.DestroyImmediate(existing.gameObject);
                 }
 
                 CreateSlot(slotRoot.transform, slotName, DefaultSlotPositions[i], slotMat, ringMat, rangeMat);
             }
+        }
+
+        /// <summary>
+        /// 슬롯의 선택 링 / 사거리 표시 오브젝트만 현재 규격으로 다시 만든다.
+        /// 셰이더가 바뀌어 메시 종류가 달라졌을 때(원판 -> 구, 큐브 -> 쿼드) 씬 전체 셋업 없이 갱신한다.
+        /// </summary>
+        public static void RefreshSlotIndicators()
+        {
+            var ringMat = EnsureFxMaterial("Mat_SlotRing", SelectionRingShader);
+            var rangeMat = EnsureFxMaterial("Mat_Range", RangeSphereShader);
+
+            var slots = UnityEngine.Object.FindObjectsByType<TowerSlot>(FindObjectsSortMode.None);
+
+            foreach (var slot in slots)
+                EnsureSlotIndicators(slot.transform, ringMat, rangeMat);
+
+            Report($"슬롯 표시 오브젝트 {slots.Length}개 갱신");
+        }
+
+        /// <summary>루트가 과거 버전(납작한 큐브 자체가 슬롯)인지 확인한다.</summary>
+        static bool IsLegacySlotRoot(Transform slot)
+        {
+            if (slot.GetComponent<MeshFilter>() != null)
+                return true;
+
+            if (slot.localScale != Vector3.one)
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// 선택 링(쿼드)과 사거리 표시(구)가 현재 규격인지 확인하고 아니면 그 자식만 다시 만든다.
+        /// 슬롯 위치와 받침 비주얼은 건드리지 않는다.
+        /// </summary>
+        static void EnsureSlotIndicators(Transform slot, Material ringMat, Material rangeMat)
+        {
+            var ring = slot.Find("SelectionRing");
+
+            if (!HasPrimitiveMesh(ring, "Quad"))
+            {
+                if (ring != null)
+                    UnityEngine.Object.DestroyImmediate(ring.gameObject);
+
+                CreateSelectionRing(slot, ringMat);
+            }
+
+            var range = slot.Find("RangeIndicator");
+
+            if (!HasPrimitiveMesh(range, "Sphere"))
+            {
+                if (range != null)
+                    UnityEngine.Object.DestroyImmediate(range.gameObject);
+
+                CreateRangeIndicator(slot, rangeMat);
+            }
+        }
+
+        /// <summary>자식이 특정 기본 도형 메시를 쓰고 있는지 확인한다.</summary>
+        static bool HasPrimitiveMesh(Transform target, string meshName)
+        {
+            if (target == null)
+                return false;
+
+            var filter = target.GetComponent<MeshFilter>();
+
+            if (filter == null || filter.sharedMesh == null)
+                return false;
+
+            return filter.sharedMesh.name.StartsWith(meshName, StringComparison.Ordinal);
         }
 
         static void CreateSlot(Transform parent, string name, Vector3 position,
@@ -1626,30 +1706,247 @@ namespace Rush.EditorTools
             visual.transform.localScale = new Vector3(1f, 0.25f, 1f);
             visual.GetComponent<MeshRenderer>().sharedMaterial = slotMat;
 
-            var ring = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            CreateSelectionRing(slot.transform, ringMat);
+            CreateRangeIndicator(slot.transform, rangeMat);
+        }
+
+        /// <summary>선택 링: 바닥에 눕힌 Quad. 링/브래킷은 셰이더가 UV로 그리므로 스케일이 곧 지름이다.</summary>
+        static void CreateSelectionRing(Transform slot, Material ringMat)
+        {
+            var ring = GameObject.CreatePrimitive(PrimitiveType.Quad);
             ring.name = "SelectionRing";
             UnityEngine.Object.DestroyImmediate(ring.GetComponent<Collider>());
-            ring.transform.SetParent(slot.transform);
-            ring.transform.localPosition = new Vector3(0f, 0.27f, 0f);
-            ring.transform.localScale = new Vector3(1.3f, 0.04f, 1.3f);
-            ring.GetComponent<MeshRenderer>().sharedMaterial = ringMat;
+            ring.transform.SetParent(slot);
+            ring.transform.localPosition = new Vector3(0f, 0.26f, 0f);
+            ring.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            ring.transform.localScale = new Vector3(1.6f, 1.6f, 1f);
+            SetupFxRenderer(ring, ringMat);
             ring.SetActive(false);
+        }
 
-            // 사거리 원판: 실린더 기본 지름 1 - 런타임에 지름만큼 스케일한다
-            var range = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        /// <summary>
+        /// 사거리 표시: 구 프록시. 셰이더가 씬 뎁스로 지형에 투영하므로 메시 자체는 보이지 않는다.
+        /// 중심 높이를 BuildPosition(슬롯 + 0.25)에 맞춰야 실제 사거리 판정과 보이는 원이 일치한다.
+        /// </summary>
+        static void CreateRangeIndicator(Transform slot, Material rangeMat)
+        {
+            var range = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             range.name = "RangeIndicator";
             UnityEngine.Object.DestroyImmediate(range.GetComponent<Collider>());
-            range.transform.SetParent(slot.transform);
-            range.transform.localPosition = new Vector3(0f, 0.04f, 0f);
-            range.transform.localScale = new Vector3(1f, 0.01f, 1f);
-            range.GetComponent<MeshRenderer>().sharedMaterial = rangeMat;
+            range.transform.SetParent(slot);
+            range.transform.localPosition = new Vector3(0f, 0.25f, 0f);
+            range.transform.localRotation = Quaternion.identity;
+            range.transform.localScale = Vector3.one;
+            SetupFxRenderer(range, rangeMat);
             range.SetActive(false);
         }
 
-        /// <summary>사거리 원판용 반투명 머티리얼.</summary>
-        static Material EnsureRangeMaterial()
+        /// <summary>연출용 렌더러 공통 설정. 그림자와 라이트 프로브를 모두 끊는다.</summary>
+        static void SetupFxRenderer(GameObject target, Material material)
         {
-            return EnsureTranslucentMaterial("Mat_Range", new Color(0.35f, 0.8f, 1f, 0.22f));
+            var renderer = target.GetComponent<MeshRenderer>();
+
+            if (renderer == null)
+                return;
+
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+        }
+
+        /// <summary>
+        /// 건설 실루엣(고스트)을 타워 종류별로 하나씩 베이크한다.
+        /// 런타임에는 위치 이동과 활성화만 하므로 프리뷰 때문에 오브젝트를 만들지 않는다.
+        /// 타워 프리팹 비주얼을 바꾼 뒤에는 이 액션을 다시 돌려야 실루엣에 반영된다.
+        /// </summary>
+        public static BuildGhostPreview BakeBuildGhosts()
+        {
+            var root = GameObject.Find("BuildGhosts");
+
+            if (root == null)
+                root = new GameObject("BuildGhosts");
+
+            var preview = EnsureComponent<BuildGhostPreview>(root);
+            var ghostMat = EnsureFxMaterial("Mat_BuildGhost", BuildGhostShader);
+
+            if (ghostMat == null)
+                return preview;
+
+            string[] towerAssets = { "Tower_Infantry", "Tower_Archer", "Tower_Mage", "Tower_Artillery" };
+            var types = new List<TowerType>();
+            var objects = new List<GameObject>();
+
+            foreach (string assetName in towerAssets)
+            {
+                var data = AssetDatabase.LoadAssetAtPath<TowerData>($"{DataTowers}/{assetName}.asset");
+
+                if (data == null || data.TowerPrefab == null)
+                    continue;
+
+                var ghost = CreateGhostObject(root.transform, $"Ghost_{data.Type}", data.TowerPrefab, ghostMat);
+
+                if (ghost == null)
+                    continue;
+
+                types.Add(data.Type);
+                objects.Add(ghost);
+            }
+
+            var so = new SerializedObject(preview);
+            var typesProp = so.FindProperty("_ghostTypes");
+            var objectsProp = so.FindProperty("_ghostObjects");
+
+            typesProp.arraySize = types.Count;
+            objectsProp.arraySize = objects.Count;
+
+            for (int i = 0; i < types.Count; i++)
+            {
+                typesProp.GetArrayElementAtIndex(i).enumValueIndex = (int)types[i];
+                objectsProp.GetArrayElementAtIndex(i).objectReferenceValue = objects[i];
+            }
+
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            Report($"건설 실루엣 {objects.Count}종 베이크");
+
+            return preview;
+        }
+
+        /// <summary>타워 프리팹을 복제해 형태만 남긴 고스트를 만든다. 프리팹 변경을 반영하려고 매번 새로 만든다.</summary>
+        static GameObject CreateGhostObject(Transform parent, string name, GameObject towerPrefab, Material ghostMat)
+        {
+            var existing = parent.Find(name);
+
+            if (existing != null)
+                UnityEngine.Object.DestroyImmediate(existing.gameObject);
+
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(towerPrefab, parent);
+            PrefabUtility.UnpackPrefabInstance(instance, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+
+            instance.name = name;
+            instance.transform.localPosition = Vector3.zero;
+            instance.transform.localRotation = Quaternion.identity;
+
+            // 로직 컴포넌트가 남은 고스트는 활성화되는 순간 실제로 동작해 버린다.
+            // 그런 고스트는 쓰지 않고 버린다 (실루엣 하나를 포기하는 편이 안전하다)
+            if (!StripToGhostVisual(instance, ghostMat))
+            {
+                Report($"{name}: 비주얼만 남기지 못해 실루엣 생성을 취소함");
+                UnityEngine.Object.DestroyImmediate(instance);
+
+                return null;
+            }
+
+            instance.SetActive(false);
+
+            return instance;
+        }
+
+        /// <summary>
+        /// 고스트는 형태만 필요하다. 렌더링 컴포넌트만 남기고 나머지는 지운 뒤 머티리얼을 실루엣으로 바꾼다.
+        /// 로직 컴포넌트가 하나라도 남으면 false를 돌려준다.
+        /// </summary>
+        static bool StripToGhostVisual(GameObject root, Material ghostMat)
+        {
+            var components = root.GetComponentsInChildren<Component>(true);
+
+            // 컴포넌트 간 의존(RequireComponent) 때문에 뒤에서부터 지운다
+            for (int i = components.Length - 1; i >= 0; i--)
+            {
+                var component = components[i];
+
+                if (component == null)
+                    continue;
+
+                if (IsGhostVisualComponent(component))
+                    continue;
+
+                try
+                {
+                    UnityEngine.Object.DestroyImmediate(component);
+                }
+                catch (Exception)
+                {
+                    // 남은 것은 아래 재검사에서 잡힌다
+                }
+            }
+
+            // DestroyImmediate가 예외 없이 거부하는 경우도 있으므로 결과를 직접 다시 확인한다
+            var remaining = root.GetComponentsInChildren<Component>(true);
+
+            foreach (var component in remaining)
+            {
+                if (component == null)
+                    continue;
+
+                if (IsGhostVisualComponent(component))
+                    continue;
+
+                Report($"{root.name}: 로직 컴포넌트 {component.GetType().Name}가 남음");
+
+                return false;
+            }
+
+            var renderers = root.GetComponentsInChildren<Renderer>(true);
+
+            foreach (var renderer in renderers)
+            {
+                var materials = new Material[renderer.sharedMaterials.Length];
+
+                for (int i = 0; i < materials.Length; i++)
+                    materials[i] = ghostMat;
+
+                renderer.sharedMaterials = materials;
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
+                renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+                renderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            }
+
+            return true;
+        }
+
+        /// <summary>고스트에 남겨도 되는(형태 렌더링에만 관여하는) 컴포넌트인지 확인한다.</summary>
+        static bool IsGhostVisualComponent(Component component)
+        {
+            if (component is Transform)
+                return true;
+
+            if (component is MeshFilter)
+                return true;
+
+            if (component is MeshRenderer || component is SkinnedMeshRenderer)
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// 게임플레이 연출용 커스텀 셰이더 머티리얼.
+        /// 에셋이 이미 있으면 사용자가 조정한 값을 살리기 위해 그대로 쓴다.
+        /// </summary>
+        static Material EnsureFxMaterial(string name, string shaderName)
+        {
+            string path = $"{MaterialDir}/{name}.mat";
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+
+            if (existing != null)
+                return existing;
+
+            var shader = Shader.Find(shaderName);
+
+            if (shader == null)
+            {
+                Report($"셰이더를 찾지 못함: {shaderName} ({name} 생성 건너뜀)");
+                return null;
+            }
+
+            var mat = new Material(shader);
+            AssetDatabase.CreateAsset(mat, path);
+
+            return mat;
         }
 
         /// <summary>반투명 머티리얼 (URP Unlit 트랜스페어런트).</summary>
@@ -1751,7 +2048,7 @@ namespace Rush.EditorTools
             property.objectReferenceValue = value;
         }
 
-        static void SetupGameUI(StageController stage)
+        static void SetupGameUI(StageController stage, BuildGhostPreview ghostPreview)
         {
             var uiGo = GameObject.Find("GameUI");
 
@@ -1795,6 +2092,7 @@ namespace Rush.EditorTools
 
             var menuSo = new SerializedObject(buildMenu);
             FillIfEmpty(menuSo, "_stage", stage);
+            FillIfEmpty(menuSo, "_ghostPreview", ghostPreview);
 
             // 카탈로그는 비어 있을 때만 채운다 (수동 구성 존중)
             var catalog = menuSo.FindProperty("_towerCatalog");

@@ -18,6 +18,7 @@ namespace Rush.UI
 
         [SerializeField] StageController _stage;
         [SerializeField] TowerData[] _towerCatalog;
+        [SerializeField] BuildGhostPreview _ghostPreview;
 
         UIDocument _doc;
         VisualElement _panel;
@@ -39,6 +40,8 @@ namespace Rush.UI
 
         void OnDisable()
         {
+            HideGhost();
+
             if (_stage != null)
                 _stage.Changed -= RefreshButtons;
 
@@ -132,6 +135,8 @@ namespace Rush.UI
 
         void Select(TowerSlot slot)
         {
+            HideGhost();
+
             if (_selected != null)
                 _selected.SetSelected(false);
 
@@ -147,6 +152,9 @@ namespace Rush.UI
         {
             if (_panel == null)
                 return;
+
+            // 버튼을 다시 만들면 호버 상태가 끊기므로 남아 있던 고스트도 같이 정리한다
+            HideGhost();
 
             // 승리/패배 후에는 건설 조작을 막고 메뉴를 닫는다
             if (_stage == null || !_stage.IsPlayable)
@@ -197,8 +205,11 @@ namespace Rush.UI
             _selected.ShowRange(_selected.Occupant.EffectiveRange);
         }
 
-        /// <summary>버튼에 마우스를 올리는 동안 해당 사거리를 미리 보여준다.</summary>
-        void AttachRangePreview(Button button, float radius)
+        /// <summary>
+        /// 버튼에 마우스를 올리는 동안 해당 사거리를 미리 보여준다.
+        /// buildData를 넘기면 건물 실루엣(고스트)도 함께 띄운다 (빈 슬롯 건설 버튼 전용).
+        /// </summary>
+        void AttachRangePreview(Button button, float radius, TowerData buildData = null)
         {
             button.RegisterCallback<MouseEnterEvent>(evt =>
             {
@@ -206,9 +217,35 @@ namespace Rush.UI
                     return;
 
                 _selected.ShowRange(radius);
+
+                if (buildData != null)
+                    ShowGhost(buildData);
             });
 
-            button.RegisterCallback<MouseLeaveEvent>(evt => ShowDefaultRange());
+            button.RegisterCallback<MouseLeaveEvent>(evt =>
+            {
+                ShowDefaultRange();
+                HideGhost();
+            });
+        }
+
+        void ShowGhost(TowerData data)
+        {
+            if (_ghostPreview == null)
+                return;
+
+            if (_selected == null)
+                return;
+
+            _ghostPreview.Show(data.Type, _selected.BuildPosition);
+        }
+
+        void HideGhost()
+        {
+            if (_ghostPreview == null)
+                return;
+
+            _ghostPreview.Hide();
         }
 
         void BuildConstructMenu()
@@ -232,7 +269,7 @@ namespace Rush.UI
                 button.SetEnabled(_stage.Gold >= stat.Cost);
 
                 float previewRange = stat.Range * RewardSystem.GetStatMods(data.Type).RangeMul;
-                AttachRangePreview(button, previewRange);
+                AttachRangePreview(button, previewRange, captured);
 
                 _buttonArea.Add(button);
             }

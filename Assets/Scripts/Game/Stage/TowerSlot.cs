@@ -14,7 +14,6 @@ namespace Rush.Stage
     {
         const string SelectionRingName = "SelectionRing";
         const string RangeIndicatorName = "RangeIndicator";
-        const float RangeIndicatorThickness = 0.01f;
 
         GameObject _selectionRing;
         Transform _rangeIndicator;
@@ -41,7 +40,8 @@ namespace Rush.Stage
 
             _rangeIndicator = transform.Find(RangeIndicatorName);
 
-            HideRange();
+            // 에디터에서 프리뷰로 켜 둔 채 저장됐을 수 있으므로 시작 시 둘 다 명시적으로 끈다
+            SetSelected(false);
         }
 
         public void SetSelected(bool selected)
@@ -53,7 +53,10 @@ namespace Rush.Stage
                 HideRange();
         }
 
-        /// <summary>사거리 원판을 표시한다. 실린더 기본 지름이 1이므로 지름값을 그대로 스케일에 넣는다.</summary>
+        /// <summary>
+        /// 사거리를 표시한다. 표시용 구는 셰이더가 씬 뎁스로 지형에 투영하므로 메시 자체는 보이지 않는다.
+        /// 유닛 스피어 지름이 1이라 지름값을 그대로 스케일에 넣는다.
+        /// </summary>
         public void ShowRange(float radius)
         {
             if (_rangeIndicator == null)
@@ -65,7 +68,7 @@ namespace Rush.Stage
                 return;
             }
 
-            _rangeIndicator.localScale = new Vector3(radius * 2f, RangeIndicatorThickness, radius * 2f);
+            _rangeIndicator.localScale = new Vector3(1, 0, 1) * (radius * 2f) + Vector3.up;
             _rangeIndicator.gameObject.SetActive(true);
         }
 
