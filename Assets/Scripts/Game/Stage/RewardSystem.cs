@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Rush.Combat;
 using Rush.Data;
+using Rush.Fx;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -22,6 +23,9 @@ namespace Rush.Stage
 
         [SerializeField] StageController _stage;
         [SerializeField] RewardFlowConfig _config;
+
+        [Tooltip("행운(C15) 재굴림이 실패를 뒤집었을 때 그 자리에 재생할 연출")]
+        [SerializeField] GameObject _luckFx;
 
         readonly Dictionary<RewardDefinition, int> _stacks = new Dictionary<RewardDefinition, int>();
         readonly List<RewardDefinition> _offer = new List<RewardDefinition>(3);
@@ -77,10 +81,12 @@ namespace Rush.Stage
 
         void OnDestroy()
         {
+            // 중복 인스턴스가 늦게 파괴될 때 현재 활성 인스턴스의 상태를 지우지 않도록 소유권을 확인한다
             if (Active == this)
+            {
                 Active = null;
-
-            LuckRerolls = 0;
+                LuckRerolls = 0;
+            }
         }
 
         public int StackOf(RewardDefinition def)
@@ -435,6 +441,15 @@ namespace Rush.Stage
                 _stage.ReapplySpeed();
 
             OfferChanged?.Invoke();
+        }
+
+        /// <summary>행운 재굴림이 판정을 뒤집었을 때의 연출. Luck이 호출한다.</summary>
+        public static void PlayLuckFx(Vector3 position)
+        {
+            if (Active == null || Active._luckFx == null)
+                return;
+
+            OneShotFx.Spawn(Active._luckFx, position);
         }
 
         /// <summary>재굴림 횟수를 다시 집계한다 (C15). 매 판정마다 순회하지 않도록 획득 시점에만 부른다.</summary>
@@ -806,7 +821,7 @@ namespace Rush.Stage
                 if (def.Effect != RewardEffectType.SoldierKnockbackChance)
                     return;
 
-                if (Luck.Roll(def.Chance))
+                if (Luck.Roll(def.Chance, target.transform.position))
                     target.Knockback(def.Value2);
             });
         }
@@ -826,12 +841,12 @@ namespace Rush.Stage
                 switch (def.Effect)
                 {
                     case RewardEffectType.KnockbackChance:
-                        if (SourceMatches(def, src) && Luck.Roll(def.Chance))
+                        if (SourceMatches(def, src) && Luck.Roll(def.Chance, target.transform.position))
                             target.Knockback(def.Value2);
                         break;
 
                     case RewardEffectType.StunChance:
-                        if (SourceMatches(def, src) && Luck.Roll(def.Chance))
+                        if (SourceMatches(def, src) && Luck.Roll(def.Chance, target.transform.position))
                             target.ApplyStun(def.Duration, def.Value2);
                         break;
                 }

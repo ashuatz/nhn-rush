@@ -24,18 +24,40 @@ namespace Rush.Stage
         /// <summary>확률 판정. 실패하면 재굴림 횟수만큼 다시 굴린다.</summary>
         public static bool Roll(float chance)
         {
+            return RollInternal(chance, false, Vector3.zero);
+        }
+
+        /// <summary>
+        /// 확률 판정 + 연출. 재굴림이 실패를 뒤집었을 때만 그 자리에 행운 연출을 띄운다.
+        /// 그냥 성공한 판정은 조용히 지나가므로, 화면에 보이는 건 카드가 실제로 일한 순간뿐이다.
+        /// </summary>
+        public static bool Roll(float chance, Vector3 fxPosition)
+        {
+            return RollInternal(chance, true, fxPosition);
+        }
+
+        static bool RollInternal(float chance, bool showFx, Vector3 fxPosition)
+        {
             if (chance <= 0f)
                 return false;
 
             if (chance >= 1f)
                 return true;
 
-            int tries = 1 + Mathf.Max(0, RewardSystem.LuckRerolls);
+            if (Random.value < chance)
+                return true;
 
-            for (int i = 0; i < tries; i++)
+            int rerolls = Mathf.Max(0, RewardSystem.LuckRerolls);
+
+            for (int i = 0; i < rerolls; i++)
             {
-                if (Random.value < chance)
-                    return true;
+                if (Random.value >= chance)
+                    continue;
+
+                if (showFx)
+                    RewardSystem.PlayLuckFx(fxPosition);
+
+                return true;
             }
 
             return false;
