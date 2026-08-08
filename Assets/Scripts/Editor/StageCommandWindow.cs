@@ -174,6 +174,7 @@ namespace Rush.EditorTools
             body.Add(row2);
 
             var row3 = MakeButtonRow();
+            row3.Add(MakeButton("캐릭터 머티리얼 배선", RushSetupActions.BindCharacterMaterials));
             row3.Add(MakeButton("행운 연출 미리보기", PreviewLuckFx));
             body.Add(row3);
 

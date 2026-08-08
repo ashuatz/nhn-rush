@@ -318,8 +318,25 @@ namespace Rush.Combat
             }
 
             fx.SetDirection(GetDeathImpulseDirection());
-            fx.ApplySourceLook(GetComponentInChildren<Renderer>());
+            fx.ApplySourceLook(FindLookRenderer());
             fx.Play();
+        }
+
+        /// <summary>
+        /// 파편에 입힐 색/알베도를 가져올 렌더러.
+        /// 아트 모델이 배선된 프리팹은 더미 캡슐 렌더러가 꺼진 채 남아 있으므로 켜진 것만 고른다.
+        /// </summary>
+        Renderer FindLookRenderer()
+        {
+            var renderers = GetComponentsInChildren<Renderer>();
+
+            foreach (var renderer in renderers)
+            {
+                if (renderer.enabled)
+                    return renderer;
+            }
+
+            return null;
         }
 
         /// <summary>파편이 튈 방향. 마지막으로 때린 타워의 반대쪽으로 밀린 것처럼 만든다.</summary>

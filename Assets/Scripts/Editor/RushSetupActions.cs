@@ -846,25 +846,47 @@ namespace Rush.EditorTools
 
         const string FbxEnvironment = "Assets/fbx/environment";
         const string FbxCharacter = "Assets/fbx/character";
+        const string FbxEnemy = FbxCharacter + "/Anemy";
 
         /// <summary>
-        /// fbx 아트 모델을 프리팹에 배선한다. 머티리얼은 건드리지 않는다 (임포트 상태 그대로).
+        /// 몬스터 프리팹에 붙일 적군 모델 배선표. Height는 월드 기준 신장(m)이고,
+        /// 더미 캡슐의 Visual 스케일과 무관하게 이 값이 최종 크기를 정한다.
+        /// 적 모델은 5종뿐이라 라이더/중간보스는 성격이 가까운 모델을 크기만 바꿔 돌려 쓴다.
+        /// </summary>
+        static readonly (string Prefab, string Model, float Height)[] MonsterModels =
+        {
+            ("Monster_Militia", "AnemySoldier", 0.95f),
+            ("Monster_Scout", "AnemyScout", 0.9f),
+            ("Monster_HeavyInfantry", "AnemyHeavy", 1.05f),
+            ("Monster_EnemyMage", "AnemyMagician", 1f),
+            ("Monster_Centurion", "AnemyCaptain", 1.15f),
+            ("Monster_Rider", "AnemyScout", 0.9f),
+            ("Monster_MidBoss1", "AnemyHeavy", 1.5f),
+            ("Monster_MidBoss2", "AnemyCaptain", 1.7f),
+            ("Monster_MidBoss3", "AnemyCaptain", 1.9f),
+        };
+
+        /// <summary>
+        /// fbx 아트 모델을 프리팹에 배선한다.
         /// 타워: TierVisuals/Tier1~3 자식으로 주입하고 더미 큐브는 끈다 (레벨별 온오프는 Tower가 처리).
-        /// 병사: Visual 노드 아래에 모델을 넣고 큐브 렌더러만 끈다 (런지 모션 유지).
+        /// 병사/몬스터: Visual 노드 아래에 모델을 넣고 큐브 렌더러만 끈다 (런지 모션 등 트랜스폼 유지).
         /// 재실행하면 기존 주입분을 지우고 다시 만든다.
         /// </summary>
         public static void ApplyArtModels()
         {
+            BindCharacterMaterials();
+
             InjectTowerTiers("Tower_Archer", "archertower", 1.5f);
             InjectTowerTiers("Tower_Infantry", "barracktower", 1.5f);
             InjectTowerTiers("Tower_Mage", "magiciantower", 1.6f);
             InjectTowerTiers("Tower_Artillery", "cannontower", 1.4f);
 
             InjectSoldierModel();
+            InjectMonsterModels();
 
             AssetDatabase.SaveAssets();
 
-            Report("아트 모델 적용 완료 (머티리얼은 임포트 상태 유지)");
+            Report("아트 모델 적용 완료");
         }
 
         static void InjectTowerTiers(string prefabName, string fbxFamily, float targetHeight)
@@ -933,67 +955,264 @@ namespace Rush.EditorTools
             Report($"{prefabName}: 티어 모델 {injected}개 주입");
         }
 
+        /// <summary>
+        /// 캐릭터 fbx의 임베디드 머티리얼을 옆 폴더의 .mat으로 빼고 확산 텍스처를 물린다.
+        /// 캐릭터 fbx에는 텍스처 경로가 들어있지 않아 그냥 임포트하면 전부 흰 모델로 나온다.
+        /// 같은 폴더의 "{모델이름}_Diffuse" 텍스처만 짝으로 인정한다 (한 폴더에 텍스처가 여러 장 있어서).
+        /// 타워(environment)가 이미 쓰고 있는 externalObjects 리맵과 같은 방식이다.
+        /// </summary>
+        public static void BindCharacterMaterials()
+        {
+            var guids = AssetDatabase.FindAssets("t:Model", new[] { FbxCharacter });
+            int bound = 0;
+
+            foreach (var guid in guids)
+            {
+                string fbxPath = AssetDatabase.GUIDToAssetPath(guid);
+                var texture = FindDiffuseTexture(fbxPath);
+
+                if (texture == null)
+                    continue;
+
+                if (BindModelMaterials(fbxPath, texture))
+                    bound++;
+            }
+
+            Report($"캐릭터 머티리얼 {bound}개 모델에 확산 텍스처 배선");
+        }
+
+        /// <summary>fbx와 같은 폴더에 있는 "{모델이름}_Diffuse" 텍스처. 파일명 대소문자는 무시한다.</summary>
+        static Texture2D FindDiffuseTexture(string fbxPath)
+        {
+            string directory = Path.GetDirectoryName(fbxPath).Replace('\\', '/');
+            string expected = Path.GetFileNameWithoutExtension(fbxPath) + "_diffuse";
+
+            foreach (var guid in AssetDatabase.FindAssets("t:Texture2D", new[] { directory }))
+            {
+                string texturePath = AssetDatabase.GUIDToAssetPath(guid);
+
+                // FindAssets는 하위 폴더까지 훑으므로 같은 폴더인지 다시 확인한다
+                if (Path.GetDirectoryName(texturePath).Replace('\\', '/') != directory)
+                    continue;
+
+                if (!string.Equals(Path.GetFileNameWithoutExtension(texturePath), expected, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                return AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+            }
+
+            return null;
+        }
+
+        /// <summary>모델의 머티리얼 슬롯마다 외부 .mat을 만들어 리맵한다. 이미 리맵돼 있으면 텍스처만 갱신한다.</summary>
+        static bool BindModelMaterials(string fbxPath, Texture2D texture)
+        {
+            var importer = AssetImporter.GetAtPath(fbxPath) as ModelImporter;
+
+            if (importer == null)
+                return false;
+
+            var slotNames = CollectMaterialSlotNames(importer, fbxPath);
+
+            if (slotNames.Count == 0)
+                return false;
+
+            string directory = Path.GetDirectoryName(fbxPath).Replace('\\', '/');
+            string modelName = Path.GetFileNameWithoutExtension(fbxPath);
+            bool changed = false;
+
+            foreach (var slotName in slotNames)
+            {
+                string materialPath = $"{directory}/{MaterialFileName(modelName, slotName)}";
+                var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+
+                if (material == null)
+                {
+                    var shader = Shader.Find("Universal Render Pipeline/Lit");
+
+                    if (shader == null)
+                        shader = Shader.Find("Standard");
+
+                    material = new Material(shader);
+                    AssetDatabase.CreateAsset(material, materialPath);
+                }
+
+                if (material.HasProperty("_BaseMap"))
+                    material.SetTexture("_BaseMap", texture);
+
+                if (material.HasProperty("_MainTex"))
+                    material.SetTexture("_MainTex", texture);
+
+                EditorUtility.SetDirty(material);
+                AssetDatabase.SaveAssetIfDirty(material);
+
+                importer.AddRemap(new AssetImporter.SourceAssetIdentifier(typeof(Material), slotName), material);
+                changed = true;
+            }
+
+            if (!changed)
+                return false;
+
+            AssetDatabase.WriteImportSettingsIfDirty(fbxPath);
+            importer.SaveAndReimport();
+
+            return true;
+        }
+
+        /// <summary>
+        /// 외부 머티리얼 파일 이름. 한 폴더에 fbx가 여러 개 있고 슬롯 이름이 겹칠 수 있으므로
+        /// (Blender 기본 이름 Material.001 등) 모델 이름을 항상 앞에 붙여 서로 덮어쓰지 않게 한다.
+        /// </summary>
+        static string MaterialFileName(string modelName, string slotName)
+        {
+            if (slotName == modelName)
+                return $"m_{modelName}.mat";
+
+            return $"m_{modelName}_{slotName}.mat";
+        }
+
+        /// <summary>
+        /// 모델이 가진 머티리얼 슬롯 이름. 리맵 전에는 임베디드 머티리얼로, 리맵 후에는
+        /// 리맵 테이블로만 보이므로 재실행해도 같은 목록이 나오게 둘 다 모은다.
+        /// </summary>
+        static List<string> CollectMaterialSlotNames(ModelImporter importer, string fbxPath)
+        {
+            var names = new List<string>();
+
+            foreach (var entry in importer.GetExternalObjectMap())
+            {
+                if (entry.Key.type != typeof(Material))
+                    continue;
+
+                if (!names.Contains(entry.Key.name))
+                    names.Add(entry.Key.name);
+            }
+
+            foreach (var asset in AssetDatabase.LoadAllAssetRepresentationsAtPath(fbxPath))
+            {
+                var material = asset as Material;
+
+                if (material == null)
+                    continue;
+
+                if (!names.Contains(material.name))
+                    names.Add(material.name);
+            }
+
+            return names;
+        }
+
         static void InjectSoldierModel()
         {
-            string prefabPath = $"{PrefabDir}/Soldier.prefab";
-            string fbxPath = $"{FbxCharacter}/soldier.fbx";
+            InjectCharacterModel("Soldier", $"{FbxCharacter}/Hero/soldier/soldier.fbx", 0.9f);
+        }
+
+        static void InjectMonsterModels()
+        {
+            int injected = 0;
+
+            foreach (var binding in MonsterModels)
+            {
+                string fbxPath = $"{FbxEnemy}/{binding.Model}/{binding.Model}.fbx";
+
+                if (InjectCharacterModel(binding.Prefab, fbxPath, binding.Height))
+                    injected++;
+            }
+
+            Report($"몬스터 아트 모델 {injected}/{MonsterModels.Length}종 주입");
+        }
+
+        /// <summary>
+        /// 캐릭터 프리팹의 Visual 노드 아래에 fbx 모델을 넣고 더미 큐브 렌더러만 끈다.
+        /// Visual 트랜스폼 자체는 런지 모션 등이 계속 쓰므로 살려 둔다.
+        /// 캐릭터 루트는 지면(y=0)에 서므로 모델 바닥을 지면에 맞춘다.
+        /// </summary>
+        static bool InjectCharacterModel(string prefabName, string fbxPath, float targetHeight)
+        {
+            string prefabPath = $"{PrefabDir}/{prefabName}.prefab";
 
             var model = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
 
             if (model == null)
             {
-                Report($"Soldier: {fbxPath} 없음 - 건너뜀");
-                return;
+                Report($"{prefabName}: {fbxPath} 없음 - 건너뜀");
+                return false;
             }
 
             if (AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) == null)
             {
-                Report("Soldier: 프리팹이 없어 건너뜀");
-                return;
+                Report($"{prefabName}: 프리팹이 없어 건너뜀");
+                return false;
             }
 
             var contents = PrefabUtility.LoadPrefabContents(prefabPath);
-            var visual = contents.transform.Find("Visual");
 
-            if (visual == null)
+            // 중간에 예외가 나도 격리 씬이 남지 않게 언로드는 finally에서만 한다
+            try
+            {
+                var visual = contents.transform.Find("Visual");
+
+                if (visual == null)
+                {
+                    Report($"{prefabName}: Visual 노드가 없어 건너뜀");
+                    return false;
+                }
+
+                var oldModel = visual.Find("Model");
+
+                if (oldModel != null)
+                    UnityEngine.Object.DestroyImmediate(oldModel.gameObject);
+
+                var dummyRenderer = visual.GetComponent<MeshRenderer>();
+
+                if (dummyRenderer != null)
+                    dummyRenderer.enabled = false;
+
+                var wrapper = new GameObject("Model");
+                wrapper.transform.SetParent(visual);
+                wrapper.transform.localPosition = Vector3.zero;
+
+                var instance = (GameObject)PrefabUtility.InstantiatePrefab(model, wrapper.transform);
+                instance.transform.localPosition = Vector3.zero;
+                instance.transform.localRotation = Quaternion.identity;
+
+                // Blender Z-up으로 뽑힌 캐릭터는 누운 채로 들어온다. 세워 두면 정면이 +Z(유니티 전방)가 된다.
+                bool standUp = IsLyingDown(instance.transform);
+
+                if (standUp)
+                    instance.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+
+                NormalizeToHeight(instance.transform, targetHeight, bottomY: 0f);
+                StripColliders(instance);
+
+                PrefabUtility.SaveAsPrefabAsset(contents, prefabPath);
+
+                string posture = standUp ? ", Z-up 모델이라 세움" : "";
+                Report($"{prefabName}: 모델 주입 ({Path.GetFileNameWithoutExtension(fbxPath)}, 신장 {targetHeight:F2}m{posture})");
+
+                return true;
+            }
+            finally
             {
                 PrefabUtility.UnloadPrefabContents(contents);
-                Report("Soldier: Visual 노드가 없어 건너뜀");
-                return;
             }
-
-            var oldModel = visual.Find("Model");
-
-            if (oldModel != null)
-                UnityEngine.Object.DestroyImmediate(oldModel.gameObject);
-
-            // 큐브 렌더러만 끈다. Visual 트랜스폼은 런지 모션이 계속 쓴다.
-            var cubeRenderer = visual.GetComponent<MeshRenderer>();
-
-            if (cubeRenderer != null)
-                cubeRenderer.enabled = false;
-
-            var wrapper = new GameObject("Model");
-            wrapper.transform.SetParent(visual);
-            wrapper.transform.localPosition = Vector3.zero;
-
-            var instance = (GameObject)PrefabUtility.InstantiatePrefab(model, wrapper.transform);
-            instance.transform.localPosition = Vector3.zero;
-            instance.transform.localRotation = Quaternion.identity;
-
-            // 병사 루트는 지면(y=0)에 서고 Visual은 위로 떠 있으므로, 모델 바닥을 지면에 맞춘다
-            NormalizeToHeight(instance.transform, 0.9f, bottomY: -visual.localPosition.y);
-            StripColliders(instance);
-
-            PrefabUtility.SaveAsPrefabAsset(contents, prefabPath);
-            PrefabUtility.UnloadPrefabContents(contents);
-
-            Report("Soldier: 캐릭터 모델 주입 (애니메이션은 아직 미셋업)");
         }
 
         /// <summary>
-        /// 렌더러 바운드 기준으로 목표 높이에 맞게 균등 스케일하고,
-        /// 바닥이 부모 로컬 bottomY, 수평 중심이 0이 되도록 위치를 보정한다.
+        /// 누워서 들어온 모델인지 (Blender 기본 Z-up 내보내기).
+        /// 서 있는 캐릭터는 키가 두께보다 훨씬 크므로, 세로축 길이가 Z에 몰려 있으면 누운 것으로 본다.
+        /// </summary>
+        static bool IsLyingDown(Transform instance)
+        {
+            var bounds = CalculateRendererBounds(instance);
+
+            return bounds.size.z > bounds.size.y * 1.5f;
+        }
+
+        /// <summary>
+        /// 렌더러 바운드 기준으로 목표 신장에 맞게 균등 스케일하고,
+        /// 바닥이 월드 bottomY, 수평 중심이 부모 원점에 오도록 위치를 보정한다.
+        /// 프리팹 편집 콘텐츠는 원점에 놓이므로 여기서의 월드 좌표는 곧 프리팹 로컬 좌표다.
         /// </summary>
         static void NormalizeToHeight(Transform instance, float targetHeight, float bottomY)
         {
@@ -1008,8 +1227,31 @@ namespace Rush.EditorTools
             // 스케일 반영 후 바운드를 다시 재서 바닥/중심을 맞춘다
             bounds = CalculateRendererBounds(instance);
 
-            Vector3 offset = new Vector3(-bounds.center.x, bottomY - bounds.min.y, -bounds.center.z);
-            instance.localPosition += offset;
+            Vector3 pivot = Vector3.zero;
+
+            if (instance.parent != null)
+                pivot = instance.parent.position;
+
+            Vector3 worldOffset = new Vector3(pivot.x - bounds.center.x, bottomY - bounds.min.y, pivot.z - bounds.center.z);
+
+            instance.localPosition += ToParentScale(instance.parent, worldOffset);
+        }
+
+        /// <summary>
+        /// 월드 보정량을 부모 로컬 단위로 환산한다. Visual 노드처럼 부모가 축소되어 있으면
+        /// 월드 오프셋을 로컬에 그대로 더할 수 없다. (배선 대상 부모는 회전이 없어 성분별 나눗셈으로 충분)
+        /// </summary>
+        static Vector3 ToParentScale(Transform parent, Vector3 worldOffset)
+        {
+            if (parent == null)
+                return worldOffset;
+
+            Vector3 scale = parent.lossyScale;
+
+            if (Mathf.Abs(scale.x) < 0.0001f || Mathf.Abs(scale.y) < 0.0001f || Mathf.Abs(scale.z) < 0.0001f)
+                return worldOffset;
+
+            return new Vector3(worldOffset.x / scale.x, worldOffset.y / scale.y, worldOffset.z / scale.z);
         }
 
         static Bounds CalculateRendererBounds(Transform root)
