@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Rush.Combat;
 using Rush.Data;
+using Rush.Fx;
 using Rush.Stage;
 using Rush.UI;
 using UnityEditor;
@@ -35,6 +36,8 @@ namespace Rush.EditorTools
         public const string RangeSphereShader = "Rush/FX/Range Sphere";
         public const string SelectionRingShader = "Rush/FX/Selection Ring";
         public const string BuildGhostShader = "Rush/FX/Build Ghost";
+        public const string DebrisChunkShader = "Rush/FX/Debris Chunk";
+        public const string SmokePuffShader = "Rush/FX/Smoke Puff";
 
         /// <summary>기본 경로 웨이포인트. 씬 복구 시에도 이 정의를 기준으로 보충한다.</summary>
         static readonly Vector3[] DefaultWaypoints =
@@ -170,9 +173,242 @@ namespace Rush.EditorTools
             EnsureUnitPrefab("Monster_MidBoss2", typeof(Monster), EnsureMaterial("Mat_MonMidBoss", new Color(0.25f, 0.05f, 0.05f)), 1.65f, 0.88f);
             EnsureUnitPrefab("Monster_MidBoss3", typeof(Monster), EnsureMaterial("Mat_MonMidBoss", new Color(0.25f, 0.05f, 0.05f)), 1.8f, 0.95f);
 
+            EnsureFxPrefabs();
+
             AssetDatabase.SaveAssets();
 
             Report("더미 프리팹(큐브) 생성 완료");
+        }
+
+        /// <summary>파티클 연출 프리팹(사망 파편 / 연기 퍼프)을 보장한다.</summary>
+        public static void EnsureFxPrefabs()
+        {
+            var debrisMat = EnsureFxMaterial("Mat_Debris", DebrisChunkShader);
+            var smokeMat = EnsureFxMaterial("Mat_SmokePuff", SmokePuffShader);
+
+            GameObject debris = null;
+
+            if (debrisMat != null)
+                debris = EnsureDeathDebrisPrefab(debrisMat);
+
+            if (smokeMat != null)
+                EnsureSmokePuffPrefab(smokeMat);
+
+            LinkMonsterDeathFx(debris);
+        }
+
+        /// <summary>몬스터 프리팹에 사망 파편 연출을 연결한다 (비어 있을 때만).</summary>
+        static void LinkMonsterDeathFx(GameObject debrisPrefab)
+        {
+            if (debrisPrefab == null)
+                return;
+
+            string[] guids = AssetDatabase.FindAssets("t:Prefab", new[] { PrefabDir });
+            int linked = 0;
+
+            foreach (string guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                var go = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+
+                if (go == null)
+                    continue;
+
+                var monster = go.GetComponent<Monster>();
+
+                if (monster == null)
+                    continue;
+
+                var so = new SerializedObject(monster);
+                var prop = so.FindProperty("_deathFx");
+
+                if (prop == null || prop.objectReferenceValue != null)
+                    continue;
+
+                prop.objectReferenceValue = debrisPrefab;
+                so.ApplyModifiedPropertiesWithoutUndo();
+
+                EditorUtility.SetDirty(go);
+                linked++;
+            }
+
+            if (linked > 0)
+                Report($"몬스터 {linked}종에 사망 파편 연결");
+        }
+
+        /// <summary>연기 퍼프 프리팹. 없으면 null.</summary>
+        static GameObject LoadSmokePuffPrefab()
+        {
+            return AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabDir}/Fx_SmokePuff.prefab");
+        }
+
+        /// <summary>
+        /// 사망 파편. 작은 큐브들이 피격 방향으로 튄 뒤 중력에 떨어진다.
+        /// 조각 색은 런타임에 죽은 대상의 머티리얼에서 가져온다 (OneShotFx.ApplySourceLook).
+        /// </summary>
+        static GameObject EnsureDeathDebrisPrefab(Material material)
+        {
+            string path = $"{PrefabDir}/Fx_DeathDebris.prefab";
+            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+
+            if (existing != null)
+                return existing;
+
+            var root = new GameObject("Fx_DeathDebris");
+            var particles = root.AddComponent<ParticleSystem>();
+
+            var main = particles.main;
+            main.duration = 0.6f;
+            main.loop = false;
+            main.playOnAwake = false;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.5f, 0.95f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(2.2f, 5.5f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.06f, 0.16f);
+            main.gravityModifier = 1.6f;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.maxParticles = 48;
+
+            // 조각이 제각각 뒤집혀 있어야 부서진 느낌이 난다 (각도는 라디안)
+            main.startRotation3D = true;
+            main.startRotationX = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            main.startRotationY = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            main.startRotationZ = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+
+            var emission = particles.emission;
+            emission.rateOverTime = 0f;
+            emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 14, 18) });
+
+            // 콘은 로컬 +Z로 뿜는다. OneShotFx.SetDirection이 이 축을 피격 방향에 맞춘다
+            var shape = particles.shape;
+            shape.enabled = true;
+            shape.shapeType = ParticleSystemShapeType.Cone;
+            shape.angle = 38f;
+            shape.radius = 0.14f;
+
+            var rotation = particles.rotationOverLifetime;
+            rotation.enabled = true;
+            rotation.separateAxes = true;
+            rotation.x = new ParticleSystem.MinMaxCurve(-5f, 5f);
+            rotation.y = new ParticleSystem.MinMaxCurve(-5f, 5f);
+            rotation.z = new ParticleSystem.MinMaxCurve(-5f, 5f);
+
+            // 알파로 흐려지는 대신 끝에서 작아지며 사라진다 (불투명이라 정렬 문제가 없다)
+            var size = particles.sizeOverLifetime;
+            size.enabled = true;
+            size.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(
+                new Keyframe(0f, 1f),
+                new Keyframe(0.7f, 1f),
+                new Keyframe(1f, 0.1f)));
+
+            var renderer = root.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Mesh;
+            renderer.mesh = GetPrimitiveMesh(PrimitiveType.Cube);
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+
+            // 조각마다 알베도의 다른 지점을 뽑으려면 파티클 중심이 셰이더까지 가야 한다.
+            // UV가 TEXCOORD0을 쓰므로 Center는 TEXCOORD1로 들어간다
+            renderer.SetActiveVertexStreams(new List<ParticleSystemVertexStream>
+            {
+                ParticleSystemVertexStream.Position,
+                ParticleSystemVertexStream.Normal,
+                ParticleSystemVertexStream.Color,
+                ParticleSystemVertexStream.UV,
+                ParticleSystemVertexStream.Center,
+            });
+
+            root.AddComponent<OneShotFx>();
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
+            UnityEngine.Object.DestroyImmediate(root);
+
+            return prefab;
+        }
+
+        /// <summary>건설/스폰 순간의 연기. 구체 몇 개가 부풀었다 사라진다.</summary>
+        static GameObject EnsureSmokePuffPrefab(Material material)
+        {
+            string path = $"{PrefabDir}/Fx_SmokePuff.prefab";
+            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+
+            if (existing != null)
+                return existing;
+
+            var root = new GameObject("Fx_SmokePuff");
+            var particles = root.AddComponent<ParticleSystem>();
+
+            var main = particles.main;
+            main.duration = 0.7f;
+            main.loop = false;
+            main.playOnAwake = false;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.5f, 1.0f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.5f, 1.5f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.35f, 0.8f);
+
+            // 살짝 떠오르게 해서 흙먼지가 퍼지는 느낌을 준다
+            main.gravityModifier = -0.06f;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.maxParticles = 32;
+            main.startRotation3D = true;
+            main.startRotationX = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            main.startRotationY = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            main.startRotationZ = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+
+            var emission = particles.emission;
+            emission.rateOverTime = 0f;
+            emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 8, 12) });
+
+            var shape = particles.shape;
+            shape.enabled = true;
+            shape.shapeType = ParticleSystemShapeType.Hemisphere;
+            shape.radius = 0.28f;
+
+            var size = particles.sizeOverLifetime;
+            size.enabled = true;
+            size.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(
+                new Keyframe(0f, 0.35f),
+                new Keyframe(0.35f, 1f),
+                new Keyframe(1f, 0.75f)));
+
+            var color = particles.colorOverLifetime;
+            color.enabled = true;
+
+            var gradient = new Gradient();
+            gradient.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[]
+                {
+                    new GradientAlphaKey(0f, 0f),
+                    new GradientAlphaKey(1f, 0.2f),
+                    new GradientAlphaKey(0f, 1f),
+                });
+            color.color = new ParticleSystem.MinMaxGradient(gradient);
+
+            var renderer = root.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Mesh;
+            renderer.mesh = GetPrimitiveMesh(PrimitiveType.Sphere);
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+
+            root.AddComponent<OneShotFx>();
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
+            UnityEngine.Object.DestroyImmediate(root);
+
+            return prefab;
+        }
+
+        /// <summary>빌트인 기본 도형 메시를 얻는다 (임시 오브젝트를 만들었다 지운다).</summary>
+        static Mesh GetPrimitiveMesh(PrimitiveType type)
+        {
+            var temp = GameObject.CreatePrimitive(type);
+            var mesh = temp.GetComponent<MeshFilter>().sharedMesh;
+
+            UnityEngine.Object.DestroyImmediate(temp);
+
+            return mesh;
         }
 
         static GameObject EnsureTowerPrefab(string name, Type towerType, Material mat)
@@ -903,7 +1139,10 @@ namespace Rush.EditorTools
             Report($"공격 연출 프리셋 적용: {applied}건");
         }
 
-        /// <summary>추가 발사(확률 발사 / 처치 시 발사)의 기본값을 채운다. 기본은 켜짐.</summary>
+        /// <summary>
+        /// 추가 발사(확률 발사 / 처치 시 발사)의 연출 값을 채운다.
+        /// 발동은 보상 C13/C14가 담당하므로 강제 켜기 토글은 꺼진 상태로 베이크한다.
+        /// </summary>
         static void ConfigureExtras(TowerData data, bool force)
         {
             if (data.Extras == null)
@@ -924,18 +1163,18 @@ namespace Rush.EditorTools
             if (extras.OnKillMotion == null)
                 extras.OnKillMotion = new ProjectileMotion();
 
-            // 두 궤적 프리셋은 각각 독립적으로 판정한다. 프리셋을 새로 넣을 때는 켜진 상태로 둔다.
+            // 두 궤적 프리셋은 각각 독립적으로 판정한다. 강제 켜기는 항상 꺼진 상태로 되돌린다.
             if (force || !extras.ProcMotion.IsConfigured)
             {
                 ApplyMissileMotion(extras.ProcMotion);
-                extras.ProcEnabled = true;
+                extras.ProcEnabled = false;
                 dirty = true;
             }
 
             if (force || !extras.OnKillMotion.IsConfigured)
             {
                 ApplyDaggerMotion(extras.OnKillMotion);
-                extras.OnKillEnabled = true;
+                extras.OnKillEnabled = false;
                 dirty = true;
             }
 
@@ -1338,7 +1577,7 @@ namespace Rush.EditorTools
 
         // ---------- 6-1. 보상 데이터 ----------
 
-        /// <summary>보상 카드 54종과 플로우 설정을 생성/동기화한다. 수치는 기존 조정값을 존중한다.</summary>
+        /// <summary>보상 카드 56종과 플로우 설정을 생성/동기화한다. 수치는 기존 조정값을 존중한다.</summary>
         public static RewardFlowConfig CreateRewardAssets(bool forceValues = false)
         {
             CreateFolders();
@@ -1628,6 +1867,8 @@ namespace Rush.EditorTools
             foreach (var slot in slots)
                 EnsureSlotIndicators(slot.transform, ringMat, rangeMat);
 
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+
             Report($"슬롯 표시 오브젝트 {slots.Length}개 갱신");
         }
 
@@ -1809,9 +2050,27 @@ namespace Rush.EditorTools
 
             so.ApplyModifiedPropertiesWithoutUndo();
 
+            // 씬 셋업 전체를 돌리지 않고 재베이크만 했을 때도 UI가 프리뷰를 찾을 수 있게 연결한다
+            LinkGhostPreviewToBuildMenu(preview);
+
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+
             Report($"건설 실루엣 {objects.Count}종 베이크");
 
             return preview;
+        }
+
+        /// <summary>씬의 BuildMenu가 고스트 프리뷰를 참조하도록 비어 있을 때만 채운다.</summary>
+        static void LinkGhostPreviewToBuildMenu(BuildGhostPreview preview)
+        {
+            var menu = UnityEngine.Object.FindFirstObjectByType<BuildMenu>();
+
+            if (menu == null)
+                return;
+
+            var so = new SerializedObject(menu);
+            FillIfEmpty(so, "_ghostPreview", preview);
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         /// <summary>타워 프리팹을 복제해 형태만 남긴 고스트를 만든다. 프리팹 변경을 반영하려고 매번 새로 만든다.</summary>
@@ -2029,6 +2288,10 @@ namespace Rush.EditorTools
             FillIfEmpty(rewardSo, "_config", rewardConfig);
             rewardSo.ApplyModifiedPropertiesWithoutUndo();
 
+            var spawnerSo = new SerializedObject(spawner);
+            FillIfEmpty(spawnerSo, "_spawnFx", LoadSmokePuffPrefab());
+            spawnerSo.ApplyModifiedPropertiesWithoutUndo();
+
             return stage;
         }
 
@@ -2093,6 +2356,7 @@ namespace Rush.EditorTools
             var menuSo = new SerializedObject(buildMenu);
             FillIfEmpty(menuSo, "_stage", stage);
             FillIfEmpty(menuSo, "_ghostPreview", ghostPreview);
+            FillIfEmpty(menuSo, "_buildFx", LoadSmokePuffPrefab());
 
             // 카탈로그는 비어 있을 때만 채운다 (수동 구성 존중)
             var catalog = menuSo.FindProperty("_towerCatalog");

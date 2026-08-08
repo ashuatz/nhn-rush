@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Mat_Range
-  m_Shader: {fileID: 4800000, guid: 9b2e40c7f18a4d63ae5b0c9f24d17836, type: 3}
+  m_Name: Mat_SmokePuff
+  m_Shader: {fileID: 4800000, guid: 4a92c6e08f1b4d37b5e2a09c1d63847e, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -25,23 +25,12 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _DomePower: 4
-    - _DomeStrength: 0.12
-    - _EdgeIntensity: 0.9
-    - _EdgeWidth: 0.14
-    - _FillFalloff: 1.6
-    - _FillInner: 0
-    - _GridSpacing: 1
-    - _GridStrength: 0.15
-    - _GridThickness: 0.04
-    - _HeightFade: 3
-    - _PulseSpeed: 0.7
-    - _PulseStrength: 0.45
-    - _PulseWidth: 0.5
-    - _RadiusScale: 1
+    - _Opacity: 0.5
+    - _RimPower: 3
+    - _RimStrength: 0.1
+    - _SoftFade: 0.6
     m_Colors:
-    - _DomeColor: {r: 0.35, g: 0.85, b: 1, a: 1}
-    - _EdgeColor: {r: 0.35, g: 0.8, b: 1, a: 1}
-    - _FillColor: {r: 0.15, g: 0.55, b: 1, a: 0.14}
+    - _BottomColor: {r: 0.4, g: 0.36, b: 0.33, a: 1}
+    - _TopColor: {r: 0.88, g: 0.85, b: 0.8, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

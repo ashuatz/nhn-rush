@@ -384,6 +384,8 @@ namespace Rush.EditorTools
             body.Add(CreateMaterialStatusRow("Mat_Range", RushSetupActions.RangeSphereShader));
             body.Add(CreateMaterialStatusRow("Mat_SlotRing", RushSetupActions.SelectionRingShader));
             body.Add(CreateMaterialStatusRow("Mat_BuildGhost", RushSetupActions.BuildGhostShader));
+            body.Add(CreateMaterialStatusRow("Mat_Debris", RushSetupActions.DebrisChunkShader));
+            body.Add(CreateMaterialStatusRow("Mat_SmokePuff", RushSetupActions.SmokePuffShader));
 
             var refreshSlots = new Button(() =>
             {
@@ -410,6 +412,11 @@ namespace Rush.EditorTools
             rebake.text = "건설 실루엣 다시 베이크";
             rebake.style.marginTop = 8f;
             body.Add(rebake);
+
+            var fxPrefabs = new Button(RushSetupActions.EnsureFxPrefabs);
+            fxPrefabs.text = "파티클 연출 프리팹 생성 (사망 파편 / 연기)";
+            fxPrefabs.style.marginTop = 8f;
+            body.Add(fxPrefabs);
 
             var hint = new Label("타워 프리팹 비주얼을 바꾼 뒤에는 실루엣을 다시 베이크해야 반영된다.");
             hint.style.color = subtleTextColor;
@@ -479,6 +486,8 @@ namespace Rush.EditorTools
             AddMaterialFoldout("Mat_Range", "RANGE");
             AddMaterialFoldout("Mat_SlotRing", "RING");
             AddMaterialFoldout("Mat_BuildGhost", "GHOST");
+            AddMaterialFoldout("Mat_Debris", "DEBRIS");
+            AddMaterialFoldout("Mat_SmokePuff", "SMOKE");
 
             return section;
         }

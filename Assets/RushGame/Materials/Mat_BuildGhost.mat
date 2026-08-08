@@ -19,12 +19,13 @@ Material:
   m_CustomRenderQueue: -1
   stringTagMap: {}
   disabledShaderPasses: []
-  m_LockedProperties:
+  m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
+    - _BottomFade: 0.1
     - _BuildProgress: 1
     - _Cull: 2
     - _GhostHeight: 2
@@ -32,18 +33,22 @@ Material:
     - _NoiseFloor: 0.25
     - _NoiseScale: 2.2
     - _NoiseSpeed: 0.6
-    - _NoiseStrength: 0.65
-    - _RimPower: 3
-    - _RimStrength: 1.5
+    - _NoiseStrength: 0.7
+    - _RimPower: 2.6
+    - _RimStrength: 1.1
     - _ScanSpacing: 0.35
     - _ScanSpeed: 0.8
-    - _ScanStrength: 0.4
+    - _ScanStrength: 0.25
     - _ScanThickness: 0.12
-    - _WipeEdge: 0.06
+    - _StencilRef: 42
+    - _TopBoost: 0.3
+    - _WipeEdge: 0.05
+    - _ZTest: 8
     m_Colors:
-    - _BaseColor: {r: 0.2, g: 0.65, b: 1, a: 0.18}
-    - _InvalidColor: {r: 1.6, g: 0.28, b: 0.22, a: 1}
-    - _RimColor: {r: 0.75, g: 1.3, b: 1.5, a: 1}
-    - _WipeColor: {r: 1.2, g: 1.5, b: 1.5, a: 1}
+    - _BaseColor: {r: 0.25, g: 0.7, b: 1, a: 0.1}
+    - _Color: {r: 0.22, g: 0.62, b: 1, a: 0.55}
+    - _InvalidColor: {r: 1, g: 0.3, b: 0.25, a: 1}
+    - _RimColor: {r: 0.45, g: 0.9, b: 1.15, a: 1}
+    - _WipeColor: {r: 0.9, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

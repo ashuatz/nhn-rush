@@ -1,5 +1,6 @@
 using System;
 using Rush.Data;
+using Rush.Fx;
 using Rush.Stage;
 using UnityEngine;
 
@@ -18,6 +19,9 @@ namespace Rush.Combat
 
         /// <summary>데이터 오류(0 이하 이동속도)로 경로가 멈추는 것을 막는 최소 속도.</summary>
         const float MinMoveSpeed = 0.5f;
+
+        /// <summary>사망 파편 연출. 에디터 셋업에서 채운다.</summary>
+        [SerializeField] GameObject _deathFx;
 
         Action<Monster> _onDied;
         Action<Monster> _onReachedExit;
@@ -271,9 +275,49 @@ namespace Rush.Combat
             ReleaseFromBlocker();
             MonsterRegistry.Unregister(this);
 
+            PlayDeathFx();
+
             _onDied?.Invoke(this);
 
             Destroy(gameObject);
+        }
+
+        /// <summary>사망 파편. 자기 머티리얼 색/알베도를 조각에 입혀 그 적이 부서진 것처럼 보이게 한다.</summary>
+        void PlayDeathFx()
+        {
+            if (_deathFx == null)
+                return;
+
+            var instance = Instantiate(_deathFx, transform.position + Vector3.up * 0.3f, Quaternion.identity);
+            var fx = instance.GetComponent<OneShotFx>();
+
+            if (fx == null)
+            {
+                Destroy(instance, 2f);
+                return;
+            }
+
+            fx.SetDirection(GetDeathImpulseDirection());
+            fx.ApplySourceLook(GetComponentInChildren<Renderer>());
+            fx.Play();
+        }
+
+        /// <summary>파편이 튈 방향. 마지막으로 때린 타워의 반대쪽으로 밀린 것처럼 만든다.</summary>
+        Vector3 GetDeathImpulseDirection()
+        {
+            var tower = LastHitSource.Tower;
+
+            if (tower == null)
+                return Vector3.up;
+
+            Vector3 away = transform.position - tower.transform.position;
+            away.y = 0f;
+
+            if (away.sqrMagnitude < 0.0001f)
+                return Vector3.up;
+
+            // 완전히 수평으로 튀면 바닥에 붙어 흐르므로 위쪽 성분을 섞는다
+            return (away.normalized + Vector3.up * 1.2f).normalized;
         }
 
         /// <summary>이동속도 감소 (마도 타워 등). 더 강한 슬로우만 갱신한다.</summary>

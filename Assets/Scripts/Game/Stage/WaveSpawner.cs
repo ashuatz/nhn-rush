@@ -14,6 +14,9 @@ namespace Rush.Stage
     /// </summary>
     public class WaveSpawner : MonoBehaviour
     {
+        /// <summary>스폰 순간의 연기 연출. 에디터 셋업에서 채운다.</summary>
+        [SerializeField] GameObject _spawnFx;
+
         StageController _stage;
         PathRoute _path;
         bool _ready;
@@ -252,6 +255,9 @@ namespace Rush.Stage
 
             monster.Initialize(data, _path, enemyHpMultiplier, statMultiplier,
                 _stage.HandleMonsterDied, _stage.HandleMonsterReachedExit);
+
+            // 스폰 지점에 연기를 한 번 터뜨려 갑자기 나타나는 느낌을 줄인다
+            Rush.Fx.OneShotFx.Spawn(_spawnFx, _path.GetPoint(0));
         }
     }
 }

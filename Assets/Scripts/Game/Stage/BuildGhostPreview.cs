@@ -18,7 +18,8 @@ namespace Rush.Stage
 
         void Awake()
         {
-            HideAll();
+            // 에디터에서 켜 둔 채 저장됐을 수 있으므로 시작 시 전부 끈다
+            Hide();
         }
 
         public void Show(TowerType type, Vector3 position)
@@ -28,8 +29,9 @@ namespace Rush.Stage
             if (ghost == null)
                 return;
 
-            if (_active != null && _active != ghost)
-                _active.SetActive(false);
+            // _active만 끄면 에디터 프리뷰 등 다른 경로로 켜진 고스트가 남는다.
+            // 개수가 타워 종류 수뿐이라 매번 전부 정리하는 편이 안전하다
+            HideAllExcept(ghost);
 
             ghost.transform.position = position;
             ghost.SetActive(true);
@@ -39,25 +41,24 @@ namespace Rush.Stage
 
         public void Hide()
         {
-            if (_active == null)
-                return;
-
-            _active.SetActive(false);
-            _active = null;
+            HideAllExcept(null);
         }
 
-        /// <summary>씬에 켜진 채로 저장된 고스트가 있어도 시작 시 전부 끈다.</summary>
-        void HideAll()
+        /// <summary>keep을 제외한 모든 고스트를 끈다. keep이 null이면 전부 끈다.</summary>
+        void HideAllExcept(GameObject keep)
         {
             for (int i = 0; i < _ghostObjects.Length; i++)
             {
                 if (_ghostObjects[i] == null)
                     continue;
 
+                if (_ghostObjects[i] == keep)
+                    continue;
+
                 _ghostObjects[i].SetActive(false);
             }
 
-            _active = null;
+            _active = keep;
         }
 
         GameObject FindGhost(TowerType type)

@@ -20,6 +20,9 @@ namespace Rush.UI
         [SerializeField] TowerData[] _towerCatalog;
         [SerializeField] BuildGhostPreview _ghostPreview;
 
+        /// <summary>건설 순간의 연기 연출. 에디터 셋업에서 채운다.</summary>
+        [SerializeField] GameObject _buildFx;
+
         UIDocument _doc;
         VisualElement _panel;
         Label _titleLabel;
@@ -449,6 +452,9 @@ namespace Rush.UI
 
             tower.Initialize(data, _stage);
             _selected.Occupant = tower;
+
+            // 건물이 툭 튀어나오는 대신 연기 한 번으로 등장을 가려준다
+            Rush.Fx.OneShotFx.Spawn(_buildFx, _selected.BuildPosition);
 
             GameLog.Info("Build", $"{stat.DisplayName} 건설 (-{stat.Cost}G)");
 

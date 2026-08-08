@@ -1,44 +1,39 @@
-// 건설 예정 건물 실루엣(고스트). 림 라이트로 형태를 잡고 절차적 노이즈로 내부를 흔든다.
-// 텍스처 리소스가 필요 없어 어떤 타워 메시에 그대로 씌워도 동작한다.
+// 건설 예정 건물 실루엣(고스트). 스텐실로 픽셀당 한 번만 칠해 깔끔한 단색 실루엣을 만든다.
+//
+// 반투명 메시를 그냥 겹쳐 그리면 내부 면과 윤곽이 계속 누적돼 지저분해진다.
+// 여기서는 마스크 패스가 스텐실에 형태를 찍고, 채움 패스가 그 픽셀을 딱 한 번만 칠한 뒤
+// 스텐실을 0으로 되돌린다. 그래서 겹침이 아무리 많아도 결과는 평평한 실루엣 하나다.
 //
 // 사용법
-//  - 배치 가능/불가 전환은 _InvalidBlend 하나만 0 <-> 1 로 바꾼다 (색 두 벌을 코드에서 들고 있을 필요 없음).
+//  - 배치 가능/불가 전환은 _InvalidBlend 하나만 0 <-> 1 로 바꾼다.
 //  - 아래에서 위로 차오르는 건설 연출은 _BuildProgress 를 0 -> 1 로 올린다.
 //  - _GhostHeight 는 트랜스폼 원점 기준 모델 높이. 와이프 구간을 정하는 데만 쓴다.
+//
+// 주의: 실루엣이 화면에서 서로 겹칠 정도로 여러 개 동시에 보이면 스텐실이 섞일 수 있다.
+// 건설 프리뷰는 한 번에 하나만 켜므로 문제되지 않는다.
 Shader "Rush/FX/Build Ghost"
 {
     Properties
     {
-        [Header(Body)]
-        [HDR] _BaseColor("Base Color", Color) = (0.20, 0.65, 1.0, 0.18)
-        [HDR] _RimColor("Rim Color", Color) = (0.55, 0.95, 1.0, 1.0)
-        _RimPower("Rim Power", Range(0.5, 12.0)) = 3.0
-        _RimStrength("Rim Strength", Range(0.0, 4.0)) = 1.5
+        [Header(Silhouette)]
+        [HDR] _Color("Color", Color) = (0.30, 0.72, 1.0, 0.75)
+        _TopBoost("Top Brightness", Range(0.0, 1.0)) = 0.25
+        _BottomFade("Bottom Fade", Range(0.0, 1.0)) = 0.15
 
-        [Header(Noise)]
-        _NoiseScale("Noise Scale", Range(0.1, 12.0)) = 2.2
-        _NoiseSpeed("Noise Speed", Range(0.0, 4.0)) = 0.6
-        _NoiseStrength("Noise Strength", Range(0.0, 1.0)) = 0.65
-        _NoiseFloor("Noise Floor", Range(0.0, 1.0)) = 0.25
-
-        [Header(Scanline)]
-        _ScanSpacing("Scan Spacing (world)", Range(0.0, 4.0)) = 0.35
-        _ScanThickness("Scan Thickness", Range(0.0, 0.5)) = 0.12
-        _ScanSpeed("Scan Speed", Range(-4.0, 4.0)) = 0.8
-        _ScanStrength("Scan Strength", Range(0.0, 2.0)) = 0.4
+        [Header(State)]
+        [HDR] _InvalidColor("Invalid Color", Color) = (1.0, 0.30, 0.25, 1.0)
+        _InvalidBlend("Invalid Blend", Range(0.0, 1.0)) = 0.0
 
         [Header(Build Wipe)]
         _BuildProgress("Build Progress", Range(0.0, 1.0)) = 1.0
         _GhostHeight("Ghost Height (world)", Range(0.1, 20.0)) = 2.0
-        _WipeEdge("Wipe Edge Width", Range(0.001, 0.5)) = 0.06
-        [HDR] _WipeColor("Wipe Line Color", Color) = (0.8, 1.0, 1.0, 1.0)
-
-        [Header(State)]
-        [HDR] _InvalidColor("Invalid Color", Color) = (1.0, 0.25, 0.2, 1.0)
-        _InvalidBlend("Invalid Blend", Range(0.0, 1.0)) = 0.0
+        _WipeEdge("Wipe Edge Width", Range(0.001, 0.5)) = 0.05
+        [HDR] _WipeColor("Wipe Line Color", Color) = (0.85, 1.0, 1.0, 1.0)
 
         [Header(Render)]
-        [Enum(UnityEngine.Rendering.CullMode)] _Cull("Cull", Float) = 2.0
+        // 지형이나 다른 건물에 가려지지 않게 기본은 Always. 가려지길 원하면 LEqual(4).
+        [Enum(UnityEngine.Rendering.CompareFunction)] _ZTest("ZTest", Float) = 8
+        [IntRange] _StencilRef("Stencil Ref", Range(1, 255)) = 42
     }
 
     SubShader
@@ -46,136 +41,151 @@ Shader "Rush/FX/Build Ghost"
         Tags
         {
             "RenderType" = "Transparent"
-            "Queue" = "Transparent"
+            "Queue" = "Transparent+30"
             "RenderPipeline" = "UniversalPipeline"
             "IgnoreProjector" = "True"
         }
 
+        HLSLINCLUDE
+        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+        CBUFFER_START(UnityPerMaterial)
+            float4 _Color;
+            float _TopBoost;
+            float _BottomFade;
+
+            float4 _InvalidColor;
+            float _InvalidBlend;
+
+            float _BuildProgress;
+            float _GhostHeight;
+            float _WipeEdge;
+            float4 _WipeColor;
+
+            float _ZTest;
+            float _StencilRef;
+        CBUFFER_END
+
+        struct Attributes
+        {
+            float4 positionOS : POSITION;
+        };
+
+        struct Varyings
+        {
+            float4 positionCS : SV_POSITION;
+            float heightNorm : TEXCOORD0;
+        };
+
+        Varyings Vert(Attributes input)
+        {
+            Varyings output = (Varyings)0;
+
+            float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
+            float originY = UNITY_MATRIX_M._m13;
+
+            output.positionCS = TransformWorldToHClip(positionWS);
+            output.heightNorm = saturate((positionWS.y - originY) / max(_GhostHeight, 1e-3));
+
+            return output;
+        }
+
+        // 건설 와이프 경계. 소프트 폭만큼 여유를 둬야 진행도 0/1에서 딱 떨어진다.
+        float GetWipeThreshold()
+        {
+            return lerp(-_WipeEdge, 1.0 + _WipeEdge, _BuildProgress);
+        }
+
+        // 와이프 위쪽은 아직 안 지어진 부분이므로 잘라낸다.
+        // 마스크 패스와 채움 패스가 같은 기준으로 잘라야 실루엣이 어긋나지 않는다.
+        void ClipByWipe(float heightNorm)
+        {
+            clip(GetWipeThreshold() - heightNorm);
+        }
+        ENDHLSL
+
+        // 1) 마스크: 색은 쓰지 않고 실루엣 모양만 스텐실에 찍는다
         Pass
         {
-            Name "BuildGhost"
+            Name "GhostMask"
+            Tags
+            {
+                "LightMode" = "SRPDefaultUnlit"
+            }
+
+            Cull Off
+            ZWrite Off
+            ZTest [_ZTest]
+            ColorMask 0
+
+            Stencil
+            {
+                Ref [_StencilRef]
+                Comp Always
+                Pass Replace
+            }
+
+            HLSLPROGRAM
+            #pragma target 3.5
+            #pragma vertex Vert
+            #pragma fragment FragMask
+
+            float4 FragMask(Varyings input) : SV_Target
+            {
+                ClipByWipe(input.heightNorm);
+
+                return 0;
+            }
+            ENDHLSL
+        }
+
+        // 2) 채움: 스텐실이 찍힌 픽셀만 한 번 칠하고 스텐실을 되돌린다
+        Pass
+        {
+            Name "GhostFill"
             Tags
             {
                 "LightMode" = "UniversalForward"
             }
 
-            Blend One OneMinusSrcAlpha
+            Cull Off
             ZWrite Off
-            ZTest LEqual
-            Cull [_Cull]
+            ZTest [_ZTest]
+            Blend SrcAlpha OneMinusSrcAlpha
+
+            Stencil
+            {
+                Ref [_StencilRef]
+                Comp Equal
+                Pass Zero
+            }
 
             HLSLPROGRAM
             #pragma target 3.5
             #pragma vertex Vert
-            #pragma fragment Frag
+            #pragma fragment FragFill
 
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            #include "Assets/Shaders/Gameplay/GameplayFxCommon.hlsl"
-
-            CBUFFER_START(UnityPerMaterial)
-                float4 _BaseColor;
-                float4 _RimColor;
-                float _RimPower;
-                float _RimStrength;
-
-                float _NoiseScale;
-                float _NoiseSpeed;
-                float _NoiseStrength;
-                float _NoiseFloor;
-
-                float _ScanSpacing;
-                float _ScanThickness;
-                float _ScanSpeed;
-                float _ScanStrength;
-
-                float _BuildProgress;
-                float _GhostHeight;
-                float _WipeEdge;
-                float4 _WipeColor;
-
-                float4 _InvalidColor;
-                float _InvalidBlend;
-
-                float _Cull;
-            CBUFFER_END
-
-            struct Attributes
+            float4 FragFill(Varyings input) : SV_Target
             {
-                float4 positionOS : POSITION;
-                float3 normalOS : NORMAL;
-            };
+                ClipByWipe(input.heightNorm);
 
-            struct Varyings
-            {
-                float4 positionCS : SV_POSITION;
-                float3 positionWS : TEXCOORD0;
-                float3 normalWS : TEXCOORD1;
-                float heightNorm : TEXCOORD2;
-            };
+                float3 tint = lerp(_Color.rgb, _InvalidColor.rgb, _InvalidBlend);
 
-            Varyings Vert(Attributes input)
-            {
-                Varyings output = (Varyings)0;
+                // 평평한 단색은 심심하므로 위아래로만 아주 옅게 밝기를 준다
+                float gradient = 1.0 + _TopBoost * input.heightNorm - _BottomFade * (1.0 - input.heightNorm);
+                tint *= gradient;
 
-                float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
-                float originY = UNITY_MATRIX_M._m13;
+                float alpha = _Color.a;
 
-                output.positionWS = positionWS;
-                output.positionCS = TransformWorldToHClip(positionWS);
-                output.normalWS = TransformObjectToWorldNormal(input.normalOS);
-                output.heightNorm = saturate((positionWS.y - originY) / max(_GhostHeight, 1e-3));
+                // 건설 중이면 차오르는 경계에 밝은 선을 얹는다
+                float threshold = GetWipeThreshold();
+                float edge = 1.0 - smoothstep(0.0, _WipeEdge, abs(input.heightNorm - threshold));
+                edge *= step(0.001, _BuildProgress) * step(_BuildProgress, 0.999);
 
-                return output;
-            }
+                tint = lerp(tint, lerp(_WipeColor.rgb, _InvalidColor.rgb, _InvalidBlend), edge * _WipeColor.a);
+                alpha = lerp(alpha, 1.0, edge * _WipeColor.a);
 
-            float4 Frag(Varyings input) : SV_Target
-            {
-                float3 normalWS = normalize(input.normalWS);
-                float3 viewDir = normalize(GetWorldSpaceViewDir(input.positionWS));
-
-                // 양면 렌더에서도 림이 뒤집히지 않도록 절대값을 쓴다
-                float facing = saturate(1.0 - abs(dot(normalWS, viewDir)));
-                float rim = pow(facing, _RimPower) * _RimStrength;
-
-                // 노이즈는 위로 흐르게 해서 형체가 잡히는 중인 느낌을 준다
-                float3 noiseCoord = input.positionWS * _NoiseScale;
-                noiseCoord.y -= _Time.y * _NoiseSpeed;
-
-                float noise = RushFbm(noiseCoord);
-                float noiseMask = lerp(1.0, lerp(_NoiseFloor, 1.0, noise), _NoiseStrength);
-
-                // 스캔라인: 월드 높이를 따라 흐르는 가로줄
-                float scanCoord = input.positionWS.y - _Time.y * _ScanSpeed;
-                float scan = RushRepeatLineW(scanCoord, _ScanSpacing, _ScanThickness, fwidth(scanCoord));
-
-                // 건설 와이프: 경계 아래쪽만 그린다.
-                // 소프트 폭만큼 여유를 두고 매핑해야 진행도 1에서 모델 상단이 반투명해지지 않는다
-                float wipeThreshold = lerp(-_WipeEdge, 1.0 + _WipeEdge, _BuildProgress);
-                float wipe = 1.0 - RushAaStepW(wipeThreshold, input.heightNorm, _WipeEdge);
-                float wipeLine = RushAaBandW(input.heightNorm, wipeThreshold, _WipeEdge, _WipeEdge);
-
-                // 완전히 숨겼거나 다 지었으면 경계선은 그리지 않는다
-                wipeLine *= step(0.001, _BuildProgress) * step(_BuildProgress, 0.999);
-
-                float3 bodyTint = lerp(_BaseColor.rgb, _InvalidColor.rgb, _InvalidBlend);
-                float3 rimTint = lerp(_RimColor.rgb, _InvalidColor.rgb, _InvalidBlend);
-
-                float3 color = 0.0;
-                float alpha = 0.0;
-
-                float body = _BaseColor.a * noiseMask * wipe;
-                RushAccumulate(color, alpha, bodyTint, body, 1.0);
-
-                float rimMask = rim * _RimColor.a * noiseMask * wipe;
-                RushAccumulate(color, alpha, rimTint, rimMask, 0.6);
-
-                float scanMask = scan * _ScanStrength * wipe;
-                RushAccumulate(color, alpha, rimTint, scanMask, 0.4);
-
-                float lineMask = wipeLine * _WipeColor.a;
-                RushAccumulate(color, alpha, lerp(_WipeColor.rgb, _InvalidColor.rgb, _InvalidBlend), lineMask, 0.5);
-
-                return float4(color, saturate(alpha));
+                return float4(tint, alpha);
             }
             ENDHLSL
         }

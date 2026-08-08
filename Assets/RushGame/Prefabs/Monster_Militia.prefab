@@ -45,6 +45,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e58a51e3f1a2b574f8b48da7e5011087, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Rush.Combat.Monster
+  _deathFx: {fileID: 2505401845234213573, guid: ecc2486d62b40774eac29189c5a406e1, type: 3}
 --- !u!1 &7941701397747491755
 GameObject:
   m_ObjectHideFlags: 0
