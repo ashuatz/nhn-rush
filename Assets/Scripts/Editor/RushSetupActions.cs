@@ -51,7 +51,7 @@ namespace Rush.EditorTools
         /// 기본 경로 4루트. 시작 지점 2곳(A 좌상 / B 좌하)에서 각각 두 갈래로 갈라져
         /// 종료 지점 2곳(1 우상 / 2 우하)으로 들어간다. 네 루트는 맵 중앙에서 서로 교차한다.
         /// 배열 순서가 스폰 분배 순서이므로 시작 지점이 번갈아 나오도록 A1/B1/A2/B2로 둔다.
-        /// 루트 길이는 31.9 / 35.8 / 33.6 / 29.5 (최대 21% 차이).
+        /// 좌표는 씬(Stage01)에서 손으로 다듬은 배치를 되받은 값이다.
         /// </summary>
         static readonly RouteDefinition[] DefaultRoutes =
         {
@@ -60,15 +60,15 @@ namespace Rush.EditorTools
                 Id = "A1",
                 Waypoints = new[]
                 {
-                    new Vector3(-12f, 0f, 5.5f),
-                    new Vector3(-9f, 0f, 4.5f),
-                    new Vector3(-8f, 0f, 0.5f),
-                    new Vector3(-5f, 0f, -2f),
-                    new Vector3(0f, 0f, -3f),
-                    new Vector3(5f, 0f, -2f),
-                    new Vector3(7.5f, 0f, 0.5f),
-                    new Vector3(9f, 0f, 3.5f),
-                    new Vector3(12f, 0f, 5.5f),
+                    new Vector3(-14.13f, 0f, 7.14f),
+                    new Vector3(-9.73f, 0f, 1.81f),
+                    new Vector3(-8.33f, 0f, -1.77f),
+                    new Vector3(-4.86f, 0f, -4.48f),
+                    new Vector3(0.70f, 0f, -4.40f),
+                    new Vector3(5.00f, 0f, -2.00f),
+                    new Vector3(6.03f, 0f, 1.15f),
+                    new Vector3(7.62f, 0f, 3.50f),
+                    new Vector3(12.00f, 0f, 5.50f),
                 },
             },
             new RouteDefinition
@@ -76,16 +76,16 @@ namespace Rush.EditorTools
                 Id = "B1",
                 Waypoints = new[]
                 {
-                    new Vector3(-12f, 0f, -5.5f),
-                    new Vector3(-11f, 0f, -2f),
-                    new Vector3(-9.5f, 0f, 1.5f),
-                    new Vector3(-6f, 0f, 4f),
-                    new Vector3(-1f, 0f, 4.8f),
-                    new Vector3(3f, 0f, 3.5f),
-                    new Vector3(5.5f, 0f, 0.5f),
-                    new Vector3(7f, 0f, -3.5f),
-                    new Vector3(9.5f, 0f, -6.5f),
-                    new Vector3(12f, 0f, -5.5f),
+                    new Vector3(-12.91f, 0f, -7.91f),
+                    new Vector3(-11.00f, 0f, -2.00f),
+                    new Vector3(-9.50f, 0f, 1.50f),
+                    new Vector3(-5.74f, 0f, 4.54f),
+                    new Vector3(-1.00f, 0f, 4.80f),
+                    new Vector3(3.00f, 0f, 3.50f),
+                    new Vector3(5.50f, 0f, 0.50f),
+                    new Vector3(7.00f, 0f, -3.50f),
+                    new Vector3(9.19f, 0f, -6.87f),
+                    new Vector3(12.47f, 0f, -7.35f),
                 },
             },
             new RouteDefinition
@@ -93,15 +93,15 @@ namespace Rush.EditorTools
                 Id = "A2",
                 Waypoints = new[]
                 {
-                    new Vector3(-12f, 0f, 5.5f),
-                    new Vector3(-9f, 0f, 7.5f),
-                    new Vector3(-3f, 0f, 8f),
-                    new Vector3(2f, 0f, 6.5f),
-                    new Vector3(5f, 0f, 3.5f),
-                    new Vector3(6.5f, 0f, -0.5f),
-                    new Vector3(7.5f, 0f, -4.5f),
-                    new Vector3(9.5f, 0f, -7f),
-                    new Vector3(12f, 0f, -5.5f),
+                    new Vector3(-14.13f, 0f, 7.14f),
+                    new Vector3(-9.58f, 0f, 5.89f),
+                    new Vector3(-3.63f, 0f, 4.96f),
+                    new Vector3(-0.13f, 0f, 4.98f),
+                    new Vector3(3.34f, 0f, 3.78f),
+                    new Vector3(6.43f, 0f, -0.66f),
+                    new Vector3(7.03f, 0f, -3.56f),
+                    new Vector3(9.03f, 0f, -6.98f),
+                    new Vector3(12.47f, 0f, -7.35f),
                 },
             },
             new RouteDefinition
@@ -109,37 +109,48 @@ namespace Rush.EditorTools
                 Id = "B2",
                 Waypoints = new[]
                 {
-                    new Vector3(-12f, 0f, -5.5f),
-                    new Vector3(-9f, 0f, -7f),
-                    new Vector3(-5f, 0f, -7.5f),
-                    new Vector3(-1f, 0f, -6.5f),
-                    new Vector3(2f, 0f, -5f),
-                    new Vector3(4.5f, 0f, -2.5f),
-                    new Vector3(6.5f, 0f, 0.5f),
-                    new Vector3(8.5f, 0f, 3f),
-                    new Vector3(12f, 0f, 5.5f),
+                    new Vector3(-12.91f, 0f, -7.91f),
+                    new Vector3(-8.37f, 0f, -6.18f),
+                    new Vector3(-4.98f, 0f, -4.97f),
+                    new Vector3(-1.26f, 0f, -5.23f),
+                    new Vector3(2.84f, 0f, -4.04f),
+                    new Vector3(4.85f, 0f, -2.36f),
+                    new Vector3(5.98f, 0f, 1.13f),
+                    new Vector3(7.47f, 0f, 3.42f),
+                    new Vector3(12.00f, 0f, 5.50f),
                 },
             },
         };
 
         /// <summary>
         /// 기본 타워 슬롯 위치. 슬롯 루트는 항상 스케일 1 (자식 비주얼만 납작하게).
-        /// 4루트 기준으로 경로에서 최소 1.8 떨어지면서 여러 루트를 동시에 덮는 지점으로 잡았다.
+        /// 좌표는 씬(Stage01)에서 손으로 다듬은 배치를 되받은 값이며, 왼쪽에서 오른쪽 순이다.
         /// </summary>
         static readonly Vector3[] DefaultSlotPositions =
         {
-            new Vector3(-10.5f, 0f, 3f),
-            new Vector3(-7.5f, 0f, 5.5f),
-            new Vector3(-9.5f, 0f, -3.5f),
-            new Vector3(1f, 0f, 2f),
-            new Vector3(3.5f, 0f, 0f),
-            new Vector3(5.5f, 0f, -4.5f),
-            new Vector3(9f, 0f, -0.5f),
-            new Vector3(7f, 0f, 4.5f),
+            new Vector3(-11.80f, 0f, 1.34f),
+            new Vector3(-9.57f, 0f, -1.32f),
+            new Vector3(-9.23f, 0f, 3.24f),
+            new Vector3(-7.44f, 0f, 0.95f),
+            new Vector3(-4.83f, 0f, -6.98f),
+            new Vector3(-3.34f, 0f, 3.32f),
+            new Vector3(-1.79f, 0f, -2.96f),
+            new Vector3(0.40f, 0f, 6.31f),
+            new Vector3(1.20f, 0f, 2.82f),
+            new Vector3(1.60f, 0f, -6.12f),
+            new Vector3(3.87f, 0f, -0.12f),
+            new Vector3(6.62f, 0f, 4.39f),
+            new Vector3(7.00f, 0f, -6.50f),
+            new Vector3(7.88f, 0f, -0.22f),
+            new Vector3(9.22f, 0f, 6.35f),
+            new Vector3(11.28f, 0f, -5.35f),
         };
 
-        /// <summary>슬롯이 경로에 이보다 가까우면 길 위에 올라탄 것으로 본다 (검증 경고).</summary>
-        const float SlotPathClearance = 1.5f;
+        /// <summary>
+        /// 슬롯이 경로에 이보다 가까우면 길 위에 올라탄 것으로 본다 (검증 경고).
+        /// 경로 폭 1.6의 반(0.8) + 슬롯 받침 발자국 1.1의 반(0.55)이 실제로 닿기 시작하는 거리다.
+        /// </summary>
+        const float SlotPathClearance = 1.35f;
 
         public static event Action<string> Reported;
 
@@ -1882,6 +1893,13 @@ namespace Rush.EditorTools
             SetupScene();
         }
 
+        /// <summary>씬에서 손으로 배치한 경로/슬롯의 이름과 순서를 정리하고 경로 비주얼을 다시 굽는다.</summary>
+        [MenuItem("Rush/씬 레이아웃 정리 (이름 + 경로 비주얼)")]
+        public static void RunNormalizeSceneLayout()
+        {
+            NormalizeSceneLayout();
+        }
+
         public static void CreateAllAssets()
         {
             CreateFolders();
@@ -1924,7 +1942,7 @@ namespace Rush.EditorTools
             SetupGround();
             var paths = SetupPaths();
             BakePathVisual(paths);
-            SetupSlots(paths);
+            SetupSlots();
             UpgradeSlotVisuals();
             var ghostPreview = BakeBuildGhosts();
             var stage = SetupStageController(paths);
@@ -2066,6 +2084,11 @@ namespace Rush.EditorTools
 
             // 시작/종료 지점은 루트끼리 공유하므로 마커가 겹치지 않게 좌표로 한 번만 찍는다
             var markerPoints = new List<Vector3>(4);
+
+            // 라벨은 루트 ID가 아니라 좌표로 정한다. B1은 이름이 1로 끝나지만 종료는 2번 지점이다.
+            var startPoints = CollectEndpoints(routes, start: true);
+            var exitPoints = CollectEndpoints(routes, start: false);
+
             int baked = 0;
 
             foreach (var route in routes)
@@ -2100,11 +2123,14 @@ namespace Rush.EditorTools
                     tile.GetComponent<MeshRenderer>().sharedMaterial = pathMat;
                 }
 
-                TryCreateSharedMarker(root.transform, markerPoints,
-                    $"SpawnMarker_{route.RouteId}", route.GetPoint(0), startMat, PathWidth);
+                Vector3 startPoint = route.GetPoint(0);
+                Vector3 exitPoint = route.GetPoint(route.PointCount - 1);
 
                 TryCreateSharedMarker(root.transform, markerPoints,
-                    $"ExitMarker_{route.RouteId}", route.GetPoint(route.PointCount - 1), endMat, PathWidth);
+                    $"SpawnMarker_{LabelOf(startPoints, startPoint, StartLabels)}", startPoint, startMat, PathWidth);
+
+                TryCreateSharedMarker(root.transform, markerPoints,
+                    $"ExitMarker_{LabelOf(exitPoints, exitPoint, ExitLabels)}", exitPoint, endMat, PathWidth);
 
                 baked++;
             }
@@ -2116,6 +2142,202 @@ namespace Rush.EditorTools
             }
 
             Report($"경로 비주얼 베이크 완료 (루트 {baked}개)");
+        }
+
+        /// <summary>
+        /// 씬에서 손으로 배치한 경로/슬롯을 정리한다. 위치는 절대 건드리지 않고 이름과 순서만 맞춘다.
+        /// 웨이포인트를 복제하거나 슬롯을 늘리면 "Slot_07 (3)" 같은 이름이 남으므로 정기적으로 돌린다.
+        /// 정리 후 경로 비주얼을 현재 좌표로 다시 베이크한다.
+        /// </summary>
+        public static void NormalizeSceneLayout()
+        {
+            var routes = UnityEngine.Object.FindObjectsByType<PathRoute>(FindObjectsSortMode.None);
+
+            if (routes.Length == 0)
+            {
+                Report("씬에 경로 루트가 없어 정리를 건너뜀");
+                return;
+            }
+
+            int renamedWaypoints = NormalizeRouteNames(routes);
+            int renamedSlots = NormalizeSlotNames();
+
+            // 루트를 RouteId 순서(A1/B1/A2/B2)로 정렬해 베이크 순서와 계층 순서를 맞춘다
+            System.Array.Sort(routes, CompareRouteOrder);
+
+            SortRoutesInHierarchy(routes);
+
+            BakePathVisual(routes);
+
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+
+            Report($"씬 정리 완료 (웨이포인트 {renamedWaypoints}개 / 슬롯 {renamedSlots}개 이름 정리)");
+        }
+
+        /// <summary>루트 오브젝트 이름을 RouteId에 맞추고 웨이포인트를 P00부터 다시 번호 매긴다.</summary>
+        static int NormalizeRouteNames(PathRoute[] routes)
+        {
+            int renamed = 0;
+
+            foreach (var route in routes)
+            {
+                string expectedName = $"Path_{route.RouteId}";
+
+                if (route.name != expectedName)
+                {
+                    Undo.RecordObject(route.gameObject, "Normalize route name");
+                    route.name = expectedName;
+                }
+
+                var transform = route.transform;
+
+                for (int i = 0; i < transform.childCount; i++)
+                {
+                    var child = transform.GetChild(i);
+                    string expected = $"P{i:00}";
+
+                    if (child.name == expected)
+                        continue;
+
+                    Undo.RecordObject(child.gameObject, "Normalize waypoint name");
+                    child.name = expected;
+                    renamed++;
+                }
+
+                route.CachePoints();
+                EditorUtility.SetDirty(route);
+            }
+
+            return renamed;
+        }
+
+        /// <summary>
+        /// 슬롯 이름을 Slot_01부터 다시 매긴다. 순서는 왼쪽 위에서 오른쪽 아래로 (x 오름차순, 같으면 z 내림차순).
+        /// 복제로 생긴 "Slot_07 (3)" 같은 이름이 사라지고, 셋업/검증 로그에서 슬롯을 특정할 수 있게 된다.
+        /// </summary>
+        static int NormalizeSlotNames()
+        {
+            var slots = UnityEngine.Object.FindObjectsByType<TowerSlot>(FindObjectsSortMode.None);
+
+            if (slots.Length == 0)
+                return 0;
+
+            System.Array.Sort(slots, CompareSlotOrder);
+
+            int renamed = 0;
+
+            var previousNames = new string[slots.Length];
+
+            // 이름이 겹치는 중간 상태를 피하려고 임시 이름을 거쳐 두 번에 나눠 바꾼다
+            for (int i = 0; i < slots.Length; i++)
+            {
+                previousNames[i] = slots[i].name;
+                slots[i].name = $"__SlotTemp_{i:00}";
+            }
+
+            for (int i = 0; i < slots.Length; i++)
+            {
+                string expected = $"Slot_{i + 1:00}";
+
+                Undo.RecordObject(slots[i].gameObject, "Normalize slot name");
+                slots[i].name = expected;
+                slots[i].transform.SetSiblingIndex(i);
+
+                if (previousNames[i] != expected)
+                    renamed++;
+            }
+
+            return renamed;
+        }
+
+        static int CompareSlotOrder(TowerSlot a, TowerSlot b)
+        {
+            Vector3 pa = a.transform.position;
+            Vector3 pb = b.transform.position;
+
+            int byX = pa.x.CompareTo(pb.x);
+
+            if (byX != 0)
+                return byX;
+
+            return pb.z.CompareTo(pa.z);
+        }
+
+        /// <summary>스폰 분배가 시작 지점을 번갈아 쓰도록 A1/B1/A2/B2 순서로 맞춘다.</summary>
+        static int CompareRouteOrder(PathRoute a, PathRoute b)
+        {
+            return RouteOrderKey(a.RouteId).CompareTo(RouteOrderKey(b.RouteId));
+        }
+
+        static int RouteOrderKey(string routeId)
+        {
+            for (int i = 0; i < DefaultRoutes.Length; i++)
+            {
+                if (DefaultRoutes[i].Id == routeId)
+                    return i;
+            }
+
+            return int.MaxValue;
+        }
+
+        static void SortRoutesInHierarchy(PathRoute[] ordered)
+        {
+            for (int i = 0; i < ordered.Length; i++)
+                ordered[i].transform.SetSiblingIndex(i);
+        }
+
+        /// <summary>기획 스케치의 지점 표기. 시작은 위(A)에서 아래(B), 종료는 위(1)에서 아래(2) 순이다.</summary>
+        static readonly string[] StartLabels = { "A", "B" };
+        static readonly string[] ExitLabels = { "1", "2" };
+
+        /// <summary>
+        /// 루트들의 시작점(또는 종료점)을 좌표로 묶어 위에서 아래 순으로 돌려준다.
+        /// 여러 루트가 한 지점을 공유하므로 중복은 제거한다.
+        /// </summary>
+        static List<Vector3> CollectEndpoints(PathRoute[] routes, bool start)
+        {
+            var points = new List<Vector3>(4);
+
+            foreach (var route in routes)
+            {
+                if (route == null || route.PointCount < 2)
+                    continue;
+
+                Vector3 point = start ? route.GetPoint(0) : route.GetPoint(route.PointCount - 1);
+                bool duplicate = false;
+
+                foreach (var existing in points)
+                {
+                    if ((existing - point).sqrMagnitude >= 0.01f)
+                        continue;
+
+                    duplicate = true;
+                    break;
+                }
+
+                if (!duplicate)
+                    points.Add(point);
+            }
+
+            points.Sort((a, b) => b.z.CompareTo(a.z));
+
+            return points;
+        }
+
+        static string LabelOf(List<Vector3> points, Vector3 point, string[] labels)
+        {
+            for (int i = 0; i < points.Count; i++)
+            {
+                if ((points[i] - point).sqrMagnitude >= 0.01f)
+                    continue;
+
+                if (i < labels.Length)
+                    return labels[i];
+
+                return (i + 1).ToString();
+            }
+
+            return "?";
         }
 
         /// <summary>이미 마커를 찍은 좌표면 건너뛴다. 시작 지점 2곳 / 종료 지점 2곳만 남는다.</summary>
@@ -2150,7 +2372,11 @@ namespace Rush.EditorTools
         /// 슬롯 루트는 스케일 1을 유지하고 납작한 판은 자식 Visual이 담당한다
         /// (루트가 비균등 스케일이면 그 위에 세운 타워/병사가 찌그러진다).
         /// </summary>
-        static void SetupSlots(PathRoute[] routes)
+        /// <summary>
+        /// 기본 슬롯을 이름 기준으로 하나씩 보장한다. 씬에서 옮기거나 늘려 둔 슬롯은 그대로 둔다
+        /// (경로와 어긋난 배치는 되돌리지 않고 씬 검증이 경고만 낸다).
+        /// </summary>
+        static void SetupSlots()
         {
             var slotRoot = GameObject.Find("Slots");
 
@@ -2160,8 +2386,6 @@ namespace Rush.EditorTools
             var slotMat = EnsureMaterial("Mat_Slot", new Color(0.55f, 0.5f, 0.35f));
             var ringMat = EnsureFxMaterial("Mat_SlotRing", SelectionRingShader);
             var rangeMat = EnsureFxMaterial("Mat_Range", RangeSphereShader);
-
-            int relocated = 0;
 
             for (int i = 0; i < DefaultSlotPositions.Length; i++)
             {
@@ -2174,13 +2398,6 @@ namespace Rush.EditorTools
                     // 루트가 과거 버전(비균등 스케일 큐브)일 때만 교체하고, 그 외에는 표시 오브젝트만 보정한다
                     if (!IsLegacySlotRoot(existing))
                     {
-                        // 경로 레이아웃이 바뀌어 길 위에 올라탔거나 너무 멀어진 슬롯만 기본 좌표로 되돌린다
-                        if (!IsSlotPlacementValid(existing.position, routes))
-                        {
-                            existing.position = DefaultSlotPositions[i];
-                            relocated++;
-                        }
-
                         EnsureSlotIndicators(existing, ringMat, rangeMat);
                         continue;
                     }
@@ -2190,44 +2407,6 @@ namespace Rush.EditorTools
 
                 CreateSlot(slotRoot.transform, slotName, DefaultSlotPositions[i], slotMat, ringMat, rangeMat);
             }
-
-            if (relocated > 0)
-                Report($"경로와 어긋난 슬롯 {relocated}개를 기본 좌표로 되돌림");
-        }
-
-        /// <summary>
-        /// 슬롯이 쓸만한 자리인지. 길 위에 올라타면 건설 클릭과 경로 비주얼이 겹치고,
-        /// 모든 루트에서 멀면 사거리가 닿지 않아 자리 자체가 죽는다.
-        /// </summary>
-        static bool IsSlotPlacementValid(Vector3 position, PathRoute[] routes)
-        {
-            if (routes == null || routes.Length == 0)
-                return true;
-
-            const float MaxUsefulDistance = 6f;
-
-            Vector3 origin = position;
-            origin.y = 0f;
-
-            float nearest = float.MaxValue;
-
-            foreach (var route in routes)
-            {
-                if (route == null || route.PointCount < 2)
-                    continue;
-
-                route.ClosestPoint(origin, out float sqrDistance);
-
-                nearest = Mathf.Min(nearest, Mathf.Sqrt(sqrDistance));
-            }
-
-            if (nearest == float.MaxValue)
-                return true;
-
-            if (nearest < SlotPathClearance)
-                return false;
-
-            return nearest <= MaxUsefulDistance;
         }
 
         /// <summary>

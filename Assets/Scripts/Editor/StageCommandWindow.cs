@@ -289,6 +289,8 @@ namespace Rush.EditorTools
                 EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             }));
 
+            row.Add(MakeButton("씬 레이아웃 정리", RushSetupActions.NormalizeSceneLayout));
+
             body.Add(row);
 
             var row2 = MakeButtonRow();
