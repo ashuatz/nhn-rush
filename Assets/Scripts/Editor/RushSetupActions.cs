@@ -1390,26 +1390,50 @@ namespace Rush.EditorTools
         /// 셋업을 다시 실행하면 항상 시트 값으로 재베이크한다. 프리팹/연출 참조는 비어 있을 때만 채운다.
         /// 시트에 없는 전투 수치(피해/사거리/공속)는 기존 튜닝 값을 유지한다.
         /// </summary>
+        /// <summary>
+        /// 시트(타워 시트)의 사거리와 폭발 반경은 원작 화면 픽셀 단위(100~320)라 게임 월드 단위로 환산해야 한다.
+        /// 계수는 시트 20개 항목의 평균이 기존에 손으로 맞춰 둔 게임 값 평균(4.72)과 맞도록 잡았다.
+        /// 시트의 상대 비율은 그대로 살아나고, 맵 대비 전체 스케일은 이 상수 하나로 조정한다.
+        /// </summary>
+        const float SheetRangeScale = 1f / 32f;
+
+        static float SheetRange(float sheetValue)
+        {
+            return sheetValue * SheetRangeScale;
+        }
+
+        /// <summary>
+        /// 시트 공격력은 최소~최대 범위인데 게임은 고정 피해라 중앙값을 쓴다.
+        /// 범위 시스템이 생기면 보상 P05(정밀 시전)와 함께 살아난다.
+        /// </summary>
+        static float MidDamage(float min, float max)
+        {
+            return (min + max) * 0.5f;
+        }
+
         public static void CreateTowerData()
         {
             CreateDummyPrefabs();
 
             var infantry = EnsureTower("Tower_Infantry", data =>
             {
+                // 병영은 타워가 직접 때리지 않는다. 시트의 공격력/체력 칸은 소환 유닛 값이다.
+                // 병사 체력 재생은 시트에 없는 추가 사양이다. 상시 회복이라 적 공격력을 넘기면
+                // 전선이 영구히 버티므로 최대 체력의 3%/초로 잡았다 (민병 6, 중보병 10 대비).
                 data.Type = TowerType.Infantry;
                 data.DamageType = DamageType.Physical;
                 data.Levels = new[]
                 {
-                    new TowerLevelStat { DisplayName = "병영 1단계", Cost = 70, Range = 2.5f, AttackInterval = 1f, SoldierCount = 3, SoldierHp = 80, SoldierDamage = 4, SoldierDamageMax = 7, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f },
-                    new TowerLevelStat { DisplayName = "병영 2단계", Cost = 115, Range = 2.5f, AttackInterval = 1f, SoldierCount = 3, SoldierHp = 130, SoldierDamage = 7, SoldierDamageMax = 12, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f },
-                    new TowerLevelStat { DisplayName = "병영 3단계", Cost = 185, Range = 2.8f, AttackInterval = 1f, SoldierCount = 3, SoldierHp = 200, SoldierDamage = 10, SoldierDamageMax = 18, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f },
+                    new TowerLevelStat { DisplayName = "병영 1단계", Cost = 70, Range = SheetRange(100f), AttackInterval = 1f, SoldierCount = 3, SoldierHp = 60, SoldierDamage = 3, SoldierDamageMax = 5, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f, SoldierRegenPerSecond = 1.8f },
+                    new TowerLevelStat { DisplayName = "병영 2단계", Cost = 115, Range = SheetRange(100f), AttackInterval = 1f, SoldierCount = 3, SoldierHp = 110, SoldierDamage = 5, SoldierDamageMax = 8, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f, SoldierRegenPerSecond = 3.3f },
+                    new TowerLevelStat { DisplayName = "병영 3단계", Cost = 185, Range = SheetRange(100f), AttackInterval = 1f, SoldierCount = 3, SoldierHp = 170, SoldierDamage = 8, SoldierDamageMax = 11, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f, SoldierRegenPerSecond = 5.1f },
                 };
 
                 // 기사단: 높은 방어/체력, 전선 유지 특화 (방어/저항 1단계 = 피해 25% 감쇄 근사)
                 data.BranchA = new TowerBranchDef
                 {
                     Name = "제국 친위대 (기사단)",
-                    Stat = new TowerLevelStat { DisplayName = "기사단", Cost = 330, Range = 3f, AttackInterval = 1f, SoldierCount = 3, SoldierHp = 330, SoldierDamage = 13, SoldierDamageMax = 25, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f, SoldierDamageCut = 0.25f },
+                    Stat = new TowerLevelStat { DisplayName = "기사단", Cost = 330, Range = SheetRange(100f), AttackInterval = 1f, SoldierCount = 3, SoldierHp = 280, SoldierDamage = 10, SoldierDamageMax = 15, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f, SoldierRegenPerSecond = 8.4f, SoldierDamageCut = 0.25f },
                     Skills = new[]
                     {
                         Skill("신성한 의무", "유닛의 체력이 1 이하로 떨어지면 즉시 체력 100% 회복 · 쿨타임 60/45/30초", BranchSkillType.HolyDuty, 600, 60f, 45f, 30f),
@@ -1422,7 +1446,7 @@ namespace Rush.EditorTools
                 data.BranchB = new TowerBranchDef
                 {
                     Name = "영웅 용병단",
-                    Stat = new TowerLevelStat { DisplayName = "용병단", Cost = 330, Range = 3f, AttackInterval = 1f, SoldierCount = 3, SoldierHp = 210, SoldierDamage = 24, SoldierDamageMax = 40, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f },
+                    Stat = new TowerLevelStat { DisplayName = "용병단", Cost = 330, Range = SheetRange(100f), AttackInterval = 1f, SoldierCount = 3, SoldierHp = 220, SoldierDamage = 15, SoldierDamageMax = 20, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f, SoldierRegenPerSecond = 6.6f },
                     Skills = new[]
                     {
                         Skill("현상금 수거", "용병이 적을 죽이면 골드의 1.4/1.7/2배 획득 (올림) · 전장 회수와 합연산", BranchSkillType.BountyCollect, 750, 1.4f, 1.7f, 2f),
@@ -1439,16 +1463,16 @@ namespace Rush.EditorTools
                 data.ProjectileSpeed = 14f;
                 data.Levels = new[]
                 {
-                    new TowerLevelStat { DisplayName = "궁수탑 1단계", Cost = 70, Damage = 8, Range = 5f, AttackInterval = 0.9f },
-                    new TowerLevelStat { DisplayName = "궁수탑 2단계", Cost = 110, Damage = 12, Range = 5.5f, AttackInterval = 0.9f },
-                    new TowerLevelStat { DisplayName = "궁수탑 3단계", Cost = 180, Damage = 16, Range = 5.5f, AttackInterval = 0.7f },
+                    new TowerLevelStat { DisplayName = "궁수탑 1단계", Cost = 70, Damage = MidDamage(6f, 9f), Range = SheetRange(120f), AttackInterval = 0.5f },
+                    new TowerLevelStat { DisplayName = "궁수탑 2단계", Cost = 110, Damage = MidDamage(9f, 14f), Range = SheetRange(150f), AttackInterval = 0.5f },
+                    new TowerLevelStat { DisplayName = "궁수탑 3단계", Cost = 180, Damage = MidDamage(14f, 20f), Range = SheetRange(200f), AttackInterval = 0.5f },
                 };
 
                 // 명사수 성지: 넓은 사거리 + 빠른 연사
                 data.BranchA = new TowerBranchDef
                 {
                     Name = "명사수 성지",
-                    Stat = new TowerLevelStat { DisplayName = "명사수 성지", Cost = 320, Damage = 20, Range = 6.5f, AttackInterval = 0.55f },
+                    Stat = new TowerLevelStat { DisplayName = "명사수 성지", Cost = 320, Damage = MidDamage(17f, 25f), Range = SheetRange(240f), AttackInterval = 0.25f },
                     Skills = new[]
                     {
                         Skill("헤드샷", "공격 60번마다 다음 공격에 200/400/600 추가 물리 피해 · 일반 몬스터는 10/15/20% 확률로 즉사", BranchSkillType.Headshot, 750, 200f, 400f, 600f, 0.10f, 0.15f, 0.20f),
@@ -1460,7 +1484,7 @@ namespace Rush.EditorTools
                 data.BranchB = new TowerBranchDef
                 {
                     Name = "불법 총포상",
-                    Stat = new TowerLevelStat { DisplayName = "불법 총포상", Cost = 320, Damage = 45, Range = 7.5f, AttackInterval = 1.6f },
+                    Stat = new TowerLevelStat { DisplayName = "불법 총포상", Cost = 320, Damage = MidDamage(45f, 75f), Range = SheetRange(320f), AttackInterval = 1f },
                     Skills = new[]
                     {
                         Skill("마개조 기관총", "15초마다 1/3/5초간 공격주기 80% 감소 (공격속도 500%)", BranchSkillType.MachineGunBurst, 750, 1f, 3f, 5f),
@@ -1476,16 +1500,16 @@ namespace Rush.EditorTools
                 data.ProjectileSpeed = 10f;
                 data.Levels = new[]
                 {
-                    new TowerLevelStat { DisplayName = "마법사탑 1단계", Cost = 100, Damage = 12, Range = 4.5f, AttackInterval = 1.4f, SlowPercent = 0.25f, SlowDuration = 2f },
-                    new TowerLevelStat { DisplayName = "마법사탑 2단계", Cost = 165, Damage = 18, Range = 4.5f, AttackInterval = 1.4f, SlowPercent = 0.25f, SlowDuration = 2.5f },
-                    new TowerLevelStat { DisplayName = "마법사탑 3단계", Cost = 265, Damage = 26, Range = 5f, AttackInterval = 1.4f, SlowPercent = 0.3f, SlowDuration = 2.5f },
+                    new TowerLevelStat { DisplayName = "마법사탑 1단계", Cost = 100, Damage = MidDamage(18f, 30f), Range = SheetRange(100f), AttackInterval = 1f, SlowPercent = 0.25f, SlowDuration = 2f },
+                    new TowerLevelStat { DisplayName = "마법사탑 2단계", Cost = 165, Damage = MidDamage(28f, 48f), Range = SheetRange(130f), AttackInterval = 1f, SlowPercent = 0.25f, SlowDuration = 2.5f },
+                    new TowerLevelStat { DisplayName = "마법사탑 3단계", Cost = 265, Damage = MidDamage(40f, 76f), Range = SheetRange(160f), AttackInterval = 1f, SlowPercent = 0.3f, SlowDuration = 2.5f },
                 };
 
                 // 흑마법사: 공속은 더 느려지나 한 방이 매우 강함
                 data.BranchA = new TowerBranchDef
                 {
                     Name = "흑마법사",
-                    Stat = new TowerLevelStat { DisplayName = "흑마법사", Cost = 420, Damage = 46, Range = 5f, AttackInterval = 1.7f, SlowPercent = 0.3f, SlowDuration = 2.5f },
+                    Stat = new TowerLevelStat { DisplayName = "흑마법사", Cost = 420, Damage = MidDamage(75f, 145f), Range = SheetRange(160f), AttackInterval = 1.5f, SlowPercent = 0.3f, SlowDuration = 2.5f },
                     Skills = new[]
                     {
                         Skill("죽음의 광선", "20초마다 다음 기본 공격이 사거리 내 체력이 가장 많은 적에게 300/650/1000 마법 피해", BranchSkillType.DeathRay, 850, 300f, 650f, 1000f),
@@ -1497,7 +1521,7 @@ namespace Rush.EditorTools
                 data.BranchB = new TowerBranchDef
                 {
                     Name = "환영술사",
-                    Stat = new TowerLevelStat { DisplayName = "환영술사", Cost = 420, Damage = 30, Range = 5.5f, AttackInterval = 1.3f, SlowPercent = 0.4f, SlowDuration = 3f },
+                    Stat = new TowerLevelStat { DisplayName = "환영술사", Cost = 420, Damage = MidDamage(32f, 56f), Range = SheetRange(160f), AttackInterval = 0.75f, SlowPercent = 0.4f, SlowDuration = 3f },
                     Skills = new[]
                     {
                         Skill("길잃은 방랑자", "기본 공격이 1/2/4% 확률로 적을 시작 지점으로 되돌려보냄 · 중간 보스급 이상 제외", BranchSkillType.LostWanderer, 800, 0f, 0f, 0f, 0.01f, 0.02f, 0.04f),
@@ -1513,16 +1537,18 @@ namespace Rush.EditorTools
                 data.ProjectileSpeed = 8f;
                 data.Levels = new[]
                 {
-                    new TowerLevelStat { DisplayName = "포병탑 1단계", Cost = 125, Damage = 18, Range = 4.5f, AttackInterval = 2.5f, SplashRadius = 1.2f, ArmorPierce = 0.5f },
-                    new TowerLevelStat { DisplayName = "포병탑 2단계", Cost = 190, Damage = 28, Range = 4.5f, AttackInterval = 2.5f, SplashRadius = 1.4f, ArmorPierce = 0.5f },
-                    new TowerLevelStat { DisplayName = "포병탑 3단계", Cost = 300, Damage = 40, Range = 5f, AttackInterval = 2.5f, SplashRadius = 1.6f, ArmorPierce = 0.5f },
+                    // 광역 감쇠는 시트의 "가장자리 60%/75%"다. 3단계 증축이 특히 강화하는 값이고,
+                    // 용의 숨결포에서 감쇠가 완전히 사라진다 (SplashEdgeDamage = 1).
+                    new TowerLevelStat { DisplayName = "포병탑 1단계", Cost = 125, Damage = MidDamage(15f, 28f), Range = SheetRange(100f), AttackInterval = 1.5f, SplashRadius = SheetRange(20f), SplashEdgeDamage = 0.6f, ArmorPierce = 0.5f },
+                    new TowerLevelStat { DisplayName = "포병탑 2단계", Cost = 190, Damage = MidDamage(24f, 45f), Range = SheetRange(130f), AttackInterval = 1.5f, SplashRadius = SheetRange(20f), SplashEdgeDamage = 0.6f, ArmorPierce = 0.5f },
+                    new TowerLevelStat { DisplayName = "포병탑 3단계", Cost = 300, Damage = MidDamage(35f, 60f), Range = SheetRange(160f), AttackInterval = 1.5f, SplashRadius = SheetRange(25f), SplashEdgeDamage = 0.75f, ArmorPierce = 0.5f },
                 };
 
                 // 용의 숨결포: 광역 피해 강화
                 data.BranchA = new TowerBranchDef
                 {
                     Name = "용의 숨결포",
-                    Stat = new TowerLevelStat { DisplayName = "용의 숨결포", Cost = 460, Damage = 52, Range = 5f, AttackInterval = 2.5f, SplashRadius = 2.1f, ArmorPierce = 0.5f },
+                    Stat = new TowerLevelStat { DisplayName = "용의 숨결포", Cost = 460, Damage = MidDamage(55f, 95f), Range = SheetRange(180f), AttackInterval = 1.5f, SplashRadius = SheetRange(40f), SplashEdgeDamage = 1f, ArmorPierce = 0.5f },
                     Skills = new[]
                     {
                         Skill("용의 숨결", "6초마다 다음 공격이 광역 범위에 화염 장판을 남김 · 3초간 매초 20/35/50 피해 (광역 태그 아님)", BranchSkillType.DragonBreath, 600, 20f, 35f, 50f),
@@ -1534,7 +1560,7 @@ namespace Rush.EditorTools
                 data.BranchB = new TowerBranchDef
                 {
                     Name = "마개조 장사정포",
-                    Stat = new TowerLevelStat { DisplayName = "마개조 장사정포", Cost = 460, Damage = 48, Range = 7f, AttackInterval = 2.5f, SplashRadius = 1.3f, ArmorPierce = 0.5f },
+                    Stat = new TowerLevelStat { DisplayName = "마개조 장사정포", Cost = 460, Damage = MidDamage(70f, 120f), Range = SheetRange(270f), AttackInterval = 1.5f, SplashRadius = SheetRange(40f), SplashEdgeDamage = 0.75f, ArmorPierce = 0.5f },
                     Skills = new[]
                     {
                         Skill("활강포탄", "먼 거리의 적을 공격할 때 피해 +10/20/30%까지 증가", BranchSkillType.GlideShell, 600, 0.10f, 0.20f, 0.30f),
@@ -1553,7 +1579,7 @@ namespace Rush.EditorTools
 
             AssetDatabase.SaveAssets();
 
-            Report("타워 데이터 재베이크 완료 (시트 가격표 반영)");
+            Report("타워 데이터 재베이크 완료 (시트 타워 시트 전체 반영)");
         }
 
         /// <summary>타워 데이터를 항상 시트 값으로 덮어쓴다 (프리팹/연출 참조는 별도 규칙).</summary>
@@ -2091,14 +2117,16 @@ namespace Rush.EditorTools
 
             // 고정 구간 (1~6웨이브). 시트: 민병대 / 민병대+정찰병 / 중보병+라이더 / 마법사+민병대 / 중보병+마법사 / 중간 보스 1
             // 마릿수는 "단가 합 = 예산"이 되도록 맞췄다 (배수 1.0 구간이라 단가는 기본 킬 보상과 같다).
-            // 경로는 시트(고정 구간 경로)를 따른다. 가중치(50/50, 60/40 등)는 아직 순번 분배로 근사한다.
+            // 경로와 가중치는 시트(고정 구간 경로)를 그대로 쓴다.
             stage.Waves[0].RouteIds = new[] { "A1" };
+            stage.Waves[0].RouteWeights = new[] { 100 };
             stage.Waves[0].Entries = new[]
             {
                 Entry(militia, 32, 1.8f),
             };
 
             stage.Waves[1].RouteIds = new[] { "A1", "A2" };
+            stage.Waves[1].RouteWeights = new[] { 50, 50 };
             stage.Waves[1].Entries = new[]
             {
                 Entry(militia, 20, 2.8f),
@@ -2106,6 +2134,7 @@ namespace Rush.EditorTools
             };
 
             stage.Waves[2].RouteIds = new[] { "A1", "B1" };
+            stage.Waves[2].RouteWeights = new[] { 50, 50 };
             stage.Waves[2].Entries = new[]
             {
                 Entry(heavy, 16, 3.4f),
@@ -2113,12 +2142,15 @@ namespace Rush.EditorTools
             };
 
             stage.Waves[3].RouteIds = new[] { "B1", "B2" };
+            stage.Waves[3].RouteWeights = new[] { 60, 40 };
             stage.Waves[3].Entries = new[]
             {
                 Entry(mage, 10, 5.5f),
                 Entry(militia, 30, 1.8f, 3f),
             };
 
+            stage.Waves[4].RouteIds = new[] { "A1", "A2", "B1", "B2" };
+            stage.Waves[4].RouteWeights = new[] { 30, 20, 30, 20 };
             stage.Waves[4].Entries = new[]
             {
                 Entry(heavy, 18, 3f),
@@ -2126,7 +2158,11 @@ namespace Rush.EditorTools
             };
 
             // 6웨이브: 중간 보스 1(단가 510) + 남은 예산 220을 모든 종류로 채운다
+            // 시트: 잡졸은 네 경로 균등, 보스는 A1 고정
             stage.Waves[5].IsBossWave = true;
+            stage.Waves[5].RouteIds = new[] { "A1", "A2", "B1", "B2" };
+            stage.Waves[5].RouteWeights = new[] { 25, 25, 25, 25 };
+            stage.Waves[5].BossRouteId = "A1";
             stage.Waves[5].Entries = new[]
             {
                 Entry(militia, 10, 2f),
@@ -2331,9 +2367,12 @@ namespace Rush.EditorTools
             }
 
             // 플로우 수치는 시트가 원본이라 항상 재베이크한다 (매 웨이브 제시 / 리롤 판당 5회 / 등급 목표 확률)
-            config.FirstRewardWave = 1;
+            // 1웨이브는 예외로 보상 없이 시작한다. 판을 열자마자 선택을 강요하지 않으려는 것이고,
+            // 시트 문구("각 웨이브 시작 시")와 여기서만 갈라진다.
+            config.FirstRewardWave = 2;
             config.EveryNWaves = 1;
             config.CardsPerOffer = 3;
+            config.BossCardsPerOffer = 2;
             config.RerollsPerRun = 5;
             config.RerollCost = 0;
             config.TargetCommon = 60.14f;
