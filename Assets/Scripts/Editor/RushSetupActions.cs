@@ -2360,8 +2360,8 @@ namespace Rush.EditorTools
             SetupScene();
         }
 
-        /// <summary>씬에서 손으로 배치한 경로/슬롯의 이름과 순서를 정리하고 경로 비주얼을 다시 굽는다.</summary>
-        [MenuItem("Rush/씬 레이아웃 정리 (이름 + 경로 비주얼)")]
+        /// <summary>씬에서 손으로 배치한 경로/슬롯의 이름과 계층 순서를 정리한다.</summary>
+        [MenuItem("Rush/씬 레이아웃 정리 (이름 + 순서)")]
         public static void RunNormalizeSceneLayout()
         {
             NormalizeSceneLayout();
@@ -2412,7 +2412,6 @@ namespace Rush.EditorTools
             SetupCamera();
             SetupGround();
             var paths = SetupPaths();
-            BakePathVisual(paths);
             SetupSlots();
             UpgradeSlotVisuals();
             var ghostPreview = BakeBuildGhosts();
@@ -2532,98 +2531,8 @@ namespace Rush.EditorTools
         }
 
         /// <summary>
-        /// 경로를 바닥 타일로 베이크한다. 런타임 생성 없이 에디트 모드에서 바로 눈으로 확인할 수 있다.
-        /// 다시 호출하면 기존 타일을 지우고 현재 웨이포인트 기준으로 재생성한다.
-        /// </summary>
-        public static void BakePathVisual(PathRoute[] routes)
-        {
-            if (routes == null || routes.Length == 0)
-            {
-                Report("경로가 없어 경로 비주얼을 만들 수 없음");
-                return;
-            }
-
-            const float PathWidth = 1.6f;
-            const float TileHeight = 0.02f;
-
-            var existing = GameObject.Find("PathVisual");
-
-            if (existing != null)
-                UnityEngine.Object.DestroyImmediate(existing);
-
-            var root = new GameObject("PathVisual");
-            root.isStatic = true;
-
-            var pathMat = EnsureMaterial("Mat_Path", new Color(0.62f, 0.56f, 0.42f));
-            var startMat = EnsureMaterial("Mat_PathStart", new Color(0.35f, 0.75f, 0.4f));
-            var endMat = EnsureMaterial("Mat_PathEnd", new Color(0.8f, 0.3f, 0.3f));
-
-            // 시작/종료 지점은 루트끼리 공유하므로 마커가 겹치지 않게 좌표로 한 번만 찍는다
-            var markerPoints = new List<Vector3>(4);
-
-            // 라벨은 루트 ID가 아니라 좌표로 정한다. B1은 이름이 1로 끝나지만 종료는 2번 지점이다.
-            var startPoints = CollectEndpoints(routes, start: true);
-            var exitPoints = CollectEndpoints(routes, start: false);
-
-            int baked = 0;
-
-            foreach (var route in routes)
-            {
-                if (route == null || route.PointCount < 2)
-                    continue;
-
-                var group = new GameObject($"Route_{route.RouteId}");
-                group.transform.SetParent(root.transform);
-                group.isStatic = true;
-
-                for (int i = 0; i < route.PointCount - 1; i++)
-                {
-                    Vector3 a = route.GetPoint(i);
-                    Vector3 b = route.GetPoint(i + 1);
-                    Vector3 dir = b - a;
-                    float length = dir.magnitude;
-
-                    if (length < 0.01f)
-                        continue;
-
-                    var tile = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    tile.name = $"PathSegment_{i:00}";
-                    UnityEngine.Object.DestroyImmediate(tile.GetComponent<Collider>());
-
-                    tile.transform.SetParent(group.transform);
-                    tile.transform.position = (a + b) * 0.5f + Vector3.up * (TileHeight * 0.5f);
-                    tile.transform.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
-
-                    // 길이에 폭을 더해 꺾이는 모서리를 메운다
-                    tile.transform.localScale = new Vector3(PathWidth, TileHeight, length + PathWidth);
-                    tile.GetComponent<MeshRenderer>().sharedMaterial = pathMat;
-                }
-
-                Vector3 startPoint = route.GetPoint(0);
-                Vector3 exitPoint = route.GetPoint(route.PointCount - 1);
-
-                TryCreateSharedMarker(root.transform, markerPoints,
-                    $"SpawnMarker_{LabelOf(startPoints, startPoint, StartLabels)}", startPoint, startMat, PathWidth);
-
-                TryCreateSharedMarker(root.transform, markerPoints,
-                    $"ExitMarker_{LabelOf(exitPoints, exitPoint, ExitLabels)}", exitPoint, endMat, PathWidth);
-
-                baked++;
-            }
-
-            if (baked == 0)
-            {
-                Report("웨이포인트가 2개 이상인 루트가 없어 경로 비주얼을 만들 수 없음");
-                return;
-            }
-
-            Report($"경로 비주얼 베이크 완료 (루트 {baked}개)");
-        }
-
-        /// <summary>
         /// 씬에서 손으로 배치한 경로/슬롯을 정리한다. 위치는 절대 건드리지 않고 이름과 순서만 맞춘다.
         /// 웨이포인트를 복제하거나 슬롯을 늘리면 "Slot_07 (3)" 같은 이름이 남으므로 정기적으로 돌린다.
-        /// 정리 후 경로 비주얼을 현재 좌표로 다시 베이크한다.
         /// </summary>
         public static void NormalizeSceneLayout()
         {
@@ -2642,8 +2551,6 @@ namespace Rush.EditorTools
             System.Array.Sort(routes, CompareRouteOrder);
 
             SortRoutesInHierarchy(routes);
-
-            BakePathVisual(routes);
 
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
 
@@ -2760,87 +2667,6 @@ namespace Rush.EditorTools
         {
             for (int i = 0; i < ordered.Length; i++)
                 ordered[i].transform.SetSiblingIndex(i);
-        }
-
-        /// <summary>기획 스케치의 지점 표기. 시작은 위(A)에서 아래(B), 종료는 위(1)에서 아래(2) 순이다.</summary>
-        static readonly string[] StartLabels = { "A", "B" };
-        static readonly string[] ExitLabels = { "1", "2" };
-
-        /// <summary>
-        /// 루트들의 시작점(또는 종료점)을 좌표로 묶어 위에서 아래 순으로 돌려준다.
-        /// 여러 루트가 한 지점을 공유하므로 중복은 제거한다.
-        /// </summary>
-        static List<Vector3> CollectEndpoints(PathRoute[] routes, bool start)
-        {
-            var points = new List<Vector3>(4);
-
-            foreach (var route in routes)
-            {
-                if (route == null || route.PointCount < 2)
-                    continue;
-
-                Vector3 point = start ? route.GetPoint(0) : route.GetPoint(route.PointCount - 1);
-                bool duplicate = false;
-
-                foreach (var existing in points)
-                {
-                    if ((existing - point).sqrMagnitude >= 0.01f)
-                        continue;
-
-                    duplicate = true;
-                    break;
-                }
-
-                if (!duplicate)
-                    points.Add(point);
-            }
-
-            points.Sort((a, b) => b.z.CompareTo(a.z));
-
-            return points;
-        }
-
-        static string LabelOf(List<Vector3> points, Vector3 point, string[] labels)
-        {
-            for (int i = 0; i < points.Count; i++)
-            {
-                if ((points[i] - point).sqrMagnitude >= 0.01f)
-                    continue;
-
-                if (i < labels.Length)
-                    return labels[i];
-
-                return (i + 1).ToString();
-            }
-
-            return "?";
-        }
-
-        /// <summary>이미 마커를 찍은 좌표면 건너뛴다. 시작 지점 2곳 / 종료 지점 2곳만 남는다.</summary>
-        static void TryCreateSharedMarker(Transform parent, List<Vector3> used,
-            string name, Vector3 position, Material material, float width)
-        {
-            foreach (var point in used)
-            {
-                if ((point - position).sqrMagnitude < 0.01f)
-                    return;
-            }
-
-            used.Add(position);
-
-            CreatePathMarker(parent, name, position, material, width);
-        }
-
-        static void CreatePathMarker(Transform parent, string name, Vector3 position, Material material, float width)
-        {
-            var marker = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            marker.name = name;
-            UnityEngine.Object.DestroyImmediate(marker.GetComponent<Collider>());
-
-            marker.transform.SetParent(parent);
-            marker.transform.position = position + Vector3.up * 0.03f;
-            marker.transform.localScale = new Vector3(width, 0.06f, width);
-            marker.GetComponent<MeshRenderer>().sharedMaterial = material;
         }
 
         /// <summary>
@@ -3966,9 +3792,6 @@ namespace Rush.EditorTools
                     issues.Add($"[씬] 루트 {route.RouteId}: 웨이포인트가 2개 미만");
             }
 
-            if (GameObject.Find("PathVisual") == null)
-                issues.Add("[씬] 경로 비주얼(PathVisual)이 없음 - 경로 베이크 실행 필요");
-
             var slots = UnityEngine.Object.FindObjectsByType<TowerSlot>(FindObjectsSortMode.None);
 
             if (slots.Length == 0)
@@ -3976,7 +3799,7 @@ namespace Rush.EditorTools
 
             foreach (var slot in slots)
             {
-                // 슬롯이 길 위에 올라타면 건설 클릭과 경로 비주얼이 겹친다
+                // 슬롯이 길 위에 올라타면 건설 클릭이 경로와 겹친다
                 Vector3 origin = slot.transform.position;
                 origin.y = 0f;
 

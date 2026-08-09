@@ -276,20 +276,6 @@ namespace Rush.EditorTools
 
             row.Add(MakeButton("Stage01 씬 열기", OpenStageScene));
 
-            row.Add(MakeButton("경로 비주얼 다시 베이크", () =>
-            {
-                var routes = FindObjectsByType<PathRoute>(FindObjectsSortMode.None);
-
-                if (routes.Length == 0)
-                {
-                    OnReported("씬에 PathRoute가 없음 - 먼저 씬 셋업 실행");
-                    return;
-                }
-
-                RushSetupActions.BakePathVisual(routes);
-                EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
-            }));
-
             row.Add(MakeButton("씬 레이아웃 정리", RushSetupActions.NormalizeSceneLayout));
 
             body.Add(row);
