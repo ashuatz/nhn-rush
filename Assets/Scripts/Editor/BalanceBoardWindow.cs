@@ -1,18 +1,21 @@
 using System.Collections.Generic;
 using Rush.Data;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Rush.EditorTools
 {
     /// <summary>
-    /// 밸런스 전용 윈도우. 보상 플로우 수치와 카드 57종의 수치를 한 화면에서 조절한다.
+    /// 밸런스 전용 윈도우. 보상 플로우/카드의 빠른 편집과 함께
+    /// Assets/RushGame/Data 하위 데이터 에셋 전체(타워/몬스터/스테이지/난이도)를 한 화면에서 조절한다.
     /// 플레이 중에 바꿔도 다음 판정부터 바로 반영되며(시스템이 매번 에셋을 읽는다),
     /// 플레이 중 변경분은 플레이를 끝낼 때 디스크에 저장된다.
     /// </summary>
     public class BalanceBoardWindow : EditorWindow
     {
+        const string DataRoot = "Assets/RushGame/Data";
         const string RewardFolder = "Assets/RushGame/Data/Rewards";
 
         static readonly Color windowBackground = new Color(0.22f, 0.22f, 0.22f, 1f);
@@ -29,12 +32,19 @@ namespace Rush.EditorTools
         Label _summary;
         bool _building;
 
+        VisualElement _assetList;
+        TextField _assetSearch;
+        Label _assetSummary;
+
+        /// <summary>폴더 그룹의 펼침 상태. 목록을 다시 그려도 유지한다.</summary>
+        readonly HashSet<string> _collapsedGroups = new HashSet<string>();
+
         /// <summary>
-        /// 플레이 중 편집분의 저장 대기 플래그. 창 인스턴스가 아니라 static으로 들고,
+        /// 플레이 중 이 창에서 편집한 에셋의 GUID. 창 인스턴스가 아니라 static으로 들고,
         /// 에디터 로드 시 등록되는 정적 훅이 플레이 종료 시점에 저장한다.
-        /// 창을 닫아도 저장이 유실되지 않는다.
+        /// 창을 닫아도 저장이 유실되지 않는다. 다른 창에서 더럽힌 에셋까지 건드리지 않도록 대상만 기억한다.
         /// </summary>
-        static bool s_pendingSave;
+        static readonly HashSet<string> s_pendingGuids = new HashSet<string>();
 
         [InitializeOnLoadMethod]
         static void HookPlayModeSave()
@@ -48,27 +58,25 @@ namespace Rush.EditorTools
 
         static void SavePendingStatic()
         {
-            if (!s_pendingSave)
+            if (s_pendingGuids.Count == 0)
                 return;
 
-            s_pendingSave = false;
+            int saved = 0;
 
-            var guids = AssetDatabase.FindAssets("t:RewardDefinition", new[] { RewardFolder });
-
-            foreach (var guid in guids)
+            foreach (var guid in s_pendingGuids)
             {
-                var card = AssetDatabase.LoadAssetAtPath<RewardDefinition>(AssetDatabase.GUIDToAssetPath(guid));
+                var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(AssetDatabase.GUIDToAssetPath(guid));
 
-                if (card != null)
-                    AssetDatabase.SaveAssetIfDirty(card);
+                if (asset == null)
+                    continue;
+
+                AssetDatabase.SaveAssetIfDirty(asset);
+                saved++;
             }
 
-            var config = LoadConfig();
+            s_pendingGuids.Clear();
 
-            if (config != null)
-                AssetDatabase.SaveAssetIfDirty(config);
-
-            Debug.Log("[Rush] 플레이 중 조정한 밸런스 수치를 에셋에 저장함");
+            Debug.Log($"[Rush] 플레이 중 조정한 밸런스 수치 {saved}건을 에셋에 저장함");
         }
 
         [MenuItem("Rush/Balance Board")]
@@ -96,6 +104,7 @@ namespace Rush.EditorTools
                 return;
 
             RebuildCardList();
+            RebuildAssetList();
         }
 
         void MarkDirty(UnityEngine.Object asset)
@@ -103,11 +112,19 @@ namespace Rush.EditorTools
             if (_building)
                 return;
 
+            // 목록을 만든 뒤 삭제/재임포트된 대상일 수 있다
+            if (asset == null)
+                return;
+
             EditorUtility.SetDirty(asset);
 
             if (EditorApplication.isPlayingOrWillChangePlaymode)
             {
-                s_pendingSave = true;
+                string guid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(asset));
+
+                if (!string.IsNullOrEmpty(guid))
+                    s_pendingGuids.Add(guid);
+
                 return;
             }
 
@@ -134,8 +151,10 @@ namespace Rush.EditorTools
 
             scroll.Add(BuildFlowSection());
             scroll.Add(BuildCardSection());
+            scroll.Add(BuildAssetSection());
 
             RebuildCardList();
+            RebuildAssetList();
         }
 
         // ---------- 플로우 수치 ----------
@@ -399,6 +418,224 @@ namespace Rush.EditorTools
             field.RegisterValueChangedCallback(evt => onChanged(evt.newValue));
 
             return field;
+        }
+
+        // ---------- 데이터 에셋 (Data 하위 전체) ----------
+
+        VisualElement BuildAssetSection()
+        {
+            var section = Shell("데이터 에셋 (Assets/RushGame/Data)", out var body);
+
+            body.Add(Note("타워/몬스터/스테이지/난이도/보상 전부. 접힌 항목을 펼치면 인스펙터와 같은 항목을 그대로 편집한다"));
+
+            var filterRow = new VisualElement();
+            filterRow.style.flexDirection = FlexDirection.Row;
+            filterRow.style.marginBottom = 6f;
+
+            _assetSearch = new TextField();
+            _assetSearch.style.flexGrow = 1f;
+            _assetSearch.RegisterValueChangedCallback(evt => RebuildAssetList());
+            filterRow.Add(_assetSearch);
+
+            var refreshButton = new Button(RebuildAssetList);
+            refreshButton.text = "새로고침";
+            refreshButton.style.width = 80f;
+            refreshButton.style.marginLeft = 6f;
+            filterRow.Add(refreshButton);
+
+            body.Add(filterRow);
+
+            _assetSummary = Note("");
+            body.Add(_assetSummary);
+
+            _assetList = new VisualElement();
+            body.Add(_assetList);
+
+            return section;
+        }
+
+        void RebuildAssetList()
+        {
+            if (_assetList == null)
+                return;
+
+            _assetList.Clear();
+
+            string search = _assetSearch != null ? _assetSearch.value : "";
+
+            var groups = new SortedDictionary<string, List<AssetEntry>>(System.StringComparer.OrdinalIgnoreCase);
+            var guids = AssetDatabase.FindAssets("t:ScriptableObject", new[] { DataRoot });
+
+            foreach (var guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+
+                if (asset == null)
+                    continue;
+
+                if (!PassesAssetFilter(asset, search))
+                    continue;
+
+                string group = GroupNameOf(path);
+
+                if (!groups.TryGetValue(group, out var list))
+                {
+                    list = new List<AssetEntry>();
+                    groups.Add(group, list);
+                }
+
+                list.Add(new AssetEntry(guid, asset));
+            }
+
+            int total = 0;
+
+            foreach (var pair in groups)
+            {
+                pair.Value.Sort((a, b) => string.CompareOrdinal(a.Asset.name, b.Asset.name));
+
+                _assetList.Add(BuildAssetGroup(pair.Key, pair.Value));
+                total += pair.Value.Count;
+            }
+
+            if (total == 0)
+                _assetList.Add(Note("조건에 맞는 에셋이 없음 - Stage Command Center에서 데이터 생성 실행"));
+
+            if (_assetSummary != null)
+                _assetSummary.text = $"{total}개 에셋 / {groups.Count}개 폴더";
+        }
+
+        /// <summary>Data 루트 기준 첫 번째 하위 폴더 이름. 루트에 바로 놓인 에셋은 별도 그룹으로 묶는다.</summary>
+        static string GroupNameOf(string assetPath)
+        {
+            string prefix = DataRoot + "/";
+
+            if (!assetPath.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase))
+                return "(그 외)";
+
+            string relative = assetPath.Substring(prefix.Length);
+            int slash = relative.IndexOf('/');
+
+            if (slash < 0)
+                return "(루트)";
+
+            return relative.Substring(0, slash);
+        }
+
+        static bool PassesAssetFilter(ScriptableObject asset, string search)
+        {
+            if (string.IsNullOrEmpty(search))
+                return true;
+
+            if (asset.name.Contains(search, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (asset.GetType().Name.Contains(search, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return false;
+        }
+
+        /// <summary>목록 항목 하나. 펼치는 시점에 다시 읽을 수 있도록 GUID를 함께 든다.</summary>
+        readonly struct AssetEntry
+        {
+            public readonly string Guid;
+            public readonly ScriptableObject Asset;
+
+            public AssetEntry(string guid, ScriptableObject asset)
+            {
+                Guid = guid;
+                Asset = asset;
+            }
+        }
+
+        VisualElement BuildAssetGroup(string groupName, List<AssetEntry> assets)
+        {
+            var foldout = new Foldout();
+            foldout.text = $"{groupName} ({assets.Count})";
+            foldout.value = !_collapsedGroups.Contains(groupName);
+            foldout.style.marginBottom = 4f;
+            foldout.RegisterValueChangedCallback(evt =>
+            {
+                // 하위 폴드아웃 이벤트가 올라오므로 자기 자신의 변경만 기록한다
+                if (evt.target != foldout)
+                    return;
+
+                if (evt.newValue)
+                {
+                    _collapsedGroups.Remove(groupName);
+                    return;
+                }
+
+                _collapsedGroups.Add(groupName);
+            });
+
+            foreach (var entry in assets)
+                foldout.Add(BuildAssetRow(entry));
+
+            return foldout;
+        }
+
+        VisualElement BuildAssetRow(AssetEntry entry)
+        {
+            var foldout = new Foldout();
+            foldout.text = $"{entry.Asset.name}  ({entry.Asset.GetType().Name})";
+            foldout.value = false;
+            foldout.style.marginLeft = 10f;
+
+            // 스테이지처럼 무거운 에셋이 있어 인스펙터는 처음 펼칠 때 한 번만 만든다
+            bool inspectorBuilt = false;
+
+            foldout.RegisterValueChangedCallback(evt =>
+            {
+                if (evt.target != foldout)
+                    return;
+
+                if (!evt.newValue)
+                    return;
+
+                if (inspectorBuilt)
+                    return;
+
+                inspectorBuilt = true;
+                foldout.Add(BuildAssetInspector(entry.Guid));
+            });
+
+            return foldout;
+        }
+
+        VisualElement BuildAssetInspector(string guid)
+        {
+            var container = new VisualElement();
+
+            // 목록을 만든 뒤 삭제/재임포트됐을 수 있어 펼치는 시점에 다시 읽는다
+            var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(AssetDatabase.GUIDToAssetPath(guid));
+
+            if (asset == null)
+            {
+                container.Add(Note("에셋을 찾을 수 없음 - 새로고침 필요"));
+                return container;
+            }
+
+            var pingButton = new Button(() =>
+            {
+                Selection.activeObject = asset;
+                EditorGUIUtility.PingObject(asset);
+            });
+            pingButton.text = "프로젝트에서 선택";
+            pingButton.style.alignSelf = Align.FlexStart;
+            container.Add(pingButton);
+
+            var serialized = new SerializedObject(asset);
+
+            var inspector = new InspectorElement(serialized);
+            inspector.style.marginBottom = 6f;
+            container.Add(inspector);
+
+            // 편집 즉시 저장 / 플레이 중이면 종료 시점 저장 예약. 카드 편집과 동일한 규칙
+            container.TrackSerializedObjectValue(serialized, _ => MarkDirty(asset));
+
+            return container;
         }
 
         // ---------- 공용 ----------
