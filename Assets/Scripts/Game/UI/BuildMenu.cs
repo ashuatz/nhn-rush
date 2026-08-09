@@ -56,6 +56,12 @@ namespace Rush.UI
         /// <summary>지금 마우스가 올라가 있는 버튼의 사거리 계산식. 없으면 선택 상태의 기본 사거리를 쓴다.</summary>
         Func<float> _hoverRange;
 
+        /// <summary>
+        /// 랠리 포인트 지정 대기 중인지. 대상 참조와 따로 둔다 -
+        /// 파괴된 MonoBehaviour는 == null 이 true라 대상만 보면 모드에서 빠져나오지 못한다.
+        /// </summary>
+        bool _rallyMode;
+
         /// <summary>랠리 포인트 지정 대기 중인 병영. 다음 지면 클릭이 집결지가 된다.</summary>
         InfantryTower _rallyTarget;
 
@@ -107,6 +113,7 @@ namespace Rush.UI
         void OnDisable()
         {
             HideGhost();
+            ClearRallyState();
 
             if (_stage != null)
                 _stage.Changed -= RefreshButtons;
@@ -167,11 +174,21 @@ namespace Rush.UI
 
         void Update()
         {
-            // 랠리 지정 중에는 우클릭/ESC로 빠져나갈 수 있어야 한다 (지면을 안 찍고 취소)
-            if (_rallyTarget != null && (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape)))
+            if (_rallyMode)
             {
-                CancelRallyMode();
-                return;
+                // 대상 병영이 사라졌으면(판매/씬 정리) 모드를 접는다. 안 그러면 라디얼이 숨은 채 남는다.
+                if (_rallyTarget == null)
+                {
+                    ExitRallyMode();
+                    return;
+                }
+
+                // 지면을 안 찍고 빠져나가는 길
+                if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape))
+                {
+                    ExitRallyMode();
+                    return;
+                }
             }
 
             if (!Input.GetMouseButtonDown(0))
@@ -180,7 +197,7 @@ namespace Rush.UI
             if (IsPointerOverUI())
                 return;
 
-            if (_rallyTarget != null)
+            if (_rallyMode)
             {
                 PlaceRallyPoint();
                 return;
@@ -313,34 +330,67 @@ namespace Rush.UI
 
         /// <summary>
         /// 랠리 지정 모드에서 지면을 찍었을 때. 병영이 배치 가능 거리로 자르고 경로 위로 스냅한다.
-        /// 슬롯을 찍었더라도 그 위치를 그대로 집결지로 쓴다 (슬롯 선택으로 새지 않게).
+        /// 지면을 못 찾으면(하늘 클릭) 모드를 유지해 다시 찍을 수 있게 둔다.
         /// </summary>
         void PlaceRallyPoint()
         {
             var tower = _rallyTarget;
 
-            CancelRallyMode();
+            if (tower == null)
+            {
+                ExitRallyMode();
+                return;
+            }
 
-            if (tower == null || _camera == null)
+            if (!TryGetGroundPoint(out var point))
                 return;
 
-            var ray = _camera.ScreenPointToRay(Input.mousePosition);
-
-            if (!Physics.Raycast(ray, out var hit, 300f))
-                return;
-
-            tower.SetRallyPoint(hit.point);
+            tower.SetRallyPoint(point);
+            ExitRallyMode();
         }
 
-        void CancelRallyMode()
+        /// <summary>
+        /// 화면 좌표를 지면(y=0) 위 한 점으로 바꾼다.
+        /// 물리 레이캐스트를 쓰면 몬스터나 타워 콜라이더에 걸려 엉뚱한 높이에 찍히므로 평면을 쓴다.
+        /// </summary>
+        bool TryGetGroundPoint(out Vector3 point)
         {
+            point = Vector3.zero;
+
+            if (_camera == null)
+            {
+                _camera = Camera.main;
+
+                if (_camera == null)
+                    return false;
+            }
+
+            var ray = _camera.ScreenPointToRay(Input.mousePosition);
+            var ground = new Plane(Vector3.up, Vector3.zero);
+
+            if (!ground.Raycast(ray, out float enter))
+                return false;
+
+            point = ray.GetPoint(enter);
+
+            return true;
+        }
+
+        /// <summary>
+        /// 랠리 모드를 끝내고 메뉴를 원래대로 되돌린다.
+        /// 모드 동안 버려둔 골드/비용 갱신이 있으므로 표시만 켜지 말고 통째로 다시 그린다.
+        /// </summary>
+        void ExitRallyMode()
+        {
+            ClearRallyState();
+            RefreshButtons();
+        }
+
+        void ClearRallyState()
+        {
+            _rallyMode = false;
             _rallyTarget = null;
             _hoverRange = null;
-
-            ShowDefaultRange();
-
-            if (_radial != null && _selected != null)
-                ShowRadial();
         }
 
         /// <summary>랠리 지정 모드 진입. 라디얼을 잠시 감춰 지면 클릭을 방해하지 않게 한다.</summary>
@@ -357,6 +407,7 @@ namespace Rush.UI
             if (infantry == null)
                 return;
 
+            _rallyMode = true;
             _rallyTarget = infantry;
 
             HideRadial();
@@ -372,9 +423,7 @@ namespace Rush.UI
         void Select(TowerSlot slot)
         {
             HideGhost();
-
-            if (_rallyTarget != null)
-                CancelRallyMode();
+            ClearRallyState();
 
             if (_selected != null)
                 _selected.SetSelected(false);
@@ -395,12 +444,13 @@ namespace Rush.UI
             // 랠리 지정 중에는 라디얼을 접고 배치 가능 거리를 띄운 상태다.
             // 이 함수는 골드가 바뀔 때마다(_stage.Changed) 불리므로, 그냥 두면 적이 한 마리 죽는 순간
             // 모드가 풀려 버린다. 판이 끝났을 때만 강제로 빠져나온다.
-            if (_rallyTarget != null)
+            // 이때 버린 갱신은 ExitRallyMode가 모드를 끝내면서 다시 그린다.
+            if (_rallyMode)
             {
                 if (_stage != null && _stage.IsPlayable)
                     return;
 
-                CancelRallyMode();
+                ClearRallyState();
             }
 
             // 버튼을 다시 만들면 호버 상태가 끊기므로 남아 있던 고스트와 호버 사거리도 같이 정리한다

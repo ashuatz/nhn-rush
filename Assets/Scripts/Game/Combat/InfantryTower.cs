@@ -63,13 +63,7 @@ namespace Rush.Combat
             Vector3 target = worldPosition;
             target.y = 0f;
 
-            Vector3 offset = target - origin;
-            float range = RallyRange;
-
-            if (offset.magnitude > range)
-                target = origin + offset.normalized * range;
-
-            _rallyPoint = SnapToPath(target);
+            _rallyPoint = ClampToPathWithinRange(origin, target);
 
             // 이미 나가 있는 병사들도 새 집결지로 이동한다. 소환 때와 같은 순번으로 흩어 세운다.
             int index = 0;
@@ -236,6 +230,49 @@ namespace Rush.Combat
         Vector3 ComputeRallyPoint()
         {
             return SnapToPath(transform.position);
+        }
+
+        /// <summary>
+        /// 클릭 지점을 경로 위로 붙이고, 배치 가능 거리를 넘으면 경로를 따라 타워 쪽으로 당긴다.
+        ///
+        /// 먼저 자르고 나중에 스냅하면 스냅 결과가 다시 사거리 밖으로 나갈 수 있다 (경로가 타워와 나란할 때).
+        /// 그래서 경로 위 진행 거리로 바꿔 놓고 그 위에서 당긴다 - 결과가 항상 경로 위에 남는다.
+        /// 하한은 타워 자신의 최근접 경로 지점(= 기본 집결지)이라 언제나 유효한 답이 나온다.
+        /// </summary>
+        Vector3 ClampToPathWithinRange(Vector3 origin, Vector3 target)
+        {
+            if (Stage == null)
+                return target;
+
+            var path = Stage.NearestPath(target);
+
+            if (path == null)
+                return target;
+
+            float towerAt = path.ClosestDistanceAlong(origin);
+            float clickAt = path.ClosestDistanceAlong(target);
+            float rangeSqr = RallyRange * RallyRange;
+
+            Vector3 point = path.GetPositionAtDistance(clickAt);
+
+            // 클릭 지점부터 타워 최근접 지점까지 이분 탐색으로 당긴다
+            for (int i = 0; i < 8; i++)
+            {
+                if (Horizontal(point - origin).sqrMagnitude <= rangeSqr)
+                    return point;
+
+                clickAt = Mathf.Lerp(towerAt, clickAt, 0.5f);
+                point = path.GetPositionAtDistance(clickAt);
+            }
+
+            return path.GetPositionAtDistance(towerAt);
+        }
+
+        static Vector3 Horizontal(Vector3 value)
+        {
+            value.y = 0f;
+
+            return value;
         }
 
         /// <summary>가장 가까운 루트 위로 끌어다 붙인다. 루트를 못 찾으면 원래 자리를 그대로 쓴다.</summary>
