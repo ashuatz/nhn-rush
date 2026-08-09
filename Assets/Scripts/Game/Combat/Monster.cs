@@ -23,6 +23,18 @@ namespace Rush.Combat
         /// <summary>경로 끝에 도달했다고 볼 반경. 몸체는 프로브보다 뒤에 있으므로 별도 판정이 필요하다.</summary>
         const float ArriveRadius = 0.25f;
 
+        /// <summary>경로 중심선에서 좌우로 벌어지는 최대 거리. 같은 배치가 한 점에 겹쳐 나오는 것을 막는다.</summary>
+        const float LaneSpread = 0.45f;
+
+        /// <summary>스폰 시 진행 거리에 섞는 최대 지연 거리. 앞뒤로도 흩어 놓는다.</summary>
+        const float SpawnDistanceJitter = 0.8f;
+
+        /// <summary>스폰 시 진행 방향에 섞는 최대 요(yaw) 각도. 선회로 곧 정렬된다.</summary>
+        const float SpawnYawJitter = 25f;
+
+        /// <summary>레인 오프셋의 좌우 방향을 구할 때 경로를 앞뒤로 샘플링하는 거리.</summary>
+        const float TangentSample = 0.25f;
+
         /// <summary>사망 파편 연출. 에디터 셋업에서 채운다.</summary>
         [SerializeField] GameObject _deathFx;
 
@@ -39,6 +51,9 @@ namespace Rush.Combat
         float _yOffset;
         float _moveSpeed;
 
+        /// <summary>경로 중심선 기준 좌우 오프셋. 스폰 시 한 번 뽑아 끝까지 유지한다.</summary>
+        float _laneOffset;
+
         float _slowPercent;
         float _slowUntil;
         float _stunUntil;
@@ -52,6 +67,23 @@ namespace Rush.Combat
         public MonsterData Data { get; private set; }
         public float Hp { get; private set; }
         public float MaxHp { get; private set; }
+
+        string _displayName;
+
+        /// <summary>
+        /// 로그와 HP 오버레이에 쓰는 이름. 중간 보스는 배정된 종류 이름("돌격대장" 등)으로 바뀐다.
+        /// 데이터 이름은 웨이브 슬롯 이름("중간 보스 1")이라 판마다 달라지는 정체를 못 보여준다.
+        /// </summary>
+        public string DisplayName
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_displayName))
+                    return Data.DisplayName;
+
+                return _displayName;
+            }
+        }
 
         /// <summary>웨이브 배수가 반영된 킬 보상. 스프레드시트(적 스탯 스케일링).</summary>
         public int GoldReward => ScaledGold(Data, _statMultiplier);
@@ -158,13 +190,40 @@ namespace Rush.Combat
             else
                 _yOffset = GroundHeight;
 
-            _distance = 0f;
-            transform.position = _route.GetPositionAtDistance(0f) + Vector3.up * _yOffset;
+            // 한 배치가 같은 점에 겹쳐 나오지 않도록 좌우 레인과 진행 거리를 흩는다.
+            // 거리 지터는 그만큼 앞서 출발하는 것이므로 진행률/타겟 우선순위에도 반영된다 (최대 0.8, 경로 30 이상 기준 3% 미만).
+            _laneOffset = UnityEngine.Random.Range(-LaneSpread, LaneSpread);
+            _distance = Mathf.Min(UnityEngine.Random.Range(0f, SpawnDistanceJitter), _route.TotalLength);
+
+            transform.position = PathPosition(_distance);
 
             // 스폰 직후 첫 프레임에 크게 도는 것을 막기 위해 프로브 쪽을 미리 바라본다
             FaceProbeImmediately();
 
+            // 진행 방향에서 조금씩 어긋난 채 등장한다. 선회 한도 안에서 곧 경로에 정렬된다.
+            transform.rotation *= Quaternion.Euler(0f, UnityEngine.Random.Range(-SpawnYawJitter, SpawnYawJitter), 0f);
+
             MonsterRegistry.Register(this);
+        }
+
+        /// <summary>
+        /// 중간 보스 종류를 입힌다. 시트 기준으로 종류가 정하는 것은 체력 배율과 방어 배분뿐이며
+        /// 공격력/킬 보상은 웨이브가 정한 값을 그대로 쓴다. 스폰 직후 한 번만 호출한다.
+        /// </summary>
+        public void ApplyBossArchetype(BossArchetypeDef def)
+        {
+            if (def == null)
+                return;
+
+            MaxHp *= Mathf.Max(0.01f, def.HpScale);
+            Hp = MaxHp;
+
+            PhysStage = (int)def.PhysicalDefense;
+            MagicStage = (int)def.MagicalDefense;
+
+            _displayName = def.DisplayName;
+
+            GameLog.Info("Wave", $"중간 보스 등장 - {DisplayName} (체력 {MaxHp:F0})");
         }
 
         void OnDestroy()
@@ -184,9 +243,10 @@ namespace Rush.Combat
 
             TickRangedAttack();
 
-            // 병사에게 저지당한 동안은 이동을 멈추고 근접 반격한다
+            // 병사에게 저지당한 동안은 이동을 멈추고 상대를 바라보며 근접 반격한다
             if (_blockedBy != null)
             {
+                FaceBlocker();
                 TickMelee();
                 return;
             }
@@ -213,7 +273,7 @@ namespace Rush.Combat
                 return;
 
             _meleeTimer = Data.MeleeInterval;
-            _blockedBy.TakeDamage(Data.MeleeDamage * AttackMultiplier(), Data.DisplayName);
+            _blockedBy.TakeDamage(Data.MeleeDamage * AttackMultiplier(), DisplayName);
         }
 
         void TickRangedAttack()
@@ -232,10 +292,10 @@ namespace Rush.Combat
                 return;
 
             _rangedTimer = Data.RangedInterval;
-            target.TakeDamage(Data.RangedDamage * AttackMultiplier(), Data.DisplayName);
+            target.TakeDamage(Data.RangedDamage * AttackMultiplier(), DisplayName);
 
             if (GameLog.VerboseCombat)
-                GameLog.Info("Dmg", $"{Data.DisplayName} 원거리 -> 병사: {Data.RangedDamage:F0}");
+                GameLog.Info("Dmg", $"{DisplayName} 원거리 -> 병사: {Data.RangedDamage:F0}");
         }
 
         /// <summary>웨이브 스탯 배수 x 통제 상태 공격력 감소 보상(C11).</summary>
@@ -245,6 +305,37 @@ namespace Rush.Combat
                 return _statMultiplier;
 
             return _statMultiplier * (1f - RewardSystem.ControlledAttackReduction());
+        }
+
+        /// <summary>
+        /// 경로 진행 거리에 대응하는 실제 위치. 중심선에 레인 오프셋과 비행 높이를 더한 값이다.
+        /// 위치를 순간이동시키는 모든 곳(스폰/넉백/귀환)이 이 창구를 쓴다.
+        /// </summary>
+        Vector3 PathPosition(float distance)
+        {
+            return _route.GetPositionAtDistance(distance) + LaneOffsetAt(distance) + Vector3.up * _yOffset;
+        }
+
+        /// <summary>해당 진행 거리에서의 좌우 오프셋. 경로 접선의 수직 방향으로 밀어낸다.</summary>
+        Vector3 LaneOffsetAt(float distance)
+        {
+            if (Mathf.Approximately(_laneOffset, 0f))
+                return Vector3.zero;
+
+            // 경로 밖을 샘플링하면 앞뒤가 같은 끝점으로 clamp돼 접선이 0이 된다.
+            // 그러면 종점 근처에서 오프셋이 갑자기 사라져 레인이 중심선으로 꺾인다.
+            float center = Mathf.Clamp(distance, 0f, _route.TotalLength);
+
+            Vector3 back = _route.GetPositionAtDistance(center - TangentSample);
+            Vector3 ahead = _route.GetPositionAtDistance(center + TangentSample);
+
+            Vector3 tangent = ahead - back;
+            tangent.y = 0f;
+
+            if (tangent.sqrMagnitude < 0.000001f)
+                return Vector3.zero;
+
+            return Vector3.Cross(Vector3.up, tangent.normalized) * _laneOffset;
         }
 
         void Move()
@@ -269,17 +360,22 @@ namespace Rush.Combat
                 return;
             }
 
-            // 프로브: 경로 위에서 진행 거리보다 선행 거리만큼 앞선 점.
-            // 몸체를 경로에 직접 찍지 않고 이 점을 향해 선회시키므로 웨이포인트 꺾임이 호로 펴진다.
-            Vector3 probe = _route.GetPositionAtDistance(_distance + _probeLead);
+            SteerTowards(ProbePosition(), step);
+        }
 
-            SteerTowards(probe, step);
+        /// <summary>
+        /// 프로브: 경로 위에서 진행 거리보다 선행 거리만큼 앞선 점 (레인 오프셋 포함).
+        /// 몸체를 경로에 직접 찍지 않고 이 점을 향해 선회시키므로 웨이포인트 꺾임이 호로 펴진다.
+        /// </summary>
+        Vector3 ProbePosition()
+        {
+            return PathPosition(_distance + _probeLead);
         }
 
         /// <summary>경로 진행이 끝난 뒤 종점까지의 마무리 이동. 도달하면 출구 처리.</summary>
         void MoveToExit(float step)
         {
-            Vector3 end = _route.GetPositionAtDistance(_route.TotalLength) + Vector3.up * _yOffset;
+            Vector3 end = PathPosition(_route.TotalLength);
 
             Vector3 toEnd = end - transform.position;
             toEnd.y = 0f;
@@ -327,13 +423,37 @@ namespace Rush.Combat
         /// <summary>스폰/귀환처럼 위치를 순간이동시킨 직후 방향을 프로브 쪽으로 즉시 맞춘다.</summary>
         void FaceProbeImmediately()
         {
-            Vector3 toProbe = _route.GetPositionAtDistance(_distance + _probeLead) - transform.position;
+            Vector3 toProbe = ProbePosition() - transform.position;
             toProbe.y = 0f;
 
             if (toProbe.sqrMagnitude < 0.000001f)
                 return;
 
             transform.rotation = Quaternion.LookRotation(toProbe.normalized, Vector3.up);
+        }
+
+        /// <summary>저지당한 동안 자기를 붙잡은 병사 쪽으로 선회한다. 이동 선회와 같은 한도를 쓴다.</summary>
+        void FaceBlocker()
+        {
+            if (_blockedBy == null)
+                return;
+
+            Vector3 toBlocker = _blockedBy.transform.position - transform.position;
+            toBlocker.y = 0f;
+
+            if (toBlocker.sqrMagnitude < 0.000001f)
+                return;
+
+            Vector3 forward = transform.forward;
+            forward.y = 0f;
+
+            if (forward.sqrMagnitude < 0.000001f)
+                forward = Vector3.forward;
+
+            float maxRadians = _turnSpeed * Mathf.Deg2Rad * Time.deltaTime;
+            forward = Vector3.RotateTowards(forward.normalized, toBlocker.normalized, maxRadians, 0f);
+
+            transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
         }
 
         void ReachExit()
@@ -459,7 +579,7 @@ namespace Rush.Combat
             ReleaseFromBlocker();
 
             _distance = Mathf.Max(0f, _distance - pathDistance);
-            transform.position = _route.GetPositionAtDistance(_distance) + Vector3.up * _yOffset;
+            transform.position = PathPosition(_distance);
 
             // 스냅한 위치에서 이전 방향을 그대로 두면 몇 프레임 동안 경로 밖으로 달린다
             FaceProbeImmediately();
@@ -490,7 +610,7 @@ namespace Rush.Combat
             PhysStage--;
 
             if (GameLog.VerboseCombat)
-                GameLog.Info("Dmg", $"{Data.DisplayName} 물리 방어 하락 -> {PhysStage}단계");
+                GameLog.Info("Dmg", $"{DisplayName} 물리 방어 하락 -> {PhysStage}단계");
         }
 
         /// <summary>경로 시작 지점으로 되돌린다 (길잃은 방랑자). 저지 중이면 풀린다.</summary>
@@ -502,11 +622,11 @@ namespace Rush.Combat
             ReleaseFromBlocker();
 
             _distance = 0f;
-            transform.position = _route.GetPositionAtDistance(0f) + Vector3.up * _yOffset;
+            transform.position = PathPosition(0f);
 
             FaceProbeImmediately();
 
-            GameLog.Info("Skill", $"{Data.DisplayName} 시작 지점으로 귀환");
+            GameLog.Info("Skill", $"{DisplayName} 시작 지점으로 귀환");
         }
 
         /// <summary>마법 저항 단계를 영구히 한 단계 낮춘다 (최소 0).</summary>
@@ -518,7 +638,7 @@ namespace Rush.Combat
             MagicStage--;
 
             if (GameLog.VerboseCombat)
-                GameLog.Info("Dmg", $"{Data.DisplayName} 마법 저항 하락 -> {MagicStage}단계");
+                GameLog.Info("Dmg", $"{DisplayName} 마법 저항 하락 -> {MagicStage}단계");
         }
 
         /// <summary>병사의 저지 시도. 지상 유닛만, 한 병사에게만 저지된다.</summary>
@@ -566,7 +686,7 @@ namespace Rush.Combat
             if (_route == null)
                 return;
 
-            Vector3 probe = _route.GetPositionAtDistance(_distance + _probeLead) + Vector3.up * _yOffset;
+            Vector3 probe = ProbePosition();
 
             Gizmos.color = Color.cyan;
             Gizmos.DrawSphere(probe, 0.12f);

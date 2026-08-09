@@ -18,6 +18,9 @@ namespace Rush.Combat
         const float MeleeRange = 0.7f;
         const float MoveSpeed = 3f;
 
+        /// <summary>몸체 선회 속도(도/초). 적에게 붙을 때와 복귀할 때 진행/교전 방향을 바라본다.</summary>
+        const float TurnSpeed = 720f;
+
         /// <summary>집결지에서 이만큼 벗어난 표적은 놓고 복귀한다 (무한 추격 방지).</summary>
         const float LeashMargin = 2.5f;
 
@@ -111,6 +114,10 @@ namespace Rush.Combat
             IsAlive = true;
 
             transform.position = rallyPoint;
+
+            // 소환 직후 엉뚱한 방향을 보고 서 있지 않도록 병영 반대쪽(전선 쪽)을 바라본다
+            if (owner != null)
+                SnapFacing(rallyPoint - owner.transform.position);
 
             _visual = transform.Find("Visual");
 
@@ -228,6 +235,9 @@ namespace Rush.Combat
             Vector3 toTarget = _target.transform.position - transform.position;
             toTarget.y = 0f;
 
+            // 접근 중에도 교전 중에도 표적을 바라본다
+            FaceDirection(toTarget);
+
             // 근접 사거리 밖이면 접근만 한다 (원거리 저지 금지)
             if (toTarget.magnitude > MeleeRange)
             {
@@ -249,7 +259,12 @@ namespace Rush.Combat
                 return;
 
             _attackTimer = _attackInterval;
-            _lungeDirection = toTarget.normalized;
+
+            // 선회는 점진적이라 표적을 막 바꾼 프레임에도 공격이 나갈 수 있다.
+            // 찌르는 순간만은 정확히 표적을 향하도록 맞춘 뒤 로컬 정면으로 찌른다.
+            SnapFacing(toTarget);
+
+            _lungeDirection = Vector3.forward;
             _lungeTimer = LungeDuration;
 
             // 공격력은 최소~최대 범위에서 매 타격 무작위 (스프레드시트: 병영 유닛 스탯)
@@ -273,7 +288,7 @@ namespace Rush.Combat
         }
 
         /// <summary>
-        /// 신성한 강타: 15% 확률로 공격이 1/1.5/2배 피해를 광역으로 입힌다.
+        /// 신성한 강타: 10/15/20% 확률로 공격이 2배 피해를 광역으로 입힌다.
         /// 주 대상은 기본 공격으로 이미 1배를 받았으므로 배수의 차액만, 주변은 배수 전체를 받는다.
         /// </summary>
         void TryHolySmite(float rolledDamage, in DamageSource source)
@@ -284,7 +299,7 @@ namespace Rush.Combat
             if (!_owner.TryGetSkill(BranchSkillType.HolySmite, out var smite, out int level))
                 return;
 
-            if (!Luck.Roll(0.15f, transform.position))
+            if (!Luck.Roll(smite.ChanceAt(level), transform.position))
                 return;
 
             var splashSource = source;
@@ -367,7 +382,40 @@ namespace Rush.Combat
             if (toRally.magnitude < 0.1f)
                 return;
 
+            FaceDirection(toRally);
+
             transform.position += toRally.normalized * (MoveSpeed * Time.deltaTime);
+        }
+
+        /// <summary>선회 한도를 무시하고 즉시 그 방향을 바라본다 (소환 직후용).</summary>
+        void SnapFacing(Vector3 direction)
+        {
+            direction.y = 0f;
+
+            if (direction.sqrMagnitude < 0.000001f)
+                return;
+
+            transform.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+        }
+
+        /// <summary>수평 방향을 선회 한도 안에서 바라본다. 방향이 사실상 0이면 그대로 둔다.</summary>
+        void FaceDirection(Vector3 direction)
+        {
+            direction.y = 0f;
+
+            if (direction.sqrMagnitude < 0.000001f)
+                return;
+
+            Vector3 forward = transform.forward;
+            forward.y = 0f;
+
+            if (forward.sqrMagnitude < 0.000001f)
+                forward = Vector3.forward;
+
+            float maxRadians = TurnSpeed * Mathf.Deg2Rad * Time.deltaTime;
+            forward = Vector3.RotateTowards(forward.normalized, direction.normalized, maxRadians, 0f);
+
+            transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
         }
 
         void ClearTarget()
@@ -467,13 +515,14 @@ namespace Rush.Combat
             if (_owner == null)
                 return false;
 
-            if (_owner.SkillLevel(BranchSkillType.HolyDuty) <= 0)
+            if (!_owner.TryGetSkill(BranchSkillType.HolyDuty, out var duty, out int level))
                 return false;
 
             if (Time.time < _holyDutyReadyAt)
                 return false;
 
-            _holyDutyReadyAt = Time.time + 60f;
+            // 쿨타임은 레벨별 값(60/45/30초)을 그대로 쓴다
+            _holyDutyReadyAt = Time.time + duty.ValueAt(level);
             Hp = _maxHp;
 
             GameLog.Info("Skill", "신성한 의무 발동 - 병사 체력 전체 회복");
