@@ -942,7 +942,9 @@ namespace Rush.UI
 
             ShowEarlyCall(true);
             SetEarlyCallEnabled(true);
-            _earlyCallButton.text = $"조기소환  +{_stage.EarlyCallBonus}G";
+
+            _earlyCallButton.text = $"조기소환 +{_stage.EarlyCallBonus}G";
+            _earlyCallButton.tooltip = "남은 대기 시간을 건너뛰고 다음 웨이브를 앞당긴다. 특성 선택은 그대로 진행된다.";
         }
 
         void SetEarlyCallEnabled(bool enabled)
