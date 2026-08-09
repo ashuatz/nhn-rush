@@ -19,17 +19,74 @@ namespace Rush.UI
         const float TooltipWidth = 260f;
         const int FlashMilliseconds = 1400;
 
+        /// <summary>목록이 비었을 때도 유지할 패널 높이.</summary>
+        const float PanelMinHeight = 190f;
+
+        /// <summary>접혀 있을 때 손잡이 탭 높이.</summary>
+        const float HandleMinHeight = 90f;
+
+        /// <summary>서랍이 미끄러지는 시간. UI Toolkit 트랜지션은 실시간이라 게임이 멈춰도 돈다.</summary>
+        const int DrawerSlideMs = 200;
+
         static readonly Color PanelColor = new Color(0.1f, 0.1f, 0.14f, 0.92f);
-        static readonly Color HandleColor = new Color(0.16f, 0.16f, 0.22f, 0.95f);
+
+        /// <summary>접힌 손잡이 화살표 색. HUD 강조색과 같은 값이라 UI 전체가 한 벌로 읽힌다.</summary>
+        static readonly Color HandleAccentColor = new Color(1f, 0.86f, 0.45f, 1f);
         static readonly Color TooltipColor = new Color(0.07f, 0.07f, 0.1f, 0.97f);
         static readonly Color RowHoverColor = new Color(1f, 1f, 1f, 0.08f);
         static readonly Color RowPinnedColor = new Color(1f, 1f, 1f, 0.16f);
+
+        /// <summary>목록에 묶어 보여줄 계통 순서. 화력이 가장 많아 위로 올린다.</summary>
+        static readonly RewardCategory[] CategoryOrder =
+        {
+            RewardCategory.Firepower,
+            RewardCategory.Control,
+            RewardCategory.Placement,
+            RewardCategory.Economy,
+        };
+
+        static void ClearSpacing(VisualElement element)
+        {
+            element.style.marginLeft = 0;
+            element.style.marginRight = 0;
+            element.style.marginTop = 0;
+            element.style.marginBottom = 0;
+        }
+
+        /// <summary>
+        /// 기본 테마가 버튼에 얹는 테두리와 포커스 링을 걷어낸다.
+        /// 안 걷으면 회색 1px 테두리가 남고, 한 번 누른 뒤에는 파란 포커스 링이 계속 붙어 혼자 튄다.
+        /// </summary>
+        static void StripDefaultChrome(Button button)
+        {
+            button.focusable = false;
+
+            button.style.borderLeftWidth = 0;
+            button.style.borderRightWidth = 0;
+            button.style.borderTopWidth = 0;
+            button.style.borderBottomWidth = 0;
+        }
+
+        static Color CategoryColor(RewardCategory category)
+        {
+            if (category == RewardCategory.Firepower)
+                return new Color(1f, 0.52f, 0.38f, 1f);
+
+            if (category == RewardCategory.Economy)
+                return new Color(1f, 0.84f, 0.42f, 1f);
+
+            if (category == RewardCategory.Placement)
+                return new Color(0.46f, 0.74f, 1f, 1f);
+
+            return new Color(0.72f, 0.6f, 1f, 1f);
+        }
 
         [SerializeField] StageController _stage;
         [SerializeField] RewardSystem _rewards;
 
         VisualElement _root;
         VisualElement _panel;
+        Label _titleLabel;
         Button _handle;
         ScrollView _list;
 
@@ -39,6 +96,9 @@ namespace Rush.UI
         Label _tooltipDesc;
         Label _tooltipNote;
         RewardDefinition _tooltipPinned;
+
+        /// <summary>패널이 펼쳐져 있는지 (고정 + 자동 노출 둘 다 포함).</summary>
+        bool _open;
 
         bool _pinnedOpen;
         IVisualElementScheduledItem _flashClose;
@@ -129,18 +189,32 @@ namespace Rush.UI
             _root.style.top = 90;
             _root.style.bottom = 140;
             _root.style.flexDirection = FlexDirection.Row;
-            _root.style.alignItems = Align.FlexStart;
+
+            // 손잡이와 패널을 같은 중심선에 둔다. 한쪽만 위로 붙이면 펼칠 때 손잡이가 튄다.
+            _root.style.alignItems = Align.Center;
+
+            // 시작은 닫힌 위치. 트랜지션을 걸기 전에 잡아둬야 첫 프레임에 미끄러지지 않는다.
+            _root.style.translate = new Translate(PanelWidth, 0f);
+            _root.style.transitionProperty = new List<StylePropertyName> { "translate" };
+            _root.style.transitionDuration = new List<TimeValue> { new TimeValue(DrawerSlideMs, TimeUnit.Millisecond) };
+            _root.style.transitionTimingFunction = new List<EasingFunction> { new EasingFunction(EasingMode.EaseOutCubic) };
 
             // 접기/펼치기 손잡이
             _handle = new Button(TogglePinned);
             _handle.style.width = 26;
-            _handle.style.minHeight = 90;
-            _handle.style.backgroundColor = HandleColor;
+            _handle.style.minHeight = HandleMinHeight;
+            // 패널과 같은 색을 써서 펼쳤을 때 손잡이-패널 이음매가 보이지 않게 한다
+            _handle.style.backgroundColor = PanelColor;
             _handle.style.color = Color.white;
-            _handle.style.fontSize = 12;
+            _handle.style.fontSize = 17;
             _handle.style.unityTextAlign = TextAnchor.MiddleCenter;
             _handle.style.whiteSpace = WhiteSpace.Normal;
-            _handle.style.marginRight = 0;
+            ClearSpacing(_handle);
+            StripDefaultChrome(_handle);
+
+            // 화면 오른쪽 끝에 붙으므로 왼쪽만 둥글린다
+            _handle.style.borderTopLeftRadius = 10;
+            _handle.style.borderBottomLeftRadius = 10;
             _root.Add(_handle);
 
             _panel = new VisualElement();
@@ -151,16 +225,28 @@ namespace Rush.UI
             _panel.style.paddingTop = 10;
             _panel.style.paddingBottom = 10;
 
-            var title = new Label("획득 보상");
-            title.style.color = Color.white;
-            title.style.fontSize = 14;
-            title.style.unityFontStyleAndWeight = FontStyle.Bold;
-            title.style.marginBottom = 6;
-            _panel.Add(title);
+            // 왼쪽은 손잡이에 맞닿고 오른쪽은 화면 끝이라 모서리를 둥글리지 않는다.
+            // 둥글리면 손잡이와 사이에 홈이 파여 두 조각으로 보인다 (바깥 실루엣은 손잡이가 만든다).
+            //
+            // 목록이 비어도 높이를 확보한다. 안 그러면 제목 한 줄 높이로 쪼그라들어
+            // 손잡이보다 납작해진 상자가 뜬금없이 붙어 있는 모양이 된다.
+            _panel.style.minHeight = PanelMinHeight;
+
+            _titleLabel = new Label("획득 특성");
+            _titleLabel.style.color = Color.white;
+            _titleLabel.style.fontSize = 14;
+            _titleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            _titleLabel.style.marginBottom = 8;
+            _panel.Add(_titleLabel);
 
             _list = new ScrollView(ScrollViewMode.Vertical);
             _list.style.flexGrow = 1;
             _panel.Add(_list);
+
+            // 손잡이를 패널 높이에 맞춰 한 덩어리로 보이게 한다.
+            // 목록 길이에 따라 패널 높이가 변하므로 레이아웃이 잡힐 때마다 다시 맞춘다.
+            // 접혀 있을 때도 맞춰둬야 펼치는 순간 손잡이 크기가 튀지 않는다.
+            _panel.RegisterCallback<GeometryChangedEvent>(evt => _handle.style.minHeight = evt.newRect.height);
 
             _root.Add(_panel);
 
@@ -335,7 +421,11 @@ namespace Rush.UI
             if (_panel == null)
                 return;
 
-            _panel.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+            _open = visible;
+
+            // display 토글은 애니메이션이 걸리지 않는다. 서랍 전체를 옆으로 밀어 감춘다.
+            // 패널만 화면 밖으로 나가고 손잡이는 오른쪽 끝에 그대로 남는다.
+            _root.style.translate = new Translate(visible ? 0f : PanelWidth, 0f);
 
             if (!visible)
             {
@@ -346,17 +436,17 @@ namespace Rush.UI
             UpdateHandleText(visible);
         }
 
+        /// <summary>
+        /// 손잡이는 방향 표시만 한다.
+        /// 개수는 펼쳤을 때 제목("획득 특성 N")이 이미 보여주므로 접힌 탭에서까지 반복할 이유가 없다.
+        ///
+        /// 다만 배경이 패널과 같은 어두운 색이라, 글자까지 흐리면 탭이 있는지조차 안 보인다.
+        /// 접혀 있을 때는 화살표를 강조색으로 올려 "여기 뭔가 있다"를 남긴다.
+        /// </summary>
         void UpdateHandleText(bool visible)
         {
-            int count = 0;
-
-            if (_rewards != null)
-            {
-                foreach (var pair in _rewards.OwnedStacks)
-                    count += pair.Value;
-            }
-
-            _handle.text = visible ? ">" : $"<\n보상\n{count}";
+            _handle.text = visible ? ">" : "<";
+            _handle.style.color = visible ? Color.white : HandleAccentColor;
         }
 
         void RefreshList()
@@ -369,15 +459,60 @@ namespace Rush.UI
             _tooltipPinned = null;
             HideTooltip();
 
-            foreach (var pair in _rewards.OwnedStacks)
-            {
-                if (pair.Key == null || pair.Value <= 0)
-                    continue;
+            // 계통별로 묶어서 보여준다. 평평한 목록이면 지금 화력에 몰렸는지 경제에 몰렸는지가 안 읽힌다.
+            int total = 0;
 
-                _list.Add(BuildRow(pair.Key, pair.Value));
+            foreach (var category in CategoryOrder)
+            {
+                bool headerAdded = false;
+
+                foreach (var pair in _rewards.OwnedStacks)
+                {
+                    if (pair.Key == null || pair.Value <= 0)
+                        continue;
+
+                    if (pair.Key.Category != category)
+                        continue;
+
+                    if (!headerAdded)
+                    {
+                        _list.Add(BuildGroupHeader(category));
+                        headerAdded = true;
+                    }
+
+                    _list.Add(BuildRow(pair.Key, pair.Value));
+                    total += pair.Value;
+                }
             }
 
-            UpdateHandleText(_panel != null && _panel.style.display == DisplayStyle.Flex);
+            _titleLabel.text = total > 0 ? $"획득 특성 {total}" : "획득 특성";
+
+            UpdateHandleText(_open);
+        }
+
+        static VisualElement BuildGroupHeader(RewardCategory category)
+        {
+            var header = new VisualElement();
+            header.style.flexDirection = FlexDirection.Row;
+            header.style.alignItems = Align.Center;
+            header.style.marginTop = 6;
+            header.style.marginBottom = 3;
+
+            var label = new Label(CategoryLabel(category));
+            label.style.color = CategoryColor(category);
+            label.style.fontSize = 10;
+            label.style.unityFontStyleAndWeight = FontStyle.Bold;
+            label.style.marginRight = 6;
+            header.Add(label);
+
+            // 제목 오른쪽을 채우는 얇은 선. 그룹 경계를 눈으로 끊어준다.
+            var rule = new VisualElement();
+            rule.style.height = 1;
+            rule.style.flexGrow = 1;
+            rule.style.backgroundColor = new Color(1f, 1f, 1f, 0.12f);
+            header.Add(rule);
+
+            return header;
         }
 
         VisualElement BuildRow(RewardDefinition card, int stacks)
@@ -406,17 +541,24 @@ namespace Rush.UI
             dot.style.marginRight = 6;
             row.Add(dot);
 
-            string text = card.DisplayName;
-
-            if (stacks > 1)
-                text += $" x{stacks}";
-
-            var label = new Label(text);
+            var label = new Label(card.DisplayName);
             label.style.color = new Color(0.9f, 0.9f, 0.9f, 1f);
             label.style.fontSize = 12;
             label.style.whiteSpace = WhiteSpace.Normal;
             label.style.flexGrow = 1;
             row.Add(label);
+
+            // 중첩은 이름 뒤에 붙이지 않고 오른쪽 뱃지로 뺀다. 이름이 길어도 개수가 밀리지 않는다.
+            if (stacks > 1)
+            {
+                var badge = new Label($"x{stacks}");
+                badge.style.color = RarityColor(card.Rarity);
+                badge.style.fontSize = 11;
+                badge.style.unityFontStyleAndWeight = FontStyle.Bold;
+                badge.style.marginLeft = 6;
+                badge.style.flexShrink = 0f;
+                row.Add(badge);
+            }
 
             // 호버로 설명을 띄우고, 클릭하면 마우스를 떼도 유지되도록 고정한다
             row.RegisterCallback<MouseEnterEvent>(evt =>

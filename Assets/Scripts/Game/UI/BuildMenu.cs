@@ -649,7 +649,7 @@ namespace Rush.UI
             AttachUpgradePreview(upgrade.Button);
             _manageSlots.Add(upgrade);
 
-            var sell = CreateSlot(IconGlyph.Sell, RadialDirection.Down, OnSellClicked);
+            var sell = CreateSlot(IconGlyph.Coin, RadialDirection.Down, OnSellClicked);
             sell.Action = RadialAction.Sell;
             _manageSlots.Add(sell);
 
@@ -677,6 +677,8 @@ namespace Rush.UI
         RadialSlot CreateSlot(IconGlyph glyph, RadialDirection direction, System.Action onClick)
         {
             var button = new Button(onClick);
+            // 기본 테마의 파란 포커스 링이 클릭 뒤에도 남아 혼자 튄다. 마우스 전용 HUD라 포커스를 받지 않는다.
+            button.focusable = false;
             button.text = string.Empty;
 
             button.style.position = Position.Absolute;
@@ -945,6 +947,8 @@ namespace Rush.UI
             int cost = tower.BranchCost(branch);
 
             var button = new Button(() => OnBranchClicked(choice));
+            // 기본 테마의 파란 포커스 링이 클릭 뒤에도 남아 혼자 튄다. 마우스 전용 HUD라 포커스를 받지 않는다.
+            button.focusable = false;
             button.text = $"분기: {branch.Name} ({cost}G)";
             button.style.marginBottom = 4;
             button.SetEnabled(_stage.Gold >= cost);
@@ -981,6 +985,8 @@ namespace Rush.UI
                 int cost = tower.SkillUpgradeCost(i);
 
                 var button = new Button(() => OnSkillClicked(index));
+                // 기본 테마의 파란 포커스 링이 클릭 뒤에도 남아 혼자 튄다. 마우스 전용 HUD라 포커스를 받지 않는다.
+                button.focusable = false;
                 button.text = $"{skill.DisplayName} Lv{level} > {level + 1} ({cost}G)";
                 button.style.marginBottom = 4;
                 button.tooltip = skill.Description;

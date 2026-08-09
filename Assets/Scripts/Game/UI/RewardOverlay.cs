@@ -125,7 +125,7 @@ namespace Rush.UI
             _overlay.style.justifyContent = Justify.Center;
             _overlay.style.display = DisplayStyle.None;
 
-            var title = new Label("보상 선택");
+            var title = new Label("특성 선택");
             title.style.color = Color.white;
             title.style.fontSize = 26;
             title.style.unityFontStyleAndWeight = FontStyle.Bold;
@@ -144,6 +144,8 @@ namespace Rush.UI
             _overlay.Add(buttonRow);
 
             _rerollButton = new Button(OnRerollClicked);
+            // 기본 테마의 파란 포커스 링이 클릭 뒤에도 남아 혼자 튄다. 마우스 전용 HUD라 포커스를 받지 않는다.
+            _rerollButton.focusable = false;
             _rerollButton.style.fontSize = 14;
             _rerollButton.style.paddingLeft = 18;
             _rerollButton.style.paddingRight = 18;
@@ -209,7 +211,7 @@ namespace Rush.UI
 
             _rerollButton.style.display = DisplayStyle.Flex;
 
-            string rerollText = $"다시뽑기 (남은 {_rewards.RerollsLeft}회)";
+            string rerollText = $"다시뽑기 (잔여 {_rewards.RerollsLeft}회)";
 
             if (config.RerollCost > 0)
                 rerollText += $" -{config.RerollCost}G";

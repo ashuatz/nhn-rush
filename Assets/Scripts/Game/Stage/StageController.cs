@@ -451,7 +451,24 @@ namespace Rush.Stage
                 if (BossGateBlocking)
                     return false;
 
+                // 아직 이번 웨이브가 나오는 중이면 막는다.
+                // 안 막으면 연타로 웨이브가 겹쳐 쏟아지고 보너스 골드도 그만큼 중복 지급된다.
+                if (IsWaveSpawning)
+                    return false;
+
                 return !AllWavesStarted;
+            }
+        }
+
+        /// <summary>이번 웨이브의 스폰이 아직 진행 중인지. HUD가 조기소환 버튼 상태를 정하는 데 쓴다.</summary>
+        public bool IsWaveSpawning
+        {
+            get
+            {
+                if (_spawner == null)
+                    return false;
+
+                return _spawner.IsSpawning;
             }
         }
 
@@ -589,6 +606,26 @@ namespace Rush.Stage
         }
 
         // ---------- 배속 ----------
+
+        /// <summary>현재 선택된 배속 단계. HUD가 어느 칸을 켤지 정하는 데 쓴다.</summary>
+        public static int SpeedIndex => _speedIndex;
+
+        /// <summary>배속을 단계로 직접 지정한다. 범위를 벗어나면 무시한다.</summary>
+        public void SetSpeed(int index)
+        {
+            if (index < 0 || index >= SpeedSteps.Length)
+                return;
+
+            if (index == _speedIndex)
+                return;
+
+            _speedIndex = index;
+
+            ApplySpeed();
+            GameLog.Info("Stage", $"배속 {CurrentSpeed:0.#}x");
+
+            Notify();
+        }
 
         public void CycleSpeed()
         {

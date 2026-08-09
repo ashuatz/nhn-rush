@@ -11,9 +11,11 @@ namespace Rush.UI
         Staff = 2,      // 마도
         Bomb = 3,       // 포병
         Upgrade = 4,    // 강화
-        Sell = 5,       // 판매
+        Coin = 5,       // 골드 (판매 버튼과 자원 표시가 함께 쓴다)
         Pause = 6,      // 일시정지
         Flag = 7,       // 랠리 포인트
+        Heart = 8,      // 생명
+        Eye = 9,        // 표시 토글 (HP 디버그)
     }
 
     /// <summary>
@@ -123,14 +125,20 @@ namespace Rush.UI
                 case IconGlyph.Upgrade:
                     DrawUpgrade(painter, space);
                     break;
-                case IconGlyph.Sell:
-                    DrawSell(painter, space);
+                case IconGlyph.Coin:
+                    DrawCoin(painter, space);
                     break;
                 case IconGlyph.Pause:
                     DrawPause(painter, space);
                     break;
                 case IconGlyph.Flag:
                     DrawFlag(painter, space);
+                    break;
+                case IconGlyph.Heart:
+                    DrawHeart(painter, space);
+                    break;
+                case IconGlyph.Eye:
+                    DrawEye(painter, space);
                     break;
             }
         }
@@ -153,12 +161,16 @@ namespace Rush.UI
                     return new Rect(0.16f, 0.09f, 0.77f, 0.83f);
                 case IconGlyph.Upgrade:
                     return new Rect(0.22f, 0.22f, 0.56f, 0.70f);
-                case IconGlyph.Sell:
+                case IconGlyph.Coin:
                     return new Rect(0.16f, 0.16f, 0.68f, 0.68f);
                 case IconGlyph.Pause:
                     return new Rect(0.24f, 0.12f, 0.52f, 0.76f);
                 case IconGlyph.Flag:
                     return new Rect(0.30f, 0.10f, 0.48f, 0.80f);
+                case IconGlyph.Heart:
+                    return new Rect(0.10f, 0.18f, 0.80f, 0.70f);
+                case IconGlyph.Eye:
+                    return new Rect(0.08f, 0.30f, 0.84f, 0.40f);
                 default:
                     return new Rect(0f, 0f, 1f, 1f);
             }
@@ -237,8 +249,33 @@ namespace Rush.UI
             painter.Fill();
         }
 
-        /// <summary>판매: 동전 테두리 + 화폐 기호.</summary>
-        static void DrawSell(Painter2D painter, Space space)
+        /// <summary>표시 토글: 위아래 곡선을 마주 붙인 눈 + 가운데 눈동자.</summary>
+        static void DrawEye(Painter2D painter, Space space)
+        {
+            painter.BeginPath();
+            painter.MoveTo(space.P(0.08f, 0.50f));
+            painter.QuadraticCurveTo(space.P(0.50f, 0.10f), space.P(0.92f, 0.50f));
+            painter.QuadraticCurveTo(space.P(0.50f, 0.90f), space.P(0.08f, 0.50f));
+            painter.Stroke();
+
+            painter.BeginPath();
+            painter.Arc(space.P(0.50f, 0.50f), space.L(0.13f), Angle.Degrees(0f), Angle.Degrees(360f));
+            painter.Fill();
+        }
+
+        /// <summary>생명: 좌우 대칭 하트. 두 개의 3차 베지어로 위 두 봉우리와 아래 꼭짓점을 만든다.</summary>
+        static void DrawHeart(Painter2D painter, Space space)
+        {
+            painter.BeginPath();
+            painter.MoveTo(space.P(0.50f, 0.88f));
+            painter.BezierCurveTo(space.P(0.06f, 0.52f), space.P(0.14f, 0.12f), space.P(0.50f, 0.32f));
+            painter.BezierCurveTo(space.P(0.86f, 0.12f), space.P(0.94f, 0.52f), space.P(0.50f, 0.88f));
+            painter.ClosePath();
+            painter.Fill();
+        }
+
+        /// <summary>골드: 동전 테두리 + 화폐 기호. 판매 버튼과 자원 표시가 함께 쓴다.</summary>
+        static void DrawCoin(Painter2D painter, Space space)
         {
             painter.BeginPath();
             painter.Arc(space.P(0.50f, 0.50f), space.L(0.34f), Angle.Degrees(0f), Angle.Degrees(360f));
