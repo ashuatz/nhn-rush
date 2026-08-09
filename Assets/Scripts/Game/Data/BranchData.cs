@@ -20,8 +20,8 @@ namespace Rush.Data
         ArmorShredShot = 4,    // Chances=물리 방어 1단계 영구 감소 확률
 
         // 병영 - 기사단
-        HolyDuty = 5,          // 체력 1 이하로 떨어지면 100% 회복. 60초 쿨타임 (레벨은 쿨 감소 없음, 시트 고정)
-        HolySmite = 6,         // Values=광역 피해 배수. 15% 확률
+        HolyDuty = 5,          // Values=쿨타임 초. 체력 1 이하로 떨어지면 100% 회복
+        HolySmite = 6,         // Values=광역 피해 배수, Chances=발동 확률
         IronWill = 7,          // Values=최대 체력 증가. 3레벨에 방어 1단계 추가
 
         // 병영 - 영웅 용병단

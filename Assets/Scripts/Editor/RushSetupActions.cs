@@ -1410,9 +1410,9 @@ namespace Rush.EditorTools
                     Stat = new TowerLevelStat { DisplayName = "기사단", Cost = 330, Range = 3f, AttackInterval = 1f, SoldierCount = 3, SoldierHp = 330, SoldierDamage = 13, SoldierDamageMax = 25, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f, SoldierDamageCut = 0.25f },
                     Skills = new[]
                     {
-                        Skill("신성한 의무", "유닛의 체력이 1 이하로 떨어지면 즉시 체력 100% 회복 · 60초 쿨타임", BranchSkillType.HolyDuty, 300, 1f, 1f, 1f),
-                        Skill("신성한 강타", "15% 확률로 공격이 1/1.5/2배 피해를 광역으로 입힘", BranchSkillType.HolySmite, 330, 1f, 1.5f, 2f),
-                        Skill("굳은 의지", "최대 체력 +40/80/120 · 3레벨에 방어력 1단계 추가", BranchSkillType.IronWill, 270, 40f, 80f, 120f),
+                        Skill("신성한 의무", "유닛의 체력이 1 이하로 떨어지면 즉시 체력 100% 회복 · 쿨타임 60/45/30초", BranchSkillType.HolyDuty, 600, 60f, 45f, 30f),
+                        Skill("신성한 강타", "10/15/20% 확률로 공격이 2배 피해를 광역으로 입힘", BranchSkillType.HolySmite, 750, 2f, 2f, 2f, 0.10f, 0.15f, 0.20f),
+                        Skill("굳은 의지", "최대 체력 +40/80/120 · 3레벨에 방어력 1단계 추가", BranchSkillType.IronWill, 700, 40f, 80f, 120f),
                     },
                 };
 
@@ -1423,9 +1423,9 @@ namespace Rush.EditorTools
                     Stat = new TowerLevelStat { DisplayName = "용병단", Cost = 330, Range = 3f, AttackInterval = 1f, SoldierCount = 3, SoldierHp = 210, SoldierDamage = 24, SoldierDamageMax = 40, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f },
                     Skills = new[]
                     {
-                        Skill("현상금 수거", "용병이 적을 죽이면 골드의 1.4/1.7/2배 획득 (올림) · 전장 회수와 합연산", BranchSkillType.BountyCollect, 300, 1.4f, 1.7f, 2f),
-                        Skill("빠른 충원", "부활 대기 시간 2/4/6초 감소", BranchSkillType.FastRecruit, 240, 2f, 4f, 6f),
-                        Skill("장비 개조", "공격력 +15/20/25 · 3레벨에 15% 확률로 방어력 무시 공격", BranchSkillType.GearMod, 330, 15f, 20f, 25f),
+                        Skill("현상금 수거", "용병이 적을 죽이면 골드의 1.4/1.7/2배 획득 (올림) · 전장 회수와 합연산", BranchSkillType.BountyCollect, 750, 1.4f, 1.7f, 2f),
+                        Skill("빠른 충원", "부활 대기 시간 2/4/6초 감소", BranchSkillType.FastRecruit, 450, 2f, 4f, 6f),
+                        Skill("장비 개조", "공격력 +4/7/10 · 3레벨에 15% 확률로 방어력 무시 공격", BranchSkillType.GearMod, 610, 4f, 7f, 10f),
                     },
                 };
             });
@@ -1449,8 +1449,8 @@ namespace Rush.EditorTools
                     Stat = new TowerLevelStat { DisplayName = "명사수 성지", Cost = 320, Damage = 20, Range = 6.5f, AttackInterval = 0.55f },
                     Skills = new[]
                     {
-                        Skill("헤드샷", "공격 60번마다 다음 공격에 200/400/600 추가 물리 피해 · 일반 몬스터는 10/15/20% 확률로 즉사", BranchSkillType.Headshot, 360, 200f, 400f, 600f, 0.10f, 0.15f, 0.20f),
-                        Skill("정확한 조준", "크리티컬 확률 +10/20/30% · 크리티컬은 2배 피해", BranchSkillType.CriticalAim, 300, 0f, 0f, 0f, 0.10f, 0.20f, 0.30f),
+                        Skill("헤드샷", "공격 60번마다 다음 공격에 200/400/600 추가 물리 피해 · 일반 몬스터는 10/15/20% 확률로 즉사", BranchSkillType.Headshot, 750, 200f, 400f, 600f, 0.10f, 0.15f, 0.20f),
+                        Skill("정확한 조준", "크리티컬 확률 +10/20/30% · 크리티컬은 2배 피해", BranchSkillType.CriticalAim, 600, 0f, 0f, 0f, 0.10f, 0.20f, 0.30f),
                     },
                 };
 
@@ -1461,8 +1461,8 @@ namespace Rush.EditorTools
                     Stat = new TowerLevelStat { DisplayName = "불법 총포상", Cost = 320, Damage = 45, Range = 7.5f, AttackInterval = 1.6f },
                     Skills = new[]
                     {
-                        Skill("마개조 기관총", "15초마다 1/3/5초간 공격주기 80% 감소 (공격속도 500%)", BranchSkillType.MachineGunBurst, 360, 1f, 3f, 5f),
-                        Skill("급조 철갑탄", "공격 시 10/20/30% 확률로 대상의 물리 방어력 1단계 영구 감소", BranchSkillType.ArmorShredShot, 300, 0f, 0f, 0f, 0.10f, 0.20f, 0.30f),
+                        Skill("마개조 기관총", "15초마다 1/3/5초간 공격주기 80% 감소 (공격속도 500%)", BranchSkillType.MachineGunBurst, 750, 1f, 3f, 5f),
+                        Skill("급조 철갑탄", "공격 시 10/20/30% 확률로 대상의 물리 방어력 1단계 영구 감소", BranchSkillType.ArmorShredShot, 900, 0f, 0f, 0f, 0.10f, 0.20f, 0.30f),
                     },
                 };
             });
@@ -1486,8 +1486,8 @@ namespace Rush.EditorTools
                     Stat = new TowerLevelStat { DisplayName = "흑마법사", Cost = 420, Damage = 46, Range = 5f, AttackInterval = 1.7f, SlowPercent = 0.3f, SlowDuration = 2.5f },
                     Skills = new[]
                     {
-                        Skill("죽음의 광선", "20초마다 다음 기본 공격이 사거리 내 체력이 가장 많은 적에게 300/650/1000 마법 피해", BranchSkillType.DeathRay, 420, 300f, 650f, 1000f),
-                        Skill("피의 향연", "기본 공격으로 적을 제거하면 다음 기본 공격 피해 +15/20/25% · 중첩 없음 · 죽음의 광선에도 적용", BranchSkillType.BloodFeast, 360, 0.15f, 0.20f, 0.25f),
+                        Skill("죽음의 광선", "20초마다 다음 기본 공격이 사거리 내 체력이 가장 많은 적에게 300/650/1000 마법 피해", BranchSkillType.DeathRay, 850, 300f, 650f, 1000f),
+                        Skill("피의 향연", "기본 공격으로 적을 제거하면 다음 기본 공격 피해 +15/20/25% · 중첩 없음 · 죽음의 광선에도 적용", BranchSkillType.BloodFeast, 600, 0.15f, 0.20f, 0.25f),
                     },
                 };
 
@@ -1498,8 +1498,8 @@ namespace Rush.EditorTools
                     Stat = new TowerLevelStat { DisplayName = "환영술사", Cost = 420, Damage = 30, Range = 5.5f, AttackInterval = 1.3f, SlowPercent = 0.4f, SlowDuration = 3f },
                     Skills = new[]
                     {
-                        Skill("길잃은 방랑자", "기본 공격이 1/2/4% 확률로 적을 시작 지점으로 되돌려보냄 · 중간 보스급 이상 제외", BranchSkillType.LostWanderer, 390, 0f, 0f, 0f, 0.01f, 0.02f, 0.04f),
-                        Skill("정신차려!", "30초마다 사거리 내 5/7/9명의 적이 3초간 서로를 공격 · 적의 공격은 마법사의 공격으로 간주", BranchSkillType.SnapOut, 420, 5f, 7f, 9f),
+                        Skill("길잃은 방랑자", "기본 공격이 1/2/4% 확률로 적을 시작 지점으로 되돌려보냄 · 중간 보스급 이상 제외", BranchSkillType.LostWanderer, 800, 0f, 0f, 0f, 0.01f, 0.02f, 0.04f),
+                        Skill("정신차려!", "30초마다 사거리 내 5/7/9명의 적이 3초간 서로를 공격 · 적의 공격은 마법사의 공격으로 간주", BranchSkillType.SnapOut, 750, 5f, 7f, 9f),
                     },
                 };
             });
@@ -1523,8 +1523,8 @@ namespace Rush.EditorTools
                     Stat = new TowerLevelStat { DisplayName = "용의 숨결포", Cost = 460, Damage = 52, Range = 5f, AttackInterval = 2.5f, SplashRadius = 2.1f, ArmorPierce = 0.5f },
                     Skills = new[]
                     {
-                        Skill("용의 숨결", "6초마다 다음 공격이 광역 범위에 화염 장판을 남김 · 3초간 매초 20/35/50 피해 (광역 태그 아님)", BranchSkillType.DragonBreath, 420, 20f, 35f, 50f),
-                        Skill("용암포탄", "기본 공격의 광역 범위 +10/20/30% · 적을 20% 둔화", BranchSkillType.LavaShell, 360, 0.10f, 0.20f, 0.30f),
+                        Skill("용의 숨결", "6초마다 다음 공격이 광역 범위에 화염 장판을 남김 · 3초간 매초 20/35/50 피해 (광역 태그 아님)", BranchSkillType.DragonBreath, 600, 20f, 35f, 50f),
+                        Skill("용암포탄", "기본 공격의 광역 범위 +10/20/30% · 적을 20% 둔화", BranchSkillType.LavaShell, 600, 0.10f, 0.20f, 0.30f),
                     },
                 };
 
@@ -1535,8 +1535,8 @@ namespace Rush.EditorTools
                     Stat = new TowerLevelStat { DisplayName = "마개조 장사정포", Cost = 460, Damage = 48, Range = 7f, AttackInterval = 2.5f, SplashRadius = 1.3f, ArmorPierce = 0.5f },
                     Skills = new[]
                     {
-                        Skill("활강포탄", "먼 거리의 적을 공격할 때 피해 +10/20/30%까지 증가", BranchSkillType.GlideShell, 360, 0.10f, 0.20f, 0.30f),
-                        Skill("집속로켓", "12초마다 다음 기본 공격이 사거리 내 무작위 적에게 3/5/7발 동시 발사 · 1초간 기절", BranchSkillType.ClusterRocket, 420, 3f, 5f, 7f),
+                        Skill("활강포탄", "먼 거리의 적을 공격할 때 피해 +10/20/30%까지 증가", BranchSkillType.GlideShell, 600, 0.10f, 0.20f, 0.30f),
+                        Skill("집속로켓", "12초마다 다음 기본 공격이 사거리 내 무작위 적에게 3/5/7발 동시 발사 · 1초간 기절", BranchSkillType.ClusterRocket, 750, 3f, 5f, 7f),
                     },
                 };
             });
@@ -1839,11 +1839,13 @@ namespace Rush.EditorTools
             CreateDummyPrefabs();
             DeleteLegacyMonsters();
 
+            // BatchSize는 시트(배치 크기 - 스폰 단위). 마법사/백인대장은 단독 등장이라 자동 조정에서 제외된다.
             EnsureMonster("Monster_Militia", "민병", data =>
             {
                 data.MaxHp = 60; data.MoveSpeed = 1.6f;
                 data.PhysicalDefense = DefenseGrade.Low; data.MagicalDefense = DefenseGrade.Low;
                 data.GoldReward = 5; data.MeleeDamage = 6;
+                data.BatchSize = 4;
             });
 
             EnsureMonster("Monster_HeavyInfantry", "중보병", data =>
@@ -1851,6 +1853,7 @@ namespace Rush.EditorTools
                 data.MaxHp = 140; data.MoveSpeed = 1.44f;
                 data.PhysicalDefense = DefenseGrade.High; data.MagicalDefense = DefenseGrade.Low;
                 data.GoldReward = 10; data.MeleeDamage = 10;
+                data.BatchSize = 2;
             });
 
             EnsureMonster("Monster_Rider", "라이더", data =>
@@ -1859,6 +1862,7 @@ namespace Rush.EditorTools
                 data.MaxHp = 90; data.MoveSpeed = 2.08f; data.IsFlying = true;
                 data.PhysicalDefense = DefenseGrade.Medium; data.MagicalDefense = DefenseGrade.Low;
                 data.GoldReward = 15; data.MeleeDamage = 0;
+                data.BatchSize = 3;
             });
 
             EnsureMonster("Monster_Scout", "정찰병", data =>
@@ -1866,6 +1870,7 @@ namespace Rush.EditorTools
                 data.MaxHp = 70; data.MoveSpeed = 3.2f;
                 data.PhysicalDefense = DefenseGrade.Low; data.MagicalDefense = DefenseGrade.Medium;
                 data.GoldReward = 10; data.MeleeDamage = 20;
+                data.BatchSize = 3;
             });
 
             EnsureMonster("Monster_EnemyMage", "마법사", data =>
@@ -1874,6 +1879,7 @@ namespace Rush.EditorTools
                 data.MaxHp = 160; data.MoveSpeed = 1.44f;
                 data.PhysicalDefense = DefenseGrade.Low; data.MagicalDefense = DefenseGrade.Great;
                 data.GoldReward = 15; data.MeleeDamage = 22;
+                data.BatchSize = 1; data.AllowBatchGrowth = false;
             });
 
             EnsureMonster("Monster_Centurion", "백인대장", data =>
@@ -1881,35 +1887,54 @@ namespace Rush.EditorTools
                 data.MaxHp = 420; data.MoveSpeed = 1.92f;
                 data.PhysicalDefense = DefenseGrade.Great; data.MagicalDefense = DefenseGrade.Medium;
                 data.GoldReward = 30; data.MeleeDamage = 35;
+                data.BatchSize = 1; data.AllowBatchGrowth = false;
             });
 
+            // 중간 보스는 시트(중간 보스 3종)의 웨이브별 기준 스탯을 쓴다.
+            // 에셋 값에 웨이브 배수(6웨이브 1.0 / 12웨이브 1.25 / 18웨이브 1.5)가 곱해져 최종값이 되므로 나눠서 넣는다.
+            // 최종 체력 450 / 2000 / 10000, 킬 보상 510 / 970 / 1850, 공격력은 시트 범위의 중앙값.
+            // 방어 배분은 공성 책사 기준(물리 2단계 / 마법 2단계)이며, 3종 무작위 배정은 아직 미구현이다.
             EnsureMonster("Monster_MidBoss1", "중간 보스 1", data =>
             {
-                data.MaxHp = 900; data.MoveSpeed = 1.1f;
-                data.PhysicalDefense = DefenseGrade.Medium; data.MagicalDefense = DefenseGrade.Medium;
-                data.GoldReward = 123; data.LifeDamage = 20; data.IsBoss = true;
+                data.MaxHp = 450; data.MoveSpeed = 0.8f;
+                data.PhysicalDefense = DefenseGrade.High; data.MagicalDefense = DefenseGrade.High;
+                data.GoldReward = 510; data.LifeDamage = 20; data.IsBoss = true;
                 data.MeleeDamage = 40; data.MeleeInterval = 1.5f;
             });
 
             EnsureMonster("Monster_MidBoss2", "중간 보스 2", data =>
             {
-                data.MaxHp = 1300; data.MoveSpeed = 1.1f;
-                data.PhysicalDefense = DefenseGrade.Medium; data.MagicalDefense = DefenseGrade.Medium;
-                data.GoldReward = 164; data.LifeDamage = 20; data.IsBoss = true;
-                data.MeleeDamage = 55; data.MeleeInterval = 1.5f;
+                data.MaxHp = 1600; data.MoveSpeed = 0.8f;
+                data.PhysicalDefense = DefenseGrade.High; data.MagicalDefense = DefenseGrade.High;
+                data.GoldReward = 776; data.LifeDamage = 20; data.IsBoss = true;
+                data.MeleeDamage = 44; data.MeleeInterval = 1.5f;
             });
 
             EnsureMonster("Monster_MidBoss3", "중간 보스 3", data =>
             {
-                data.MaxHp = 1800; data.MoveSpeed = 1.1f;
+                // 18웨이브는 13~18 구간이라 배수가 1.5다 (2.0 구간은 19웨이브부터)
+                data.MaxHp = 6667; data.MoveSpeed = 0.8f;
                 data.PhysicalDefense = DefenseGrade.High; data.MagicalDefense = DefenseGrade.High;
-                data.GoldReward = 219; data.LifeDamage = 20; data.IsBoss = true;
-                data.MeleeDamage = 70; data.MeleeInterval = 1.5f;
+                data.GoldReward = 1233; data.LifeDamage = 20; data.IsBoss = true;
+                data.MeleeDamage = 53; data.MeleeInterval = 1.5f;
+            });
+
+            // 최종 보스 (24웨이브, 배수 2.0). 최종 체력 30000, 공격력 80~140의 중앙값 110.
+            // MoveSpeed 0.8은 시트의 상대 이동속도 0.5를 민병 기준값 1.6으로 환산한 값이다
+            // (0.5 x 1.6 = 0.8). 여기에 MonsterSpeedScale이 곱해져 런타임 0.6이 되고, 민병 1.2의 절반이다.
+            // 킬 보상은 없고 통과하면 라이프 100을 깎는다 (시작 20이므로 사실상 즉시 패배).
+            EnsureMonster("Monster_FinalBoss", "반란군 우두머리", data =>
+            {
+                data.MaxHp = 15000; data.MoveSpeed = 0.8f;
+                data.PhysicalDefense = DefenseGrade.High; data.MagicalDefense = DefenseGrade.High;
+                data.GoldReward = 0; data.LifeDamage = 100;
+                data.IsBoss = true; data.IsFinalBoss = true;
+                data.MeleeDamage = 55; data.MeleeInterval = 1.5f;
             });
 
             AssetDatabase.SaveAssets();
 
-            Report("몬스터 데이터 재베이크 완료 (적 6종 + 중간 보스 3종)");
+            Report("몬스터 데이터 재베이크 완료 (적 6종 + 중간 보스 3종 + 최종 보스)");
         }
 
         static void DeleteLegacyMonsters()
@@ -1937,10 +1962,13 @@ namespace Rush.EditorTools
             data.DisplayName = displayName;
             data.LifeDamage = 1;
             data.IsBoss = false;
+            data.IsFinalBoss = false;
             data.IsFlying = false;
             data.MeleeInterval = 1f;
             data.RegenPerSecond = 0f;
             data.RangedDamage = 0f;
+            data.BatchSize = 1;
+            data.AllowBatchGrowth = true;
 
             setup(data);
 
@@ -1991,18 +2019,21 @@ namespace Rush.EditorTools
             Report("스테이지/난이도 데이터 생성 완료 (24웨이브 재베이크)");
         }
 
-        /// <summary>웨이브별 예산. 스프레드시트(웨이브 구성예산) B열.</summary>
+        /// <summary>웨이브별 예산. 스프레드시트(적 유닛 구성예산) B열. 23웨이브 누적 수입 32100.</summary>
         static readonly int[] WaveBudgets =
         {
-            320, 355, 395, 440, 490, 715, 610, 680, 760, 845, 940, 1360,
-            1165, 1300, 1445, 1610, 1795, 2600, 2225, 2480, 2760, 3080, 3430, 3815,
+            160, 200, 250, 300, 360, 730, 625, 695, 775, 865, 960, 1390,
+            1195, 1330, 1480, 1650, 1835, 2660, 2280, 2535, 2825, 3145, 3505, 3905,
         };
 
-        /// <summary>웨이브별 적 스탯 배수 (체력/공격력/킬 보상). 스프레드시트(웨이브 구성예산) E열.</summary>
+        /// <summary>
+        /// 웨이브별 적 스탯 배수 (체력/공격력/킬 보상). 스프레드시트(적 스탯 스케일링)의 계단식 값이다.
+        /// 1~6 = 1.0, 7~12 = 1.25, 13~18 = 1.5, 19~24 = 2.0. 방어 단계에는 적용하지 않는다.
+        /// </summary>
         static readonly float[] WaveMultipliers =
         {
-            1.00f, 1.06f, 1.13f, 1.19f, 1.27f, 1.34f, 1.43f, 1.51f, 1.61f, 1.70f, 1.81f, 1.92f,
-            2.04f, 2.16f, 2.29f, 2.43f, 2.58f, 2.74f, 2.91f, 3.08f, 3.27f, 3.47f, 3.68f, 3.91f,
+            1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.25f, 1.25f, 1.25f, 1.25f, 1.25f, 1.25f,
+            1.50f, 1.50f, 1.50f, 1.50f, 1.50f, 1.50f, 2.00f, 2.00f, 2.00f, 2.00f, 2.00f, 2.00f,
         };
 
         /// <summary>
@@ -2023,14 +2054,27 @@ namespace Rush.EditorTools
             var boss3 = LoadMonster("Monster_MidBoss3");
 
             stage.StartLife = 20;
-            stage.StartGold = 300;
-            // 페이싱: 적이 느려진 만큼(MonsterSpeedScale) 웨이브 간격도 함께 늘려
-            // 한 웨이브가 다 지나가기 전에 다음 웨이브가 겹치지 않게 한다.
+            stage.StartGold = 350;
+            // 시트(웨이브 타이밍): 스폰 구간 60초 + 웨이브 간 대기 20초 = 한 사이클 80초.
+            // 스폰을 60초 안에 끝내는 배치 규칙은 아직 없어서 현재는 사이클 길이만 맞춘다.
             stage.FirstWaveDelay = 25f;
-            stage.WaveInterval = 45f;
+            stage.WaveInterval = 80f;
             stage.EarlyCallBudgetFraction = 0.15f;
-            stage.RandomSpawnInterval = 1.2f;
             stage.RandomPool = new[] { militia, heavy, rider, scout, mage, centurion };
+
+            // 배치 규칙 (시트: 간격 규칙 / 자동 조정)
+            stage.SpawnWindow = 60f;
+            stage.BatchInnerInterval = 0.35f;
+            stage.MinBatchInterval = 2f;
+            stage.MaxBatchGrowth = 2;
+
+            // 최종 보스전 추가 스폰 (시트: 24웨이브 스폰 진행)
+            stage.EndlessSpawnInterval = 30f;
+            stage.EndlessBudgetFraction = 0.5f;
+            stage.EndlessStatStep = 0.05f;
+
+            BuildArchetypes(stage, militia, heavy, rider, scout, mage, centurion);
+            BuildBossArchetypes(stage);
 
             stage.Waves = new WaveData[24];
 
@@ -2044,47 +2088,51 @@ namespace Rush.EditorTools
             }
 
             // 고정 구간 (1~6웨이브). 시트: 민병대 / 민병대+정찰병 / 중보병+라이더 / 마법사+민병대 / 중보병+마법사 / 중간 보스 1
-            // 첫 웨이브는 A1 한 줄로만 들어온다. 어디서 나오는지 먼저 보여주고 시작한다.
+            // 마릿수는 "단가 합 = 예산"이 되도록 맞췄다 (배수 1.0 구간이라 단가는 기본 킬 보상과 같다).
+            // 경로는 시트(고정 구간 경로)를 따른다. 가중치(50/50, 60/40 등)는 아직 순번 분배로 근사한다.
             stage.Waves[0].RouteIds = new[] { "A1" };
             stage.Waves[0].Entries = new[]
             {
-                Entry(militia, 64, 0.6f),
+                Entry(militia, 32, 1.8f),
             };
 
+            stage.Waves[1].RouteIds = new[] { "A1", "A2" };
             stage.Waves[1].Entries = new[]
             {
-                Entry(militia, 37, 0.8f),
-                Entry(scout, 15, 1.6f, 5f),
+                Entry(militia, 20, 2.8f),
+                Entry(scout, 10, 5f, 5f),
             };
 
+            stage.Waves[2].RouteIds = new[] { "A1", "B1" };
             stage.Waves[2].Entries = new[]
             {
-                Entry(heavy, 24, 1.1f),
-                Entry(rider, 7, 2.5f, 4f),
+                Entry(heavy, 16, 3.4f),
+                Entry(rider, 6, 8f, 4f),
             };
 
+            stage.Waves[3].RouteIds = new[] { "B1", "B2" };
             stage.Waves[3].Entries = new[]
             {
-                Entry(mage, 14, 1.8f),
-                Entry(militia, 32, 0.7f, 3f),
+                Entry(mage, 10, 5.5f),
+                Entry(militia, 30, 1.8f, 3f),
             };
 
             stage.Waves[4].Entries = new[]
             {
-                Entry(heavy, 20, 1.2f),
-                Entry(mage, 12, 1.8f, 5f),
+                Entry(heavy, 18, 3f),
+                Entry(mage, 12, 4.5f, 5f),
             };
 
-            // 6웨이브: 중간 보스 1 + 모든 종류의 적 포함
+            // 6웨이브: 중간 보스 1(단가 510) + 남은 예산 220을 모든 종류로 채운다
             stage.Waves[5].IsBossWave = true;
             stage.Waves[5].Entries = new[]
             {
-                Entry(militia, 18, 0.8f),
-                Entry(heavy, 8, 1.5f, 4f),
-                Entry(rider, 4, 3f, 6f),
-                Entry(scout, 6, 1.5f, 8f),
-                Entry(mage, 4, 2.5f, 10f),
-                Entry(centurion, 2, 4f, 14f),
+                Entry(militia, 10, 2f),
+                Entry(heavy, 5, 3f, 4f),
+                Entry(rider, 2, 6f, 6f),
+                Entry(scout, 3, 4f, 8f),
+                Entry(mage, 2, 6f, 10f),
+                Entry(centurion, 1, 1f, 14f),
                 Entry(boss1, 1, 1f, 20f),
             };
 
@@ -2094,6 +2142,123 @@ namespace Rush.EditorTools
 
             stage.Waves[17].IsBossWave = true;
             stage.Waves[17].Entries = new[] { Entry(boss3, 1, 1f, 15f) };
+
+            // 24웨이브: 최종 보스가 웨이브 시작과 동시에 등장하고, 잡졸은 예산이 다 소진된 뒤에도 계속 나온다.
+            // 최종 보스는 킬 보상이 0이라 예산을 소모하지 않으므로 잡졸 예산은 3905 전부다.
+            var finalBoss = LoadMonster("Monster_FinalBoss");
+
+            stage.Waves[23].IsFinalWave = true;
+            stage.Waves[23].Entries = new[] { Entry(finalBoss, 1, 1f) };
+        }
+
+        /// <summary>
+        /// 웨이브 아키타입 6종. 스프레드시트(적 유닛 스폰 시스템: 아키타입 요약/배치 규칙/경로 가중치 +
+        /// 적 유닛 구성예산: 로그라이크 구간 등장확률과 예산 배분).
+        /// 등장 확률은 구간별 표(7~12 / 13~18 / 19~23)를 원본으로 쓴다.
+        /// </summary>
+        static void BuildArchetypes(StageData stage, MonsterData militia, MonsterData heavy,
+            MonsterData rider, MonsterData scout, MonsterData mage, MonsterData centurion)
+        {
+            stage.Archetypes = new[]
+            {
+                new WaveArchetypeDef
+                {
+                    Name = "개떼 1",
+                    Members = new[] { Member(militia, 1f) },
+                    BudgetScale = 0.85f,
+                    BandChance = new[] { 0.10f, 0.05f, 0f },
+                    RouteCountChance = new[] { 0.05f, 0.20f, 0.35f, 0.40f },
+                    MinGap = 4,
+                    AllowedAfterBoss = false,
+                },
+                new WaveArchetypeDef
+                {
+                    Name = "개떼 2",
+                    Members = new[] { Member(militia, 0.5f), Member(heavy, 0.3f), Member(scout, 0.2f) },
+                    BudgetScale = 0.80f,
+                    BandChance = new[] { 0.19f, 0.17f, 0.12f },
+                    RouteCountChance = new[] { 0.05f, 0.20f, 0.35f, 0.40f },
+                    AllowedAfterBoss = true,
+                },
+                new WaveArchetypeDef
+                {
+                    Name = "정예 1",
+                    Members = new[] { Member(heavy, 0.4f), Member(centurion, 0.6f) },
+                    BudgetScale = 0.95f,
+                    BandChance = new[] { 0.20f, 0.22f, 0.25f },
+                    RouteCountChance = new[] { 0.30f, 0.40f, 0.20f, 0.10f },
+                    AllowedAfterBoss = false,
+                },
+                new WaveArchetypeDef
+                {
+                    Name = "정예 2",
+                    Members = new[] { Member(heavy, 0.3f), Member(centurion, 0.3f), Member(mage, 0.4f) },
+                    BudgetScale = 1.00f,
+                    BandChance = new[] { 0.16f, 0.18f, 0.25f },
+                    RouteCountChance = new[] { 0.30f, 0.40f, 0.20f, 0.10f },
+                    MinWave = 13,
+                    AllowedAfterBoss = false,
+                },
+                new WaveArchetypeDef
+                {
+                    Name = "기동",
+                    Members = new[] { Member(rider, 0.5f), Member(scout, 0.5f) },
+                    BudgetScale = 1.20f,
+                    BandChance = new[] { 0.17f, 0.15f, 0.15f },
+                    RouteCountChance = new[] { 0.15f, 0.30f, 0.30f, 0.25f },
+                    AllowedAfterBoss = false,
+                },
+                new WaveArchetypeDef
+                {
+                    // 구성원을 비워두면 RandomPool 전체를 균등 배분한다 (시트: 모든 구성 랜덤)
+                    Name = "짬",
+                    Members = new ArchetypeMember[0],
+                    BudgetScale = 0.85f,
+                    BandChance = new[] { 0.18f, 0.23f, 0.23f },
+                    RouteCountChance = new[] { 0.15f, 0.30f, 0.30f, 0.25f },
+                    AllowedAfterBoss = true,
+                },
+            };
+        }
+
+        static ArchetypeMember Member(MonsterData monster, float share)
+        {
+            return new ArchetypeMember { Monster = monster, Share = share };
+        }
+
+        /// <summary>
+        /// 중간 보스 종류 3종. 시트(중간보스 3종: 보스 종류별 특성).
+        /// 체력 배율과 방어 배분만 종류가 정하고, 나머지는 웨이브 슬롯 데이터를 쓴다.
+        /// </summary>
+        static void BuildBossArchetypes(StageData stage)
+        {
+            stage.BossArchetypes = new[]
+            {
+                new BossArchetypeDef
+                {
+                    Archetype = BossArchetype.Charger,
+                    DisplayName = "돌격대장",
+                    HpScale = 0.80f,
+                    PhysicalDefense = DefenseGrade.Great,
+                    MagicalDefense = DefenseGrade.Low,
+                },
+                new BossArchetypeDef
+                {
+                    Archetype = BossArchetype.Priest,
+                    DisplayName = "타락한 사제",
+                    HpScale = 0.90f,
+                    PhysicalDefense = DefenseGrade.Medium,
+                    MagicalDefense = DefenseGrade.Great,
+                },
+                new BossArchetypeDef
+                {
+                    Archetype = BossArchetype.Siege,
+                    DisplayName = "공성 책사",
+                    HpScale = 1.00f,
+                    PhysicalDefense = DefenseGrade.High,
+                    MagicalDefense = DefenseGrade.High,
+                },
+            };
         }
 
         static MonsterData LoadMonster(string name)
@@ -3511,21 +3676,127 @@ namespace Rush.EditorTools
                     issues.Add($"[데이터] Stage01: 웨이브 {i + 1} 스탯 배수가 0 이하");
 
                 bool hasBoss = false;
+                bool hasFinalBoss = false;
 
                 if (wave.Entries != null)
                 {
                     foreach (var entry in wave.Entries)
                     {
                         if (entry.Monster == null)
+                        {
                             issues.Add($"[데이터] Stage01: 웨이브 {i + 1}에 몬스터 미지정 항목");
-                        else if (entry.Monster.IsBoss)
+                            continue;
+                        }
+
+                        if (entry.Monster.IsBoss)
                             hasBoss = true;
+
+                        if (entry.Monster.IsFinalBoss)
+                            hasFinalBoss = true;
                     }
                 }
 
                 if (wave.IsBossWave && !hasBoss)
                     issues.Add($"[데이터] Stage01: 웨이브 {i + 1}이 보스 웨이브인데 보스 항목이 없음");
+
+                if (wave.IsFinalWave && !hasFinalBoss)
+                    issues.Add($"[데이터] Stage01: 웨이브 {i + 1}이 최종 보스 웨이브인데 최종 보스 항목이 없음");
             }
+
+            ValidateArchetypes(stage, issues);
+        }
+
+        /// <summary>
+        /// 아키타입 표 검증. 어느 구간에서든 뽑을 후보가 0이면 그 웨이브의 스폰이 조용히 비어버린다.
+        /// 연속 금지 규칙이 있으므로 구간마다 확률이 있는 아키타입이 2종 이상 필요하다.
+        /// </summary>
+        /// <summary>중간 보스 직후 웨이브. 아키타입 후보가 가장 좁아지는 지점이다.</summary>
+        static readonly int[] AfterBossWaves = { 7, 13, 19 };
+
+        static void ValidateArchetypes(StageData stage, List<string> issues)
+        {
+            if (stage.Archetypes == null || stage.Archetypes.Length == 0)
+            {
+                issues.Add("[데이터] Stage01: 아키타입이 비어 있음 (7웨이브 이후 스폰 불가)");
+                return;
+            }
+
+            bool hasRandomPoolArchetype = false;
+
+            for (int band = 0; band < 3; band++)
+            {
+                int candidates = 0;
+
+                foreach (var archetype in stage.Archetypes)
+                {
+                    if (archetype == null)
+                        continue;
+
+                    if (archetype.BandChance == null || band >= archetype.BandChance.Length)
+                        continue;
+
+                    if (archetype.BandChance[band] > 0f)
+                        candidates++;
+                }
+
+                if (candidates < 2)
+                    issues.Add($"[데이터] Stage01: 아키타입 등장 확률 구간 {band + 1}의 후보가 {candidates}종 (연속 금지 규칙 때문에 2종 이상 필요)");
+            }
+
+            // 보스 직후 웨이브(7/13/19)는 AllowedAfterBoss와 MinWave까지 걸려 후보가 크게 줄어든다.
+            // 여기서 0이 되면 런타임이 연속 금지를 풀고 뽑거나 무작위 풀로 폴백한다.
+            foreach (int waveNumber in AfterBossWaves)
+            {
+                int band = waveNumber <= 12 ? 0 : waveNumber <= 18 ? 1 : 2;
+                int candidates = 0;
+
+                foreach (var archetype in stage.Archetypes)
+                {
+                    if (WaveSpawner.IsArchetypeAllowed(archetype, waveNumber, band, true))
+                        candidates++;
+                }
+
+                if (candidates < 2)
+                    issues.Add($"[데이터] Stage01: {waveNumber}웨이브(보스 직후) 아키타입 후보가 {candidates}종 (연속 금지를 풀어야 뽑힌다)");
+            }
+
+            foreach (var archetype in stage.Archetypes)
+            {
+                if (archetype == null)
+                {
+                    issues.Add("[데이터] Stage01: 아키타입 목록에 빈 항목");
+                    continue;
+                }
+
+                if (archetype.UsesRandomPool)
+                {
+                    hasRandomPoolArchetype = true;
+                    continue;
+                }
+
+                float shareSum = 0f;
+
+                foreach (var member in archetype.Members)
+                {
+                    if (member == null || member.Monster == null)
+                    {
+                        issues.Add($"[데이터] Stage01: 아키타입 {archetype.Name}에 몬스터 미지정 구성원");
+                        continue;
+                    }
+
+                    shareSum += member.Share;
+                }
+
+                if (Mathf.Abs(shareSum - 1f) > 0.01f)
+                    issues.Add($"[데이터] Stage01: 아키타입 {archetype.Name}의 예산 배분 합이 {shareSum:F2} (1이어야 함)");
+            }
+
+            // 짬 아키타입은 보스 직후 웨이브와 24웨이브 추가 스폰의 최후 후보다
+            if (!hasRandomPoolArchetype)
+                issues.Add("[데이터] Stage01: 무작위 풀을 쓰는 아키타입(짬)이 없음 - 최종 보스전 추가 스폰이 비게 된다");
+
+            if (stage.BossArchetypes == null || stage.BossArchetypes.Length == 0)
+                issues.Add("[데이터] Stage01: 중간 보스 종류가 비어 있음 (슬롯 기본 스탯으로 등장)");
         }
 
         static void ValidateRewardData(List<string> issues)

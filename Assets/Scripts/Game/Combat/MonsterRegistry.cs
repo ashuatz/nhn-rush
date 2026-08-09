@@ -43,6 +43,21 @@ namespace Rush.Combat
             _active.Clear();
         }
 
+        /// <summary>살아있는 보스가 하나라도 있는지. 보스 처치 게이트가 웨이브 진행을 막는 데 쓴다.</summary>
+        public static bool AnyBossAlive()
+        {
+            foreach (var monster in _active)
+            {
+                if (monster == null || !monster.IsAlive)
+                    continue;
+
+                if (monster.Data.IsBoss)
+                    return true;
+            }
+
+            return false;
+        }
+
         /// <summary>사거리 내에서 경로를 가장 멀리 진행한 몬스터를 고른다 (킹덤러쉬 기본 타겟팅).</summary>
         public static Monster FindTarget(Vector3 origin, float range, bool includeFlying)
         {

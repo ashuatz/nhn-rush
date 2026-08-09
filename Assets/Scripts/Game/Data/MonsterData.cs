@@ -23,6 +23,16 @@ namespace Rush.Data
         [Header("보스 여부 (처치 시 보상 제시, 통과 시 라이프 20 차감)")]
         public bool IsBoss;
 
+        [Tooltip("최종 보스 (24웨이브). 처치하면 잡졸이 남아 있어도 즉시 승리")]
+        public bool IsFinalBoss;
+
+        [Header("배치 스폰 (시트: 배치 크기 - 스폰 단위)")]
+        [Tooltip("한 배치에 묶여 나오는 마릿수")]
+        public int BatchSize = 1;
+
+        [Tooltip("간격이 하한보다 좁을 때 배치 크기를 2배로 늘릴 수 있는지 (마법사/백인대장은 제외)")]
+        public bool AllowBatchGrowth = true;
+
         [Header("마법 특성 (마법 유닛 전용)")]
         public float RegenPerSecond;
 

@@ -421,7 +421,7 @@ namespace Rush.UI
                 float nameWidth = 0f;
 
                 for (int i = 0; i < shown; i++)
-                    nameWidth = Mathf.Max(nameWidth, MeasureName(_entries[cluster.Members[i]].Monster.Data.DisplayName));
+                    nameWidth = Mathf.Max(nameWidth, MeasureName(_entries[cluster.Members[i]].Monster.DisplayName));
 
                 if (cluster.Members.Count > MaxRowsPerList)
                     nameWidth = Mathf.Max(nameWidth, MeasureName($"+{cluster.Members.Count - MaxRowsPerList}"));
@@ -527,7 +527,7 @@ namespace Rush.UI
 
                 row.Root.style.left = cluster.ListX;
                 row.Root.style.top = rowY;
-                row.Name.text = entry.Monster.Data.DisplayName;
+                row.Name.text = entry.Monster.DisplayName;
 
                 // 텍스트는 좌측 정렬, 폭은 그룹 최대 텍스트 폭으로 통일해 바 컬럼을 정렬한다
                 row.Name.style.width = cluster.NameWidth;

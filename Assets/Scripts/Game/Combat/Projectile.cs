@@ -231,7 +231,7 @@ namespace Rush.Combat
             {
                 if (Random.value < _config.InstantKillChance)
                 {
-                    GameLog.Info("Skill", $"{_config.Source.Label} 즉사 발동 -> {_target.Data.DisplayName}");
+                    GameLog.Info("Skill", $"{_config.Source.Label} 즉사 발동 -> {_target.DisplayName}");
                     DamageResolver.Apply(_target, _target.Hp + 1f, DamageType.True, 0f, _config.Source);
                 }
             }

@@ -36,6 +36,12 @@ namespace Rush.Stage
         int _waveIndex = -1;
         float _nextWaveTimer;
 
+        /// <summary>
+        /// 현재 보스 웨이브의 보스가 처리됐는지 (처치 또는 통과).
+        /// 시트(중간 보스: 진행 조건)에 따라 이게 false인 동안은 다음 웨이브로 넘어가지 않는다.
+        /// </summary>
+        bool _bossResolved;
+
         public StageData Data => _stageData;
 
         /// <summary>스테이지의 몬스터 루트 4개 (A1/A2/B1/B2). 배열 순서가 스폰 분배 순서다.</summary>
@@ -241,8 +247,10 @@ namespace Rush.Stage
             if (!IsPlayable)
                 return;
 
-            // 다음 웨이브 자동 진행 카운트다운
-            if (!AllWavesStarted)
+            ReleaseStuckBossGate();
+
+            // 다음 웨이브 자동 진행 카운트다운. 보스 게이트가 걸려 있으면 시간이 흐르지 않는다.
+            if (!AllWavesStarted && !BossGateBlocking)
             {
                 _nextWaveTimer -= Time.deltaTime;
 
@@ -251,6 +259,44 @@ namespace Rush.Stage
             }
 
             CheckVictory();
+        }
+
+        /// <summary>
+        /// 보스가 끝내 등장하지 않은 경우(프리팹 누락 등) 게이트를 풀어 진행이 영구히 막히는 것을 방지한다.
+        /// 스폰이 모두 끝났는데 살아있는 보스도 없으면 처리된 것으로 본다.
+        /// </summary>
+        void ReleaseStuckBossGate()
+        {
+            if (!BossGateBlocking)
+                return;
+
+            if (_spawner.IsSpawning)
+                return;
+
+            if (MonsterRegistry.AnyBossAlive())
+                return;
+
+            _bossResolved = true;
+
+            GameLog.Warn("Wave", $"웨이브 {WaveNumber}: 보스가 등장하지 않아 진행 게이트를 해제함");
+        }
+
+        /// <summary>
+        /// 중간 보스를 처리하기 전까지 다음 웨이브를 막고 있는 상태인지.
+        /// HUD가 "보스 처치 대기"를 표시할 수 있게 공개한다.
+        /// </summary>
+        public bool BossGateBlocking
+        {
+            get
+            {
+                if (Phase != StagePhase.Running)
+                    return false;
+
+                if (!IsBossWave(WaveNumber))
+                    return false;
+
+                return !_bossResolved;
+            }
         }
 
         void CheckVictory()
@@ -302,7 +348,11 @@ namespace Rush.Stage
             Phase = StagePhase.Running;
 
             var wave = _stageData.Waves[_waveIndex];
-            _spawner.StartWave(wave, EnemyHpMultiplier);
+
+            // 보스 게이트는 웨이브마다 새로 잠근다. 보스가 없는 웨이브는 잠기지 않는다.
+            _bossResolved = !wave.IsBossWave;
+
+            _spawner.StartWave(wave, EnemyHpMultiplier, WaveNumber);
 
             GameLog.Info("Wave", $"웨이브 {WaveNumber}/{TotalWaves} 시작");
 
@@ -346,6 +396,10 @@ namespace Rush.Stage
 
                 // 보상 선택 중에는 웨이브를 앞당길 수 없다
                 if (_rewards != null && _rewards.OfferActive)
+                    return false;
+
+                // 보스를 처리하기 전에는 다음 웨이브를 앞당길 수도 없다
+                if (BossGateBlocking)
                     return false;
 
                 return !AllWavesStarted;
@@ -397,13 +451,23 @@ namespace Rush.Stage
             AddGold(baseGold + bonus);
 
             if (bonus > 0)
-                GameLog.Info("Kill", $"{monster.Data.DisplayName} 처치 (+{baseGold}G, 보너스 +{bonus}G)");
+                GameLog.Info("Kill", $"{monster.DisplayName} 처치 (+{baseGold}G, 보너스 +{bonus}G)");
             else
-                GameLog.Info("Kill", $"{monster.Data.DisplayName} 처치 (+{baseGold}G)");
+                GameLog.Info("Kill", $"{monster.DisplayName} 처치 (+{baseGold}G)");
 
-            // 중간 보스 처치 보상 (한 판 3회)
-            if (monster.Data.IsBoss && _rewards != null && Phase == StagePhase.Running)
-                _rewards.TryOfferBossReward();
+            if (monster.Data.IsBoss)
+            {
+                // 보스가 죽었으면 게이트를 풀어 다음 웨이브 대기를 다시 흐르게 한다
+                _bossResolved = true;
+
+                // 중간 보스 처치 보상 (한 판 3회)
+                if (!monster.Data.IsFinalBoss && _rewards != null && Phase == StagePhase.Running)
+                    _rewards.TryOfferBossReward();
+
+                // 최종 보스는 잡졸이 남아 있어도 즉시 승리다 (시트: 24웨이브 종료 조건)
+                if (monster.Data.IsFinalBoss && Phase == StagePhase.Running)
+                    WinByFinalBoss();
+            }
 
             Notify();
         }
@@ -427,13 +491,32 @@ namespace Rush.Stage
             return Mathf.CeilToInt(baseGold * (multiplier - 1f));
         }
 
+        /// <summary>
+        /// 최종 보스 처치 승리. 무한 스폰 구간이라 잡졸은 계속 나오므로 스폰을 끊고 남은 적을 그대로 둔다.
+        /// </summary>
+        void WinByFinalBoss()
+        {
+            Phase = StagePhase.Victory;
+
+            _spawner.StopAll();
+
+            if (_rewards != null)
+                _rewards.CancelOffer();
+
+            GameLog.Info("Stage", "승리 - 최종 보스 처치");
+        }
+
         public void HandleMonsterReachedExit(Monster monster)
         {
             if (!IsPlayable)
                 return;
 
+            // 보스가 통과해도 게이트는 풀린다. 처치하지 못했을 뿐 웨이브는 끝난 것으로 본다.
+            if (monster.Data.IsBoss)
+                _bossResolved = true;
+
             Life -= monster.Data.LifeDamage;
-            GameLog.Info("Leak", $"{monster.Data.DisplayName} 출구 도달 (생명 -{monster.Data.LifeDamage})");
+            GameLog.Info("Leak", $"{monster.DisplayName} 출구 도달 (생명 -{monster.Data.LifeDamage})");
 
             if (Life <= 0)
             {

@@ -41,7 +41,7 @@ namespace Rush.Combat
             float final = Calculate(target, boosted, type, armorPierce, source);
 
             if (GameLog.VerboseCombat)
-                GameLog.Info("Dmg", $"{source.Label} -> {target.Data.DisplayName}: {rawDamage:F0} -> {final:F1} ({type})");
+                GameLog.Info("Dmg", $"{source.Label} -> {target.DisplayName}: {rawDamage:F0} -> {final:F1} ({type})");
 
             target.ApplyDamage(final, source);
 

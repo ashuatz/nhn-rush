@@ -441,6 +441,14 @@ namespace Rush.UI
                 return;
             }
 
+            // 보스를 처치할 때까지 카운트다운이 멈춘다. 숫자가 굳은 이유를 알려준다.
+            if (_stage.BossGateBlocking)
+            {
+                _countdownLabel.text = "보스를 처치해야 다음 웨이브로 넘어간다";
+                _earlyCallButton.style.display = DisplayStyle.None;
+                return;
+            }
+
             _countdownLabel.text = $"다음 웨이브까지 {Mathf.CeilToInt(_stage.NextWaveIn)}초";
 
             if (!_stage.CanCallEarly)
