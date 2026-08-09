@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Rush.Combat;
 using Rush.Data;
 using UnityEngine;
@@ -204,6 +205,9 @@ namespace Rush.Stage
 
             GameLog.Info("Stage", $"스테이지 시작 - 난이도 {DifficultyName}, 골드 {Gold}, 생명 {Life}");
 
+            // 첫 웨이브 입구를 미리 정한다 (대기 시간 동안 표기된다)
+            PlanNextWaveEntrances();
+
             Notify();
         }
 
@@ -354,6 +358,9 @@ namespace Rush.Stage
 
             _spawner.StartWave(wave, EnemyHpMultiplier, WaveNumber);
 
+            // 이번 웨이브를 내보낸 직후에 다음 웨이브 입구를 정한다 (대기 시간 내내 표기된다)
+            PlanNextWaveEntrances();
+
             GameLog.Info("Wave", $"웨이브 {WaveNumber}/{TotalWaves} 시작");
 
             // 보상: 웨이브 시작 수입 (이자/채권)
@@ -368,7 +375,10 @@ namespace Rush.Stage
             Notify();
         }
 
-        /// <summary>지금 조기소환하면 받을 보너스 골드 = 다음 웨이브 예산의 15% (5 단위 반올림).</summary>
+        /// <summary>
+        /// 지금 조기소환하면 받을 보너스 골드 = 다음 웨이브 예산의 15% x 남은 시간 비율 (5 단위 반올림).
+        /// 일찍 부를수록 많이 받고, 어차피 시작될 시점에 부르면 0에 수렴한다.
+        /// </summary>
         public int EarlyCallBonus
         {
             get
@@ -381,10 +391,49 @@ namespace Rush.Stage
                 if (next == null)
                     return 0;
 
-                float raw = next.Budget * _stageData.EarlyCallBudgetFraction;
+                float raw = next.Budget * _stageData.EarlyCallBudgetFraction * EarlyCallTimeRatio;
 
                 return Mathf.RoundToInt(raw / 5f) * 5;
             }
+        }
+
+        /// <summary>남은 대기 시간 비율 (0~1). 조기소환 보너스가 이 비율만큼 지급된다.</summary>
+        public float EarlyCallTimeRatio
+        {
+            get
+            {
+                if (_stageData == null)
+                    return 0f;
+
+                // 첫 웨이브는 대기 시간 자체가 다르다. 같은 잣대로 재면 시작하자마자 보너스가 깎인다.
+                float span = WaveNumber == 0 ? _stageData.FirstWaveDelay : _stageData.WaveInterval;
+
+                return Mathf.Clamp01(NextWaveIn / Mathf.Max(0.01f, span));
+            }
+        }
+
+        /// <summary>
+        /// 다음 웨이브가 나올 입구(경로). 웨이브가 시작되는 순간 다음 웨이브 구성을 미리 뽑아 채운다.
+        /// UI가 스폰 지점에 표기하는 용도이며, 실제 스폰도 이 계획을 그대로 쓴다.
+        /// </summary>
+        public IReadOnlyList<PathRoute> NextWaveEntrances => _nextWaveEntrances;
+
+        readonly List<PathRoute> _nextWaveEntrances = new List<PathRoute>(4);
+
+        /// <summary>다음 웨이브의 입구를 미리 정한다. 남은 웨이브가 없으면 비운다.</summary>
+        void PlanNextWaveEntrances()
+        {
+            _nextWaveEntrances.Clear();
+
+            if (!_setupValid || AllWavesStarted)
+                return;
+
+            var next = GetWave(WaveNumber + 1);
+
+            if (next == null)
+                return;
+
+            _nextWaveEntrances.AddRange(_spawner.PlanWave(next, WaveNumber + 1));
         }
 
         public bool CanCallEarly

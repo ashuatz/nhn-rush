@@ -59,6 +59,33 @@ namespace Rush.Stage
             }
         }
 
+        /// <summary>
+        /// 웨이브 시작 전에 미리 뽑아 둔 구성. 어느 입구에서 나오는지를 미리 알려주기 위한 것이라
+        /// 표기한 경로와 실제 스폰 경로가 어긋나지 않도록 StartWave가 이 계획을 그대로 소비한다.
+        /// </summary>
+        class WavePlan
+        {
+            public WaveData Wave;
+            public int WaveNumber;
+
+            public RouteLottery FixedLottery;
+            public PathRoute BossRoute;
+
+            public bool HasArchetype;
+            public int ArchetypeIndex;
+            public RouteLottery ArchetypeLottery;
+
+            public readonly List<PathRoute> Entrances = new List<PathRoute>(4);
+
+            public void AddEntrance(PathRoute route)
+            {
+                if (route == null || Entrances.Contains(route))
+                    return;
+
+                Entrances.Add(route);
+            }
+        }
+
         /// <summary>스폰 순간의 연기 연출. 에디터 셋업에서 채운다.</summary>
         [SerializeField] GameObject _spawnFx;
 
@@ -66,6 +93,11 @@ namespace Rush.Stage
         readonly List<PathRoute> _routes = new List<PathRoute>(4);
         bool _ready;
         int _runningEntries;
+
+        /// <summary>미리 뽑아 둔 다음 웨이브 계획. 그 웨이브가 시작되면 소비하고 비운다.</summary>
+        WavePlan _plan;
+
+        static readonly List<PathRoute> EmptyRoutes = new List<PathRoute>(0);
 
         /// <summary>아키타입별 마지막 등장 웨이브 번호. 연속 금지/최소 간격 판정에 쓴다.</summary>
         readonly Dictionary<int, int> _archetypeLastWave = new Dictionary<int, int>(8);
@@ -96,6 +128,7 @@ namespace Rush.Stage
             _carryOver = 0;
             _finalBossSpawned = false;
             _ready = false;
+            _plan = null;
 
             if (stage == null)
             {
@@ -223,6 +256,151 @@ namespace Rush.Stage
             return filtered;
         }
 
+        /// <summary>
+        /// 고정 구성(1~6웨이브)이 쓸 경로 추첨표. 시트(고정 구간 경로)의 가중치를 그대로 쓴다.
+        /// 가중치는 순서가 아니라 경로 ID로 짝짓는다. 순서로 맞추면 ResolveRoutes가 전체 경로로
+        /// 폴백했을 때 엉뚱한 경로에 가중치가 붙는다.
+        /// 가중치가 없거나 ID를 하나도 못 찾으면 주어진 경로에 균등 분배한다.
+        /// </summary>
+        static RouteLottery BuildFixedLottery(WaveData wave, List<PathRoute> routes)
+        {
+            var lottery = new RouteLottery();
+
+            bool useWeights = wave.RouteIds != null
+                && wave.RouteWeights != null
+                && wave.RouteWeights.Length == wave.RouteIds.Length;
+
+            if (useWeights)
+            {
+                for (int i = 0; i < wave.RouteIds.Length; i++)
+                {
+                    var route = FindRoute(routes, wave.RouteIds[i]);
+
+                    if (route == null)
+                        continue;
+
+                    int weight = wave.RouteWeights[i];
+
+                    // 가중치 0인 경로는 실제로 뽑히지 않는다. 입구 표기가 어긋나므로 표에서 뺀다.
+                    if (weight <= 0)
+                        continue;
+
+                    lottery.Routes.Add(route);
+                    lottery.Weights.Add(weight);
+                    lottery.TotalWeight += weight;
+                }
+            }
+
+            if (lottery.Routes.Count > 0)
+                return lottery;
+
+            foreach (var route in routes)
+            {
+                lottery.Routes.Add(route);
+                lottery.Weights.Add(1);
+                lottery.TotalWeight += 1;
+            }
+
+            return lottery;
+        }
+
+        static PathRoute FindRoute(List<PathRoute> routes, string routeId)
+        {
+            if (string.IsNullOrEmpty(routeId))
+                return null;
+
+            foreach (var route in routes)
+            {
+                if (string.Equals(route.RouteId, routeId, System.StringComparison.OrdinalIgnoreCase))
+                    return route;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 보스가 탈 단일 경로. BossRouteId가 있으면 그 경로로 고정하고(시트: 6웨이브는 A1 고정),
+        /// 없으면 이 웨이브가 쓸 수 있는 경로 중 하나를 무작위로 뽑는다.
+        /// </summary>
+        static PathRoute ResolveBossRoute(WaveData wave, List<PathRoute> routes)
+        {
+            if (routes.Count == 0)
+                return null;
+
+            if (string.IsNullOrEmpty(wave.BossRouteId))
+                return routes[Random.Range(0, routes.Count)];
+
+            var fixedRoute = FindRoute(routes, wave.BossRouteId);
+
+            if (fixedRoute != null)
+                return fixedRoute;
+
+            GameLog.Warn("Wave", $"보스 고정 경로 {wave.BossRouteId}를 찾지 못해 무작위로 뽑음");
+
+            return routes[Random.Range(0, routes.Count)];
+        }
+
+        /// <summary>
+        /// 다음 웨이브가 쓸 구성(아키타입/경로)을 미리 뽑아 두고 입구 목록을 돌려준다.
+        /// UI가 "어느 입구에서 나오는지"를 웨이브 시작 전에 표기하기 위한 것이다.
+        /// 계획은 그 웨이브가 시작될 때 그대로 쓰이므로 표기와 실제가 어긋나지 않는다.
+        /// </summary>
+        public List<PathRoute> PlanWave(WaveData wave, int waveNumber)
+        {
+            _plan = null;
+
+            if (!_ready || wave == null)
+                return EmptyRoutes;
+
+            var plan = new WavePlan { Wave = wave, WaveNumber = waveNumber };
+            var routes = ResolveRoutes(wave);
+            bool hasFixed = wave.Entries != null && wave.Entries.Length > 0;
+
+            if (hasFixed)
+            {
+                plan.FixedLottery = BuildFixedLottery(wave, routes);
+                plan.BossRoute = ResolveBossRoute(wave, routes);
+
+                foreach (var route in plan.FixedLottery.Routes)
+                    plan.AddEntrance(route);
+
+                // 보스는 단일 경로로 고정되므로 추첨표에 없더라도 입구로 잡아 준다
+                if (HasBossEntry(wave))
+                    plan.AddEntrance(plan.BossRoute);
+            }
+
+            if (!hasFixed || wave.IsBossWave || wave.IsFinalWave)
+            {
+                bool fixedRandomPool = wave.IsFinalWave;
+
+                plan.HasArchetype = true;
+                plan.ArchetypeIndex = fixedRandomPool ? RandomPoolArchetypeIndex() : PickArchetype(waveNumber);
+                plan.ArchetypeLottery = BuildRouteLottery(GetArchetype(plan.ArchetypeIndex), routes);
+
+                foreach (var route in plan.ArchetypeLottery.Routes)
+                    plan.AddEntrance(route);
+            }
+
+            _plan = plan;
+
+            return plan.Entrances;
+        }
+
+        /// <summary>고정 구성에 보스가 들어 있는지. 보스 전용 경로를 입구로 잡을지 판단한다.</summary>
+        static bool HasBossEntry(WaveData wave)
+        {
+            if (wave.Entries == null)
+                return false;
+
+            foreach (var entry in wave.Entries)
+            {
+                if (entry != null && entry.Monster != null && entry.Monster.IsBoss)
+                    return true;
+            }
+
+            return false;
+        }
+
         public void StartWave(WaveData wave, float enemyHpMultiplier, int waveNumber)
         {
             if (!_ready)
@@ -247,14 +425,22 @@ namespace Rush.Stage
             if (routes != _routes)
                 GameLog.Info("Wave", $"루트 제한: {string.Join("/", wave.RouteIds)}");
 
+            // 미리 표기해 둔 계획이 있으면 그대로 쓴다 (표기한 입구와 실제 스폰 입구를 맞춘다)
+            if (_plan == null || _plan.Wave != wave || _plan.WaveNumber != waveNumber)
+                PlanWave(wave, waveNumber);
+
+            var plan = _plan;
+            _plan = null;
+
             if (hasFixed)
             {
-                // 고정 구성은 배치 규칙을 타지 않는다. 루트는 순번대로 돌려 균등 분배한다.
-                int routeCursor = Random.Range(0, routes.Count);
+                // 고정 구성은 배치 규칙을 타지 않는다. 경로는 시트의 고정 구간 가중치로 뽑는다.
+                var lottery = plan != null ? plan.FixedLottery : BuildFixedLottery(wave, routes);
+                var bossRoute = plan != null ? plan.BossRoute : ResolveBossRoute(wave, routes);
 
                 foreach (var entry in wave.Entries)
                 {
-                    StartCoroutine(RunFixedEntry(entry, routes, routeCursor, enemyHpMultiplier, statMultiplier, waveNumber));
+                    StartCoroutine(RunFixedEntry(entry, lottery, bossRoute, enemyHpMultiplier, statMultiplier, waveNumber));
                     anySpawn = true;
                 }
             }
@@ -263,7 +449,7 @@ namespace Rush.Stage
             // 보스 웨이브는 보스 단가를 뺀 잔여 예산을 채운다. 완전 고정 구간(1~5)은 채우지 않는다.
             if (!hasFixed || wave.IsBossWave || wave.IsFinalWave)
             {
-                if (StartArchetypeSpawn(wave, waveNumber, statMultiplier, enemyHpMultiplier, false))
+                if (StartArchetypeSpawn(wave, waveNumber, statMultiplier, enemyHpMultiplier, false, plan))
                     anySpawn = true;
             }
 
@@ -317,7 +503,7 @@ namespace Rush.Stage
         /// 아키타입을 추첨하지 않고 예산 계수도 적용하지 않는다. 등장 이력/이월도 건드리지 않는다.
         /// </summary>
         bool StartArchetypeSpawn(WaveData wave, int waveNumber, float statMultiplier,
-            float enemyHpMultiplier, bool endless)
+            float enemyHpMultiplier, bool endless, WavePlan plan = null)
         {
             bool fixedRandomPool = endless || wave.IsFinalWave;
 
@@ -328,7 +514,13 @@ namespace Rush.Stage
             if (budget <= 0)
                 return false;
 
-            int archetypeIndex = fixedRandomPool ? RandomPoolArchetypeIndex() : PickArchetype(waveNumber);
+            // 미리 뽑아 둔 계획이 있으면 아키타입도 그때 정한 것을 쓴다 (입구 표기와 어긋나지 않게)
+            bool planned = plan != null && plan.HasArchetype;
+
+            int archetypeIndex = planned
+                ? plan.ArchetypeIndex
+                : fixedRandomPool ? RandomPoolArchetypeIndex() : PickArchetype(waveNumber);
+
             var archetype = GetArchetype(archetypeIndex);
 
             // 예산 계수는 아키타입 추첨의 일부다. 짬 고정 구간에 또 곱하면 시트의 추가 예산 50%가 42.5%가 된다.
@@ -370,7 +562,10 @@ namespace Rush.Stage
             }
 
             float interval = ResolveBatchInterval(batches);
-            var lottery = BuildRouteLottery(archetype, ResolveRoutes(wave));
+
+            var lottery = planned && plan.ArchetypeLottery != null
+                ? plan.ArchetypeLottery
+                : BuildRouteLottery(archetype, ResolveRoutes(wave));
 
             string label = archetype != null ? archetype.Name : "무작위";
             GameLog.Info("Wave", $"웨이브 {waveNumber} {label}: 예산 {pool} 사용 {spent}, 배치 {batches.Count}개, 간격 {interval:F2}초, 경로 {lottery.Routes.Count}개");
@@ -900,7 +1095,7 @@ namespace Rush.Stage
         }
 
         /// <summary>고정 구성 항목 하나. 배치 규칙 없이 데이터에 적힌 간격으로 낸다.</summary>
-        IEnumerator RunFixedEntry(SpawnEntry entry, List<PathRoute> routes, int routeCursor,
+        IEnumerator RunFixedEntry(SpawnEntry entry, RouteLottery lottery, PathRoute bossRoute,
             float enemyHpMultiplier, float statMultiplier, int waveNumber)
         {
             if (entry == null || entry.Monster == null)
@@ -914,17 +1109,15 @@ namespace Rush.Stage
             if (entry.StartDelay > 0f)
                 yield return new WaitForSeconds(entry.StartDelay);
 
-            // 보스는 단일 경로로 고정한다 (시트: 매 등장마다 4경로 중 하나를 무작위로 뽑는다)
-            PathRoute bossRoute = null;
-
-            if (entry.Monster.IsBoss)
-                bossRoute = routes[Random.Range(0, routes.Count)];
+            // 보스만 단일 경로로 고정하고, 잡졸은 매번 가중치로 다시 뽑는다
+            PathRoute lockedRoute = entry.Monster.IsBoss ? bossRoute : null;
 
             for (int i = 0; i < entry.Count; i++)
             {
-                var route = bossRoute != null ? bossRoute : routes[routeCursor % routes.Count];
+                var route = lockedRoute != null ? lockedRoute : lottery.Draw();
 
-                routeCursor++;
+                if (route == null)
+                    break;
 
                 bool spawned = Spawn(entry.Monster, route, enemyHpMultiplier, statMultiplier, waveNumber);
 

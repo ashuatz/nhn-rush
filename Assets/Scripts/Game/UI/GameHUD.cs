@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Rush.Stage;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -15,12 +16,36 @@ namespace Rush.UI
         static readonly Color PanelColor = new Color(0.08f, 0.08f, 0.1f, 0.85f);
         static readonly Color TextColor = Color.white;
         static readonly Color PauseBorderColor = new Color(1f, 0.92f, 0.6f, 0.75f);
+        static readonly Color FlagColor = new Color(0.5f, 0.12f, 0.12f, 0.92f);
+        static readonly Color FlagAccentColor = new Color(1f, 0.78f, 0.32f, 1f);
 
         const float PauseButtonSize = 38f;
+
+        /// <summary>입구 표기 깃발 크기와 스폰 지점에서 띄울 높이 (패널 픽셀).</summary>
+        const float FlagWidth = 128f;
+        const float FlagLift = 16f;
+        const float FlagFallbackHeight = 44f;
 
         [SerializeField] StageController _stage;
         [SerializeField] Rush.Combat.MonsterDebugView _debugView;
 
+        /// <summary>입구 표기를 화면 좌표로 옮길 때 쓰는 카메라. 비면 Camera.main을 쓴다.</summary>
+        [SerializeField] Camera _worldCamera;
+
+        /// <summary>다음 웨이브 입구에 뜨는 깃발 하나.</summary>
+        class EntranceFlag
+        {
+            public VisualElement Root;
+            public Label Title;
+            public Label Bonus;
+        }
+
+        readonly List<EntranceFlag> _flags = new List<EntranceFlag>(4);
+
+        /// <summary>입구 깃발이 떠 있는지. 떠 있으면 우하단 조기소환 버튼은 감춘다 (중복 UI 방지).</summary>
+        bool _flagsVisible;
+
+        VisualElement _flagLayer;
         VisualElement _container;
         Label _goldLabel;
         Label _lifeLabel;
@@ -53,6 +78,11 @@ namespace Rush.UI
             if (_stage != null)
                 _stage.Changed -= Refresh;
 
+            // 깃발은 컨테이너와 함께 사라지므로 참조도 같이 버린다 (다시 켜질 때 새로 만든다)
+            _flags.Clear();
+            _flagLayer = null;
+            _flagsVisible = false;
+
             if (_container != null)
             {
                 _container.RemoveFromHierarchy();
@@ -64,6 +94,10 @@ namespace Rush.UI
         {
             if (_stage == null)
                 return;
+
+            // 입구 깃발은 카메라가 움직이면 따라가야 하므로 매 프레임 위치를 다시 잡는다.
+            // 카운트다운 패널이 깃발 유무를 보고 조기소환 버튼을 숨기므로 먼저 갱신한다.
+            RefreshEntranceFlags();
 
             // 카운트다운은 매 프레임 갱신 (Changed 이벤트 대상이 아님)
             RefreshCountdown();
@@ -81,6 +115,16 @@ namespace Rush.UI
             _container.style.right = 0;
             _container.style.top = 0;
             _container.style.bottom = 0;
+
+            // 입구 깃발은 월드 좌표를 따라다니므로 다른 패널보다 아래에 깔아 둔다
+            _flagLayer = new VisualElement();
+            _flagLayer.pickingMode = PickingMode.Ignore;
+            _flagLayer.style.position = Position.Absolute;
+            _flagLayer.style.left = 0;
+            _flagLayer.style.right = 0;
+            _flagLayer.style.top = 0;
+            _flagLayer.style.bottom = 0;
+            _container.Add(_flagLayer);
 
             _container.Add(BuildTopBar());
             _container.Add(BuildPauseButton());
@@ -332,6 +376,134 @@ namespace Rush.UI
             _stage.CallNextWaveEarly();
         }
 
+        // ---------- 입구 표기 ----------
+
+        Camera ResolveCamera()
+        {
+            if (_worldCamera != null)
+                return _worldCamera;
+
+            _worldCamera = Camera.main;
+
+            return _worldCamera;
+        }
+
+        EntranceFlag GetFlag(int index)
+        {
+            while (_flags.Count <= index)
+                _flags.Add(BuildFlag());
+
+            return _flags[index];
+        }
+
+        EntranceFlag BuildFlag()
+        {
+            var root = new VisualElement();
+            root.style.position = Position.Absolute;
+            root.style.width = FlagWidth;
+            root.style.backgroundColor = FlagColor;
+            root.style.paddingLeft = 8;
+            root.style.paddingRight = 8;
+            root.style.paddingTop = 5;
+            root.style.paddingBottom = 5;
+            root.style.borderTopLeftRadius = 5;
+            root.style.borderTopRightRadius = 5;
+            root.style.borderBottomLeftRadius = 5;
+            root.style.borderBottomRightRadius = 5;
+            root.style.borderBottomWidth = 2;
+            root.style.borderBottomColor = FlagAccentColor;
+            root.style.alignItems = Align.Center;
+            root.style.display = DisplayStyle.None;
+
+            var title = new Label();
+            title.style.color = TextColor;
+            title.style.fontSize = 12;
+            title.style.unityFontStyleAndWeight = FontStyle.Bold;
+            root.Add(title);
+
+            var bonus = new Label();
+            bonus.style.color = FlagAccentColor;
+            bonus.style.fontSize = 11;
+            root.Add(bonus);
+
+            root.RegisterCallback<ClickEvent>(evt => OnEarlyCallClicked());
+
+            _flagLayer.Add(root);
+
+            return new EntranceFlag { Root = root, Title = title, Bonus = bonus };
+        }
+
+        void HideFlagsFrom(int index)
+        {
+            for (int i = index; i < _flags.Count; i++)
+                _flags[i].Root.style.display = DisplayStyle.None;
+        }
+
+        /// <summary>
+        /// 다음 웨이브가 나올 입구에 깃발을 띄운다. 깃발을 누르면 조기소환이고,
+        /// 보너스는 남은 시간에 비례하므로 카운트다운과 함께 줄어든다.
+        /// </summary>
+        void RefreshEntranceFlags()
+        {
+            if (_flagLayer == null)
+                return;
+
+            var entrances = _stage.NextWaveEntrances;
+            var camera = ResolveCamera();
+
+            if (camera == null || entrances == null || entrances.Count == 0 || !_stage.CanCallEarly)
+            {
+                HideFlagsFrom(0);
+                _flagsVisible = false;
+                return;
+            }
+
+            var panel = _flagLayer.panel;
+
+            if (panel == null)
+                return;
+
+            string title = $"웨이브 {_stage.WaveNumber + 1} 진입 {Mathf.CeilToInt(_stage.NextWaveIn)}초";
+            string bonus = $"조기소환 +{_stage.EarlyCallBonus}G";
+
+            int shown = 0;
+
+            for (int i = 0; i < entrances.Count; i++)
+            {
+                var route = entrances[i];
+
+                if (route == null || route.PointCount < 1)
+                    continue;
+
+                var world = route.GetPoint(0);
+
+                // 카메라 뒤로 넘어간 입구는 화면에 그리지 않는다
+                if (camera.WorldToViewportPoint(world).z <= 0f)
+                    continue;
+
+                var flag = GetFlag(shown);
+                var position = RuntimePanelUtils.CameraTransformWorldToPanel(panel, world, camera);
+
+                // 첫 프레임에는 레이아웃이 없어 높이가 0으로 읽힌다. 그때는 기본 높이로 앉힌다.
+                float height = flag.Root.resolvedStyle.height;
+
+                if (height <= 0f)
+                    height = FlagFallbackHeight;
+
+                flag.Root.style.left = position.x - FlagWidth * 0.5f;
+                flag.Root.style.top = position.y - height - FlagLift;
+                flag.Root.style.display = DisplayStyle.Flex;
+                flag.Title.text = title;
+                flag.Bonus.text = bonus;
+
+                shown++;
+            }
+
+            HideFlagsFrom(shown);
+
+            _flagsVisible = shown > 0;
+        }
+
         void OnSpeedClicked()
         {
             if (_stage == null)
@@ -451,7 +623,8 @@ namespace Rush.UI
 
             _countdownLabel.text = $"다음 웨이브까지 {Mathf.CeilToInt(_stage.NextWaveIn)}초";
 
-            if (!_stage.CanCallEarly)
+            // 입구 깃발이 떠 있으면 조기소환은 그쪽에서 한다
+            if (!_stage.CanCallEarly || _flagsVisible)
             {
                 _earlyCallButton.style.display = DisplayStyle.None;
                 return;

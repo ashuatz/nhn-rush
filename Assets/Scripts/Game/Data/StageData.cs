@@ -115,6 +115,12 @@ namespace Rush.Data
         [Tooltip("이 웨이브가 쓸 루트 ID (A1/A2/B1/B2). 비우면 전체 루트를 쓴다")]
         public string[] RouteIds;
 
+        [Tooltip("RouteIds와 같은 순서의 경로 가중치 (시트: 고정 구간 경로). 비우거나 개수가 다르면 균등 분배한다")]
+        public int[] RouteWeights;
+
+        [Tooltip("보스가 쓸 단일 경로 ID. 비우면 이 웨이브가 쓸 수 있는 경로 중 무작위로 뽑는다")]
+        public string BossRouteId;
+
         [Tooltip("고정 스폰 구성. 남은 예산이 있으면 아키타입 배치 구성이 뒤에 붙는다")]
         public SpawnEntry[] Entries;
     }
@@ -132,6 +138,7 @@ namespace Rush.Data
         public float WaveInterval = 80f;
 
         [Header("조기소환 보너스 (다음 웨이브 예산의 비율)")]
+        [Tooltip("최대 지급 비율. 실제 지급액은 여기에 남은 대기 시간 비율을 곱한 값이다 (일찍 부를수록 많이 받는다)")]
         [Range(0f, 1f)] public float EarlyCallBudgetFraction = 0.15f;
 
         [Header("무작위 구성")]
