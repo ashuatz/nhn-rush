@@ -293,7 +293,7 @@ namespace Rush.Combat
             // 장비 개조 3레벨: 15% 확률로 방어력 무시 공격 (이뮨은 관통하지 못한다 - 관통 규칙과 동일)
             float armorPierce = 0f;
 
-            if (_owner != null && _owner.SkillLevel(BranchSkillType.GearMod) >= 3 && Luck.Roll(0.15f, transform.position))
+            if (_owner != null && _owner.SkillLevel(BranchSkillType.GearMod) >= 3 && Luck.Roll(0.15f, _owner))
                 armorPierce = 1f;
 
             DamageResolver.Apply(_target, rolled, DamageType.Physical, armorPierce, source);
@@ -302,7 +302,7 @@ namespace Rush.Combat
             TryHolySmite(rolled, source);
 
             // 보상(B1B): 병사 공격이 확률로 적을 밀어내고, 밀린 적은 저지가 풀린다
-            RewardSystem.TrySoldierKnockback(_target);
+            RewardSystem.TrySoldierKnockback(_target, _owner);
         }
 
         /// <summary>
@@ -317,7 +317,7 @@ namespace Rush.Combat
             if (!_owner.TryGetSkill(BranchSkillType.HolySmite, out var smite, out int level))
                 return;
 
-            if (!Luck.Roll(smite.ChanceAt(level), transform.position))
+            if (!Luck.Roll(smite.ChanceAt(level), _owner))
                 return;
 
             var splashSource = source;

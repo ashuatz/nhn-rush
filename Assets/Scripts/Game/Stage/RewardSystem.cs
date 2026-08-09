@@ -821,8 +821,8 @@ namespace Rush.Stage
             return Mathf.Clamp(value, 0f, 0.8f);
         }
 
-        /// <summary>병사 공격이 확률로 적을 밀어낸다 (B1B).</summary>
-        public static void TrySoldierKnockback(Monster target)
+        /// <summary>병사 공격이 확률로 적을 밀어낸다 (B1B). 행운 연출은 병사를 낸 병영에 뜬다.</summary>
+        public static void TrySoldierKnockback(Monster target, Tower owner)
         {
             if (Active == null || target == null || !target.IsAlive)
                 return;
@@ -832,7 +832,7 @@ namespace Rush.Stage
                 if (def.Effect != RewardEffectType.SoldierKnockbackChance)
                     return;
 
-                if (Luck.Roll(def.Chance, target.transform.position))
+                if (Luck.Roll(def.Chance, owner))
                     target.Knockback(def.Value2);
             });
         }
@@ -852,12 +852,12 @@ namespace Rush.Stage
                 switch (def.Effect)
                 {
                     case RewardEffectType.KnockbackChance:
-                        if (SourceMatches(def, src) && Luck.Roll(def.Chance, target.transform.position))
+                        if (SourceMatches(def, src) && Luck.Roll(def.Chance, src))
                             target.Knockback(def.Value2);
                         break;
 
                     case RewardEffectType.StunChance:
-                        if (SourceMatches(def, src) && Luck.Roll(def.Chance, target.transform.position))
+                        if (SourceMatches(def, src) && Luck.Roll(def.Chance, src))
                             target.ApplyStun(def.Duration, def.Value2);
                         break;
                 }

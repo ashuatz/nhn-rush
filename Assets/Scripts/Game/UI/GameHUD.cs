@@ -22,7 +22,7 @@ namespace Rush.UI
         const float PauseButtonSize = 38f;
 
         /// <summary>입구 표기 깃발 크기와 스폰 지점에서 띄울 높이 (패널 픽셀).</summary>
-        const float FlagWidth = 128f;
+        const float FlagWidth = 168f;
         const float FlagLift = 16f;
         const float FlagFallbackHeight = 44f;
 
@@ -464,7 +464,9 @@ namespace Rush.UI
                 return;
 
             string title = $"웨이브 {_stage.WaveNumber + 1} 진입 {Mathf.CeilToInt(_stage.NextWaveIn)}초";
-            string bonus = $"조기소환 +{_stage.EarlyCallBonus}G";
+
+            // 조기소환은 보상 카드를 포기하는 거래다. 누르기 전에 알 수 있어야 한다.
+            string bonus = $"조기소환 +{_stage.EarlyCallBonus}G · 보상 없음";
 
             int shown = 0;
 
@@ -631,7 +633,7 @@ namespace Rush.UI
             }
 
             _earlyCallButton.style.display = DisplayStyle.Flex;
-            _earlyCallButton.text = $"조기소환 (+{_stage.EarlyCallBonus}G)";
+            _earlyCallButton.text = $"조기소환 (+{_stage.EarlyCallBonus}G · 보상 없음)";
         }
 
         void RefreshResult()

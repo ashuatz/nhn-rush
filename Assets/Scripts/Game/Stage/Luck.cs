@@ -1,3 +1,4 @@
+using Rush.Combat;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -28,12 +29,25 @@ namespace Rush.Stage
         }
 
         /// <summary>
-        /// 확률 판정 + 연출. 재굴림이 실패를 뒤집었을 때만 그 자리에 행운 연출을 띄운다.
+        /// 확률 판정 + 연출. 재굴림이 실패를 뒤집었을 때만 행운 연출을 띄운다.
         /// 그냥 성공한 판정은 조용히 지나가므로, 화면에 보이는 건 카드가 실제로 일한 순간뿐이다.
+        ///
+        /// 연출은 판정을 일으킨 **타워** 자리(총구 높이)에 뜬다. 일한 주체는 맞은 적이 아니라 그 타워이고,
+        /// 적 자리에 띄우면 그 적이 곧 죽어 사라질 때 연출만 허공에 남는다.
+        /// 위치를 직접 받는 오버로드는 두지 않는다 - 적 위치를 넘기는 실수가 반복되기 때문이다.
         /// </summary>
-        public static bool Roll(float chance, Vector3 fxPosition)
+        public static bool Roll(float chance, Tower tower)
         {
-            return RollInternal(chance, true, fxPosition);
+            if (tower == null)
+                return RollInternal(chance, false, Vector3.zero);
+
+            return RollInternal(chance, true, tower.MuzzlePosition);
+        }
+
+        /// <summary>피해 출처가 아는 타워 자리에 연출을 띄운다. 타워를 모르는 출처는 연출 없이 판정만 한다.</summary>
+        public static bool Roll(float chance, in DamageSource source)
+        {
+            return Roll(chance, source.Tower);
         }
 
         static bool RollInternal(float chance, bool showFx, Vector3 fxPosition)

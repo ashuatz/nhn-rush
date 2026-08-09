@@ -820,7 +820,7 @@ namespace Rush.Combat
             // 정확한 조준: 크리티컬 확률, 크리티컬은 2배 피해
             if (TryGetSkill(BranchSkillType.CriticalAim, out var crit, out int critLevel))
             {
-                if (Luck.Roll(crit.ChanceAt(critLevel), transform.position))
+                if (Luck.Roll(crit.ChanceAt(critLevel), this))
                     mul *= 2f;
             }
 
@@ -926,7 +926,7 @@ namespace Rush.Combat
                 return;
             }
 
-            if (!Luck.Roll(chance, transform.position))
+            if (!Luck.Roll(chance, this))
                 return;
 
             var mods = RewardSystem.GetStatMods(Data.Type);

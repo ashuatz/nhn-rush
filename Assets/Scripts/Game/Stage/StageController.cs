@@ -455,6 +455,11 @@ namespace Rush.Stage
             }
         }
 
+        /// <summary>
+        /// 조기소환. 보상 제시를 건너뛰고 다음 웨이브를 즉시 시작한다.
+        /// 여기서 StartNextWave를 타면 카드 선택 화면이 먼저 떠서 "즉시"가 아니게 된다.
+        /// 골드를 더 받는 대신 그 웨이브의 보상 카드를 포기하는 것이 조기소환의 거래다.
+        /// </summary>
         public void CallNextWaveEarly()
         {
             if (!CanCallEarly)
@@ -463,9 +468,9 @@ namespace Rush.Stage
             int bonus = EarlyCallBonus;
 
             AddGold(bonus);
-            GameLog.Info("Wave", $"조기소환 - 보너스 골드 +{bonus}");
+            GameLog.Info("Wave", $"조기소환 - 보너스 골드 +{bonus} (보상 제시 생략)");
 
-            StartNextWave();
+            StartWaveNow();
         }
 
         public bool TrySpend(int cost)
