@@ -14,7 +14,6 @@ git push origin v0.1.0
 | 파일 | 역할 |
 | --- | --- |
 | `.github/workflows/webgl-pages.yml` | 태그 푸시 → WebGL 빌드 → Pages 배포 |
-| `.github/workflows/unity-activation.yml` | 라이선스 `.ulf` 발급용 활성화 파일 요청 (최초 1회 수동) |
 | `Assets/Scripts/Editor/WebGLBuildPipeline.cs` | 배치모드 빌드 진입점 (Pages용 설정 적용) |
 
 ## 최초 1회 세팅
@@ -37,35 +36,44 @@ git push origin v0.1.0
 
 ### 3. Unity 라이선스 시크릿 등록
 
-GameCI의 `UNITY_LICENSE` 시크릿은 **ULF 형식(`.ulf`)** 라이선스 파일만 받는다.
+Personal 라이선스로 충분하다. Pro 시리얼은 필요 없다.
+`UNITY_LICENSE` 시크릿에는 **로컬에서 생성된 `.ulf` 파일 내용**을 그대로 넣는다.
 
-주의: Unity 6 + Hub 3.x 환경은 로컬에 `.ulf`를 만들지 않는다.
-`%LOCALAPPDATA%\Unity\licenses\UnityEntitlementLicense.xml` 이 대신 생기는데,
+> `.alf`를 받아 https://license.unity3d.com/manual 에서 교환하는 옛 방식은 폐기됐다.
+> Unity가 Personal 라이선스의 수동 활성화를 더 이상 지원하지 않는다.
+
+#### 3-1. Unity Hub에서 `.ulf`를 생성한다
+
+**함정:** Unity Hub에 Personal 라이선스가 이미 표시되고 있어도 `.ulf` 파일은 없을 수 있다.
+Unity 6 / Hub 3.x는 `%LOCALAPPDATA%\Unity\licenses\UnityEntitlementLicense.xml` 만 만들어 두는 경우가 있는데,
 **이 파일은 형식이 달라서 `UNITY_LICENSE`에 넣어도 동작하지 않는다.**
-(2026-08 기준 이 프로젝트 개발 PC가 이 상태다. `.ulf`가 시스템에 없다.)
 
-그래서 아래 활성화 절차로 `.ulf`를 따로 발급받는다.
+`.ulf`를 확실히 만들려면 Unity Hub에서 아래를 직접 수행한다.
 
-1. `Actions` 탭 → `Unity Activation File` → `Run workflow` 실행.
-2. 실행이 끝나면 아티팩트로 `.alf` 파일이 나온다. 내려받아 압축을 푼다.
-3. https://license.unity3d.com/manual 에 접속해 `.alf`를 업로드하고,
-   Unity 계정으로 로그인해 `Unity Personal Edition`을 선택한다.
-4. 받은 `.ulf` 파일을 텍스트 에디터로 열어 **내용 전체(XML)** 를 복사한다.
-5. 레포 `Settings` → `Secrets and variables` → `Actions`에 아래 3개를 등록한다.
+1. Unity Hub → 우측 상단 톱니 → `Preferences`(환경설정) → `Licenses`(라이선스)
+2. 이미 Personal 라이선스가 목록에 보이더라도 **`Add`(추가) 버튼을 누른다.**
+3. `Get a free personal license`(무료 개인 라이선스 받기)를 선택하고 활성화를 끝까지 진행한다.
+4. `C:\ProgramData\Unity\Unity_lic.ulf` 가 생겼는지 확인한다.
+   (`ProgramData`는 숨김 폴더라 탐색기에서 숨김 항목 표시를 켜거나 경로를 직접 입력한다.)
+
+#### 3-2. 시크릿에 등록한다
+
+1. `Unity_lic.ulf`를 텍스트 에디터로 열어 **내용 전체(XML)** 를 복사한다.
+2. 레포 `Settings` → `Secrets and variables` → `Actions`에 아래 3개를 등록한다.
 
 | 시크릿 | 값 |
 | --- | --- |
-| `UNITY_LICENSE` | `.ulf` 파일 내용 전체 (XML) |
+| `UNITY_LICENSE` | `Unity_lic.ulf` 내용 전체 (XML) |
 | `UNITY_EMAIL` | Unity 계정 이메일 |
 | `UNITY_PASSWORD` | Unity 계정 비밀번호 |
 
-발급받은 `.ulf`는 레포에 커밋하지 말고 안전한 곳에 따로 보관한다.
+`.ulf`는 레포에 커밋하지 않는다.
 
-이미 `.ulf`를 가진 환경(구버전 Unity에서 활성화한 PC 등)이라면 1~3번을 건너뛰고
-`C:\ProgramData\Unity\Unity_lic.ulf` 내용을 그대로 4번부터 진행하면 된다.
+참고로 라이선스는 OS와 무관하다. Windows에서 활성화한 `.ulf`로 Ubuntu 러너에서 빌드해도 된다.
+또 에디터 버전에도 종속되지 않으므로 Unity 버전을 올려도 다시 만들 필요 없다.
 
-Pro/Plus 라이선스라면 `UNITY_LICENSE` 대신 `UNITY_SERIAL`을 등록하고
-`webgl-pages.yml`의 `env` 항목을 그에 맞게 바꾼다. 이 경우 활성화 절차가 필요 없다.
+Pro/Plus 라이선스를 쓰는 경우에만 `UNITY_LICENSE` 대신 `UNITY_SERIAL`을 등록하고
+`webgl-pages.yml`의 `env` 항목을 그에 맞게 바꾼다.
 
 ### 4. 확인
 
@@ -106,6 +114,10 @@ CI 컨테이너 안에서만 바뀌므로 로컬 프로젝트 설정은 그대�
 **빌드 단계에서 라이선스 오류**
 `UnityEntitlementLicense.xml` 내용을 넣지 않았는지 먼저 확인한다. 그건 형식이 달라서 안 된다.
 `.ulf`가 맞다면 내용이 잘렸거나 개행이 깨졌을 확률이 높다. 시크릿을 다시 등록한다.
+
+**`Unity_lic.ulf`가 아예 없다**
+Unity Hub에 라이선스가 보여도 파일은 생성되지 않았을 수 있다. 최초 세팅 3-1을 참고해
+Hub의 `Add` 버튼으로 Personal 라이선스를 다시 활성화하면 생성된다.
 `UNITY_EMAIL` / `UNITY_PASSWORD`가 비어 있어도 실패한다.
 
 **배포 단계에서 "Branch/tag not allowed to deploy"**
