@@ -21,6 +21,9 @@ namespace Rush.Data
         public float SplashRadius;
         [Range(0f, 1f)] public float ArmorPierce;
 
+        [Tooltip("폭발 가장자리에서 받는 피해 비율. 중심 1.0에서 이 값까지 선형 감쇠한다 (1 = 감쇠 없음)")]
+        [Range(0f, 1f)] public float SplashEdgeDamage = 1f;
+
         [Header("보병 전용 (공격력은 최소~최대 범위)")]
         public int SoldierCount;
         public float SoldierHp;
@@ -28,6 +31,9 @@ namespace Rush.Data
         public float SoldierDamageMax;
         public float SoldierAttackInterval;
         public float SoldierRespawnSeconds;
+
+        [Tooltip("교전이 끊긴 병사가 초당 회복하는 체력. 0이면 회복하지 않는다")]
+        public float SoldierRegenPerSecond;
 
         [Tooltip("병사 피해 감소율 (기사단 방어/저항 1단계 = 0.25 근사)")]
         [Range(0f, 1f)] public float SoldierDamageCut;

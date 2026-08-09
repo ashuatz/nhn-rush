@@ -16,6 +16,14 @@ namespace Rush.Combat
         public float Damage;
         public float ArmorPierce;
         public float SplashRadius;
+
+        /// <summary>
+        /// 폭발 가장자리에서 받는 피해 비율 (시트: 광역 감쇠). 1이 감쇠 없음이다.
+        /// 구조체 기본값 0은 "설정하지 않음"이라 감쇠 없음으로 취급한다.
+        /// 감쇠를 쓰는 발사체는 반드시 값을 채우고, 안 쓰는 쪽도 1을 명시해 의도를 남긴다.
+        /// </summary>
+        public float SplashEdgeDamage;
+
         public float SlowPercent;
         public float SlowDuration;
         public DamageSource Source;
@@ -274,6 +282,26 @@ namespace Rush.Combat
                 _config.Source.Tower.NotifyKillByThisTower();
         }
 
+        /// <summary>
+        /// 광역 감쇠 (시트: 타워 시트 "광역 감쇠"). 폭발 중심은 100%, 가장자리는 SplashEdgeDamage까지 선형으로 준다.
+        /// 값이 0이면 감쇠 설정이 없는 발사체(스킬탄/추가 발사)라 감쇠하지 않는다.
+        /// </summary>
+        float SplashFalloff(Vector3 hitPosition)
+        {
+            float edge = _config.SplashEdgeDamage;
+
+            if (edge <= 0f || edge >= 1f)
+                return 1f;
+
+            if (_config.SplashRadius <= 0f)
+                return 1f;
+
+            float distance = Vector3.Distance(hitPosition, _lastTargetPos);
+            float t = Mathf.Clamp01(distance / _config.SplashRadius);
+
+            return Mathf.Lerp(1f, edge, t);
+        }
+
         Monster ImpactSplash(float damage, out Vector3 killPosition)
         {
             killPosition = _lastTargetPos;
@@ -314,7 +342,7 @@ namespace Rush.Combat
 
                 Vector3 hitPosition = monster.transform.position;
 
-                float perTarget = damage;
+                float perTarget = damage * SplashFalloff(hitPosition);
 
                 if (monster == centerMost)
                     perTarget *= 1f + centerBonus;
