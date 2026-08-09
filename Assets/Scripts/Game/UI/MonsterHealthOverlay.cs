@@ -7,12 +7,9 @@ using UnityEngine.UIElements;
 namespace Rush.UI
 {
     /// <summary>
-    /// 몬스터 HP 표시 오버레이 (UI Toolkit). 커서가 올라간 개체 하나만 머리 위에 바를 띄운다.
-    /// 전장 전체의 대략적인 HP는 MonsterDebugView가 머티리얼 색으로 보여주고,
-    /// 이 바는 정확한 수치가 필요할 때 쓰는 보조 수단이다.
-    ///
-    /// 아래 클러스터/설명선 로직은 여러 개체를 동시에 띄우던 시절의 것으로, 지금은
-    /// 한 번에 하나만 들어와 단일 경로로만 지난다. 전체 표시로 되돌릴 여지를 남겨 그대로 둔다.
+    /// 몬스터 HP 표시 오버레이 (UI Toolkit).
+    /// 커서가 올라간 개체와 최근 피해를 입은 개체에만 머리 위에 바를 띄운다.
+    /// 전장 전체의 대략적인 HP는 MonsterDebugView가 머티리얼 색으로 보여준다.
     ///
     /// 혼자 있는 몬스터는 머리 위에 바를 직접 붙이고,
     /// 화면상 겹치는 몬스터들은 옆으로 뺀 리스트로 묶은 뒤 설명선(리더 라인)으로 각 개체와 잇는다.
@@ -92,6 +89,7 @@ namespace Rush.UI
         }
 
         readonly List<Entry> _entries = new List<Entry>(64);
+        readonly List<Entry> _visible = new List<Entry>(32);
         readonly List<Cluster> _clusters = new List<Cluster>(24);
         readonly List<Cluster> _clusterPool = new List<Cluster>(24);
         readonly List<Cluster> _multiClusters = new List<Cluster>(24);
@@ -108,8 +106,11 @@ namespace Rush.UI
         int _usedRows;
         bool _hiddenApplied;
 
-        /// <summary>커서에서 이 거리(패널 px) 안에 있는 몬스터만 바를 띄운다.</summary>
+        /// <summary>커서에서 이 거리(패널 px) 안에 있는 몬스터에 바를 띄운다.</summary>
         const float HoverRadius = 56f;
+
+        /// <summary>피해를 입은 뒤 이 시간(초) 동안 바를 띄운다.</summary>
+        const float DamageHoldSeconds = 2.5f;
 
         void OnEnable()
         {
@@ -229,7 +230,7 @@ namespace Rush.UI
                 return;
 
             CollectEntries(panel);
-            KeepHoveredOnly(panel);
+            KeepVisible(panel);
             BuildClusters();
             LayoutLists();
             Render();
@@ -287,13 +288,14 @@ namespace Rush.UI
         }
 
         /// <summary>
-        /// 커서에 가장 가까운 몬스터 하나만 남긴다.
-        /// 전체 HP는 디버그 뷰(MonsterDebugView)가 색으로 보여주고, 이 바는 정확한 값이 필요할 때만 쓴다.
+        /// 바를 띄울 대상만 남긴다: 커서가 올라간 개체 + 최근 피해를 입은 개체.
+        /// 전체 HP 파악은 디버그 뷰(MonsterDebugView)가 색으로 맡고, 이 바는 지금 무슨 일이
+        /// 벌어지는지 보여주는 용도다. 전원 상시 표시는 화면이 덮여 쓸 수 없었다.
         ///
-        /// 콜라이더 레이캐스트 대신 화면 좌표 거리로 고른다. CollectEntries가 이미 전원의
-        /// 패널 좌표를 계산해두므로 추가 비용이 없고, 몬스터 프리팹의 콜라이더 유무에도 안 걸린다.
+        /// 호버는 콜라이더 레이캐스트 대신 화면 좌표 거리로 고른다. CollectEntries가 이미
+        /// 전원의 패널 좌표를 계산해두므로 추가 비용이 없고, 프리팹의 콜라이더 유무에도 안 걸린다.
         /// </summary>
-        void KeepHoveredOnly(IPanel panel)
+        void KeepVisible(IPanel panel)
         {
             if (_entries.Count == 0)
                 return;
@@ -303,7 +305,7 @@ namespace Rush.UI
 
             Vector2 cursor = RuntimePanelUtils.ScreenToPanel(panel, mouse);
 
-            int best = -1;
+            int hovered = -1;
             float bestSqr = HoverRadius * HoverRadius;
 
             for (int i = 0; i < _entries.Count; i++)
@@ -313,20 +315,23 @@ namespace Rush.UI
                 if (sqr > bestSqr)
                     continue;
 
-                best = i;
+                hovered = i;
                 bestSqr = sqr;
             }
 
-            if (best < 0)
+            _visible.Clear();
+
+            for (int i = 0; i < _entries.Count; i++)
             {
-                _entries.Clear();
-                return;
+                bool show = i == hovered
+                    || Time.time - _entries[i].Monster.LastDamagedTime < DamageHoldSeconds;
+
+                if (show)
+                    _visible.Add(_entries[i]);
             }
 
-            var hovered = _entries[best];
-
             _entries.Clear();
-            _entries.Add(hovered);
+            _entries.AddRange(_visible);
         }
 
         /// <summary>시드 고정 탐욕 클러스터링. 시드에서 반경 안일 때만 합류하므로 연쇄 합병이 없다.</summary>

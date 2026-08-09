@@ -93,6 +93,12 @@ namespace Rush.Combat
         /// <summary>현재 병사에게 저지당하고 있는지.</summary>
         public bool IsBlocked => _blockedBy != null;
 
+        /// <summary>
+        /// 마지막으로 피해를 입은 시각. HP 오버레이가 잠깐 바를 띄우는 데 쓴다.
+        /// 리젠은 반영하지 않는다 - 상시 회복하는 적은 바가 계속 떠 있게 된다.
+        /// </summary>
+        public float LastDamagedTime { get; private set; } = float.NegativeInfinity;
+
         public bool IsSlowed => Time.time < _slowUntil;
 
         public bool IsStunned => Time.time < _stunUntil;
@@ -354,6 +360,7 @@ namespace Rush.Combat
             Hp -= finalDamage;
             LastHitSource = source;
             ControlledAtLastHit = IsControlled;
+            LastDamagedTime = Time.time;
 
             if (Hp > 0f)
                 return;
