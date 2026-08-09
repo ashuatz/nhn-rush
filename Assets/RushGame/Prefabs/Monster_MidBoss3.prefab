@@ -46,7 +46,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Rush.Combat.Monster
   _deathFx: {fileID: 2505401845234213573, guid: ecc2486d62b40774eac29189c5a406e1, type: 3}
---- !u!1 &3081326891042541128
+  _probeLead: 1.6
+  _turnSpeed: 300
+--- !u!1 &891603656167681443
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -54,7 +56,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 272763926148673956}
+  - component: {fileID: 5270532472203883318}
   m_Layer: 0
   m_Name: Model
   m_TagString: Untagged
@@ -62,20 +64,20 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &272763926148673956
+--- !u!4 &5270532472203883318
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3081326891042541128}
+  m_GameObject: {fileID: 891603656167681443}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.5555556, y: 0.5555556, z: 0.5555556}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 3436429263336507840}
+  - {fileID: 5929245916253796445}
   m_Father: {fileID: 1089974222519717288}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &7069646628644847358
@@ -109,7 +111,7 @@ Transform:
   m_LocalScale: {x: 1.8, y: 1.8, z: 1.8}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 272763926148673956}
+  - {fileID: 5270532472203883318}
   m_Father: {fileID: 788261990780362851}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &5364604797558259229
@@ -169,13 +171,13 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!1001 &2898663705310096939
+--- !u!1001 &6179590434713722806
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 272763926148673956}
+    m_TransformParent: {fileID: 5270532472203883318}
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 7e2b3f57d36e863409871b040ab917c9, type: 3}
       propertyPath: m_LocalScale.x
@@ -238,8 +240,8 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 7e2b3f57d36e863409871b040ab917c9, type: 3}
---- !u!4 &3436429263336507840 stripped
+--- !u!4 &5929245916253796445 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 7e2b3f57d36e863409871b040ab917c9, type: 3}
-  m_PrefabInstance: {fileID: 2898663705310096939}
+  m_PrefabInstance: {fileID: 6179590434713722806}
   m_PrefabAsset: {fileID: 0}

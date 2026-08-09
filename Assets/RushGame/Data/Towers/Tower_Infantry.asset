@@ -90,35 +90,35 @@ MonoBehaviour:
     Skills:
     - DisplayName: "\uC2E0\uC131\uD55C \uC758\uBB34"
       Description: "\uC720\uB2DB\uC758 \uCCB4\uB825\uC774 1 \uC774\uD558\uB85C \uB5A8\uC5B4\uC9C0\uBA74
-        \uC989\uC2DC \uCCB4\uB825 100% \uD68C\uBCF5 \xB7 60\uCD08 \uCFE8\uD0C0\uC784"
+        \uC989\uC2DC \uCCB4\uB825 100% \uD68C\uBCF5 \xB7 \uCFE8\uD0C0\uC784 60/45/30\uCD08"
       Type: 5
-      TotalCost: 300
+      TotalCost: 600
       Values:
-      - 1
-      - 1
-      - 1
+      - 60
+      - 45
+      - 30
       Chances:
       - 0
       - 0
       - 0
     - DisplayName: "\uC2E0\uC131\uD55C \uAC15\uD0C0"
-      Description: "15% \uD655\uB960\uB85C \uACF5\uACA9\uC774 1/1.5/2\uBC30 \uD53C\uD574\uB97C
+      Description: "10/15/20% \uD655\uB960\uB85C \uACF5\uACA9\uC774 2\uBC30 \uD53C\uD574\uB97C
         \uAD11\uC5ED\uC73C\uB85C \uC785\uD798"
       Type: 6
-      TotalCost: 330
+      TotalCost: 750
       Values:
-      - 1
-      - 1.5
+      - 2
+      - 2
       - 2
       Chances:
-      - 0
-      - 0
-      - 0
+      - 0.1
+      - 0.15
+      - 0.2
     - DisplayName: "\uAD73\uC740 \uC758\uC9C0"
       Description: "\uCD5C\uB300 \uCCB4\uB825 +40/80/120 \xB7 3\uB808\uBCA8\uC5D0
         \uBC29\uC5B4\uB825 1\uB2E8\uACC4 \uCD94\uAC00"
       Type: 7
-      TotalCost: 270
+      TotalCost: 700
       Values:
       - 40
       - 80
@@ -152,7 +152,7 @@ MonoBehaviour:
         1.4/1.7/2\uBC30 \uD68D\uB4DD (\uC62C\uB9BC) \xB7 \uC804\uC7A5 \uD68C\uC218\uC640
         \uD569\uC5F0\uC0B0"
       Type: 8
-      TotalCost: 300
+      TotalCost: 750
       Values:
       - 1.4
       - 1.7
@@ -164,7 +164,7 @@ MonoBehaviour:
     - DisplayName: "\uBE60\uB978 \uCDA9\uC6D0"
       Description: "\uBD80\uD65C \uB300\uAE30 \uC2DC\uAC04 2/4/6\uCD08 \uAC10\uC18C"
       Type: 9
-      TotalCost: 240
+      TotalCost: 450
       Values:
       - 2
       - 4
@@ -174,14 +174,14 @@ MonoBehaviour:
       - 0
       - 0
     - DisplayName: "\uC7A5\uBE44 \uAC1C\uC870"
-      Description: "\uACF5\uACA9\uB825 +15/20/25 \xB7 3\uB808\uBCA8\uC5D0 15% \uD655\uB960\uB85C
+      Description: "\uACF5\uACA9\uB825 +4/7/10 \xB7 3\uB808\uBCA8\uC5D0 15% \uD655\uB960\uB85C
         \uBC29\uC5B4\uB825 \uBB34\uC2DC \uACF5\uACA9"
       Type: 10
-      TotalCost: 330
+      TotalCost: 610
       Values:
-      - 15
-      - 20
-      - 25
+      - 4
+      - 7
+      - 10
       Chances:
       - 0
       - 0

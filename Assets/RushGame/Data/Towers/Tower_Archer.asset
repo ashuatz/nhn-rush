@@ -93,7 +93,7 @@ MonoBehaviour:
         200/400/600 \uCD94\uAC00 \uBB3C\uB9AC \uD53C\uD574 \xB7 \uC77C\uBC18 \uBAAC\uC2A4\uD130\uB294
         10/15/20% \uD655\uB960\uB85C \uC989\uC0AC"
       Type: 1
-      TotalCost: 360
+      TotalCost: 750
       Values:
       - 200
       - 400
@@ -106,7 +106,7 @@ MonoBehaviour:
       Description: "\uD06C\uB9AC\uD2F0\uCEEC \uD655\uB960 +10/20/30% \xB7 \uD06C\uB9AC\uD2F0\uCEEC\uC740
         2\uBC30 \uD53C\uD574"
       Type: 2
-      TotalCost: 300
+      TotalCost: 600
       Values:
       - 0
       - 0
@@ -139,7 +139,7 @@ MonoBehaviour:
       Description: "15\uCD08\uB9C8\uB2E4 1/3/5\uCD08\uAC04 \uACF5\uACA9\uC8FC\uAE30
         80% \uAC10\uC18C (\uACF5\uACA9\uC18D\uB3C4 500%)"
       Type: 3
-      TotalCost: 360
+      TotalCost: 750
       Values:
       - 1
       - 3
@@ -152,7 +152,7 @@ MonoBehaviour:
       Description: "\uACF5\uACA9 \uC2DC 10/20/30% \uD655\uB960\uB85C \uB300\uC0C1\uC758
         \uBB3C\uB9AC \uBC29\uC5B4\uB825 1\uB2E8\uACC4 \uC601\uAD6C \uAC10\uC18C"
       Type: 4
-      TotalCost: 300
+      TotalCost: 900
       Values:
       - 0
       - 0

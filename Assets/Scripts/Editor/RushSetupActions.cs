@@ -304,6 +304,7 @@ namespace Rush.EditorTools
             EnsureUnitPrefab("Monster_MidBoss1", typeof(Monster), EnsureMaterial("Mat_MonMidBoss", new Color(0.25f, 0.05f, 0.05f)), 1.5f, 0.8f);
             EnsureUnitPrefab("Monster_MidBoss2", typeof(Monster), EnsureMaterial("Mat_MonMidBoss", new Color(0.25f, 0.05f, 0.05f)), 1.65f, 0.88f);
             EnsureUnitPrefab("Monster_MidBoss3", typeof(Monster), EnsureMaterial("Mat_MonMidBoss", new Color(0.25f, 0.05f, 0.05f)), 1.8f, 0.95f);
+            EnsureUnitPrefab("Monster_FinalBoss", typeof(Monster), EnsureMaterial("Mat_MonFinalBoss", new Color(0.12f, 0.02f, 0.08f)), 2.2f, 1.15f);
 
             EnsureFxPrefabs();
 
@@ -907,6 +908,7 @@ namespace Rush.EditorTools
             ("Monster_MidBoss1", "AnemyHeavy", 1.5f),
             ("Monster_MidBoss2", "AnemyCaptain", 1.7f),
             ("Monster_MidBoss3", "AnemyCaptain", 1.9f),
+            ("Monster_FinalBoss", "AnemyCaptain", 2.3f),
         };
 
         /// <summary>
@@ -2383,8 +2385,12 @@ namespace Rush.EditorTools
 
         public static void SetupScene()
         {
-            // 씬을 교체하기 전에 현재 씬의 미저장 변경을 사용자에게 확인한다 (취소하면 셋업 중단)
-            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            // 미저장 변경 확인은 씬을 실제로 교체할 때만 한다.
+            // 이미 대상 씬을 열고 있으면 버려지는 변경이 없고, 셋업 마지막에 그대로 저장된다.
+            // (이 확인은 모달이라 자동화에서 호출하면 응답을 못 받고 중단된다)
+            bool switchesScene = EditorSceneManager.GetActiveScene().path != ScenePath;
+
+            if (switchesScene && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
             {
                 Report("씬 저장이 취소되어 셋업을 중단함");
                 return;
@@ -2500,11 +2506,16 @@ namespace Rush.EditorTools
                 routeTransform = go.transform;
             }
 
-            for (int i = routeTransform.childCount; i < def.Waypoints.Length; i++)
+            // 웨이포인트가 모자랄 때만 채운다. 손으로 다듬은 경로를 덮지 않는 것이 원칙이다.
+            if (routeTransform.childCount < def.Waypoints.Length
+                && !WarnIfPrefabInstance(routeTransform.gameObject, $"{routeName} 웨이포인트"))
             {
-                var wp = new GameObject($"P{i}");
-                wp.transform.SetParent(routeTransform);
-                wp.transform.position = def.Waypoints[i];
+                for (int i = routeTransform.childCount; i < def.Waypoints.Length; i++)
+                {
+                    var wp = new GameObject($"P{i}");
+                    wp.transform.SetParent(routeTransform);
+                    wp.transform.position = def.Waypoints[i];
+                }
             }
 
             var route = routeTransform.GetComponent<PathRoute>();
@@ -2870,8 +2881,28 @@ namespace Rush.EditorTools
                     UnityEngine.Object.DestroyImmediate(existing.gameObject);
                 }
 
+                if (WarnIfPrefabInstance(slotRoot, slotName))
+                    continue;
+
                 CreateSlot(slotRoot.transform, slotName, DefaultSlotPositions[i], slotMat, ringMat, rangeMat);
             }
+        }
+
+        /// <summary>
+        /// 씬 컨플릭트를 줄이려고 Slots/Paths 같은 골격을 프리팹으로 뽑아 쓸 수 있다.
+        /// 그 상태에서 셋업이 자식을 새로 만들면 프리팹이 아니라 씬에 "추가된 오브젝트" 오버라이드가 쌓여
+        /// 원본과 씬이 조용히 갈라진다. 그래서 만들지 않고 경고만 남긴다.
+        /// </summary>
+        static bool WarnIfPrefabInstance(GameObject root, string childName)
+        {
+            if (!PrefabUtility.IsPartOfPrefabInstance(root))
+                return false;
+
+            string path = AssetDatabase.GetAssetPath(PrefabUtility.GetCorrespondingObjectFromSource(root));
+
+            Report($"{root.name}이 프리팹 인스턴스라 {childName}을 씬에 만들지 않았다. {path}를 열어 직접 추가할 것");
+
+            return true;
         }
 
         /// <summary>

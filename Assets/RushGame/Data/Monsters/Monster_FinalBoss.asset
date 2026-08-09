@@ -10,24 +10,24 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6e4c12fb4c25eef4494fc2018215d54d, type: 3}
-  m_Name: Monster_Scout
+  m_Name: Monster_FinalBoss
   m_EditorClassIdentifier: Assembly-CSharp::Rush.Data.MonsterData
-  DisplayName: "\uC815\uCC30\uBCD1"
-  Prefab: {fileID: 8487037665959498374, guid: be2ef683c81f55b4ea61e1a36fde48cf, type: 3}
-  MaxHp: 70
-  MoveSpeed: 2.4
-  PhysicalDefense: 0
-  MagicalDefense: 1
+  DisplayName: "\uBC18\uB780\uAD70 \uC6B0\uB450\uBA38\uB9AC"
+  Prefab: {fileID: 6584990542294019240, guid: 8cd29c03a15dcac4fb4fb9d10a8d7a41, type: 3}
+  MaxHp: 15000
+  MoveSpeed: 0.6
+  PhysicalDefense: 2
+  MagicalDefense: 2
   IsFlying: 0
-  GoldReward: 10
-  LifeDamage: 1
-  IsBoss: 0
-  IsFinalBoss: 0
-  BatchSize: 3
+  GoldReward: 0
+  LifeDamage: 100
+  IsBoss: 1
+  IsFinalBoss: 1
+  BatchSize: 1
   AllowBatchGrowth: 1
   RegenPerSecond: 0
-  MeleeDamage: 20
-  MeleeInterval: 1
+  MeleeDamage: 55
+  MeleeInterval: 1.5
   RangedDamage: 0
   RangedRange: 0
   RangedInterval: 1.5

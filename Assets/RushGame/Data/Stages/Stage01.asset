@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: Stage01
   m_EditorClassIdentifier: Assembly-CSharp::Rush.Data.StageData
   StartLife: 20
-  StartGold: 300
+  StartGold: 350
   FirstWaveDelay: 25
-  WaveInterval: 45
+  WaveInterval: 80
   EarlyCallBudgetFraction: 0.15
   RandomPool:
   - {fileID: 11400000, guid: 22f90338bd6ead049a2a6a3040d40cc0, type: 2}
@@ -24,198 +24,367 @@ MonoBehaviour:
   - {fileID: 11400000, guid: f3cdb30139f535c4484655f5727e84d9, type: 2}
   - {fileID: 11400000, guid: f77d3ea8b9f5e384aba7d22512663511, type: 2}
   - {fileID: 11400000, guid: 99cc260222301534e92cbd8d118cbb3e, type: 2}
-  RandomSpawnInterval: 1.2
+  SpawnWindow: 60
+  BatchInnerInterval: 0.35
+  MinBatchInterval: 2
+  MaxBatchGrowth: 2
+  EndlessSpawnInterval: 30
+  EndlessBudgetFraction: 0.5
+  EndlessStatStep: 0.05
+  Archetypes:
+  - Name: "\uAC1C\uB5BC 1"
+    Members:
+    - Monster: {fileID: 11400000, guid: 22f90338bd6ead049a2a6a3040d40cc0, type: 2}
+      Share: 1
+    BudgetScale: 0.85
+    BandChance:
+    - 0.1
+    - 0.05
+    - 0
+    RouteCountChance:
+    - 0.05
+    - 0.2
+    - 0.35
+    - 0.4
+    MinWave: 0
+    MinGap: 4
+    AllowedAfterBoss: 0
+  - Name: "\uAC1C\uB5BC 2"
+    Members:
+    - Monster: {fileID: 11400000, guid: 22f90338bd6ead049a2a6a3040d40cc0, type: 2}
+      Share: 0.5
+    - Monster: {fileID: 11400000, guid: c65151b951d76954bb44c39cbf2f1c4f, type: 2}
+      Share: 0.3
+    - Monster: {fileID: 11400000, guid: f3cdb30139f535c4484655f5727e84d9, type: 2}
+      Share: 0.2
+    BudgetScale: 0.8
+    BandChance:
+    - 0.19
+    - 0.17
+    - 0.12
+    RouteCountChance:
+    - 0.05
+    - 0.2
+    - 0.35
+    - 0.4
+    MinWave: 0
+    MinGap: 0
+    AllowedAfterBoss: 1
+  - Name: "\uC815\uC608 1"
+    Members:
+    - Monster: {fileID: 11400000, guid: c65151b951d76954bb44c39cbf2f1c4f, type: 2}
+      Share: 0.4
+    - Monster: {fileID: 11400000, guid: 99cc260222301534e92cbd8d118cbb3e, type: 2}
+      Share: 0.6
+    BudgetScale: 0.95
+    BandChance:
+    - 0.2
+    - 0.22
+    - 0.25
+    RouteCountChance:
+    - 0.3
+    - 0.4
+    - 0.2
+    - 0.1
+    MinWave: 0
+    MinGap: 0
+    AllowedAfterBoss: 0
+  - Name: "\uC815\uC608 2"
+    Members:
+    - Monster: {fileID: 11400000, guid: c65151b951d76954bb44c39cbf2f1c4f, type: 2}
+      Share: 0.3
+    - Monster: {fileID: 11400000, guid: 99cc260222301534e92cbd8d118cbb3e, type: 2}
+      Share: 0.3
+    - Monster: {fileID: 11400000, guid: f77d3ea8b9f5e384aba7d22512663511, type: 2}
+      Share: 0.4
+    BudgetScale: 1
+    BandChance:
+    - 0.16
+    - 0.18
+    - 0.25
+    RouteCountChance:
+    - 0.3
+    - 0.4
+    - 0.2
+    - 0.1
+    MinWave: 13
+    MinGap: 0
+    AllowedAfterBoss: 0
+  - Name: "\uAE30\uB3D9"
+    Members:
+    - Monster: {fileID: 11400000, guid: f54279495fdf28847b2026fc164c89f7, type: 2}
+      Share: 0.5
+    - Monster: {fileID: 11400000, guid: f3cdb30139f535c4484655f5727e84d9, type: 2}
+      Share: 0.5
+    BudgetScale: 1.2
+    BandChance:
+    - 0.17
+    - 0.15
+    - 0.15
+    RouteCountChance:
+    - 0.15
+    - 0.3
+    - 0.3
+    - 0.25
+    MinWave: 0
+    MinGap: 0
+    AllowedAfterBoss: 0
+  - Name: "\uC9EC"
+    Members: []
+    BudgetScale: 0.85
+    BandChance:
+    - 0.18
+    - 0.23
+    - 0.23
+    RouteCountChance:
+    - 0.15
+    - 0.3
+    - 0.3
+    - 0.25
+    MinWave: 0
+    MinGap: 0
+    AllowedAfterBoss: 1
+  BossArchetypes:
+  - Archetype: 0
+    DisplayName: "\uB3CC\uACA9\uB300\uC7A5"
+    HpScale: 0.8
+    PhysicalDefense: 3
+    MagicalDefense: 0
+  - Archetype: 1
+    DisplayName: "\uD0C0\uB77D\uD55C \uC0AC\uC81C"
+    HpScale: 0.9
+    PhysicalDefense: 1
+    MagicalDefense: 3
+  - Archetype: 2
+    DisplayName: "\uACF5\uC131 \uCC45\uC0AC"
+    HpScale: 1
+    PhysicalDefense: 2
+    MagicalDefense: 2
   Waves:
-  - Budget: 320
+  - Budget: 160
     StatMultiplier: 1
     IsBossWave: 0
+    IsFinalWave: 0
     RouteIds:
     - A1
     Entries:
     - Monster: {fileID: 11400000, guid: 22f90338bd6ead049a2a6a3040d40cc0, type: 2}
-      Count: 64
-      Interval: 0.6
-      StartDelay: 0
-  - Budget: 355
-    StatMultiplier: 1.06
-    IsBossWave: 0
-    RouteIds: []
-    Entries:
-    - Monster: {fileID: 11400000, guid: 22f90338bd6ead049a2a6a3040d40cc0, type: 2}
-      Count: 37
-      Interval: 0.8
-      StartDelay: 0
-    - Monster: {fileID: 11400000, guid: f3cdb30139f535c4484655f5727e84d9, type: 2}
-      Count: 15
-      Interval: 1.6
-      StartDelay: 5
-  - Budget: 395
-    StatMultiplier: 1.13
-    IsBossWave: 0
-    RouteIds: []
-    Entries:
-    - Monster: {fileID: 11400000, guid: c65151b951d76954bb44c39cbf2f1c4f, type: 2}
-      Count: 24
-      Interval: 1.1
-      StartDelay: 0
-    - Monster: {fileID: 11400000, guid: f54279495fdf28847b2026fc164c89f7, type: 2}
-      Count: 7
-      Interval: 2.5
-      StartDelay: 4
-  - Budget: 440
-    StatMultiplier: 1.19
-    IsBossWave: 0
-    RouteIds: []
-    Entries:
-    - Monster: {fileID: 11400000, guid: f77d3ea8b9f5e384aba7d22512663511, type: 2}
-      Count: 14
+      Count: 32
       Interval: 1.8
       StartDelay: 0
-    - Monster: {fileID: 11400000, guid: 22f90338bd6ead049a2a6a3040d40cc0, type: 2}
-      Count: 32
-      Interval: 0.7
-      StartDelay: 3
-  - Budget: 490
-    StatMultiplier: 1.27
+  - Budget: 200
+    StatMultiplier: 1
     IsBossWave: 0
+    IsFinalWave: 0
+    RouteIds:
+    - A1
+    - A2
+    Entries:
+    - Monster: {fileID: 11400000, guid: 22f90338bd6ead049a2a6a3040d40cc0, type: 2}
+      Count: 20
+      Interval: 2.8
+      StartDelay: 0
+    - Monster: {fileID: 11400000, guid: f3cdb30139f535c4484655f5727e84d9, type: 2}
+      Count: 10
+      Interval: 5
+      StartDelay: 5
+  - Budget: 250
+    StatMultiplier: 1
+    IsBossWave: 0
+    IsFinalWave: 0
+    RouteIds:
+    - A1
+    - B1
+    Entries:
+    - Monster: {fileID: 11400000, guid: c65151b951d76954bb44c39cbf2f1c4f, type: 2}
+      Count: 16
+      Interval: 3.4
+      StartDelay: 0
+    - Monster: {fileID: 11400000, guid: f54279495fdf28847b2026fc164c89f7, type: 2}
+      Count: 6
+      Interval: 8
+      StartDelay: 4
+  - Budget: 300
+    StatMultiplier: 1
+    IsBossWave: 0
+    IsFinalWave: 0
+    RouteIds:
+    - B1
+    - B2
+    Entries:
+    - Monster: {fileID: 11400000, guid: f77d3ea8b9f5e384aba7d22512663511, type: 2}
+      Count: 10
+      Interval: 5.5
+      StartDelay: 0
+    - Monster: {fileID: 11400000, guid: 22f90338bd6ead049a2a6a3040d40cc0, type: 2}
+      Count: 30
+      Interval: 1.8
+      StartDelay: 3
+  - Budget: 360
+    StatMultiplier: 1
+    IsBossWave: 0
+    IsFinalWave: 0
     RouteIds: []
     Entries:
     - Monster: {fileID: 11400000, guid: c65151b951d76954bb44c39cbf2f1c4f, type: 2}
-      Count: 20
-      Interval: 1.2
+      Count: 18
+      Interval: 3
       StartDelay: 0
     - Monster: {fileID: 11400000, guid: f77d3ea8b9f5e384aba7d22512663511, type: 2}
       Count: 12
-      Interval: 1.8
+      Interval: 4.5
       StartDelay: 5
-  - Budget: 715
-    StatMultiplier: 1.34
+  - Budget: 730
+    StatMultiplier: 1
     IsBossWave: 1
+    IsFinalWave: 0
     RouteIds: []
     Entries:
     - Monster: {fileID: 11400000, guid: 22f90338bd6ead049a2a6a3040d40cc0, type: 2}
-      Count: 18
-      Interval: 0.8
+      Count: 10
+      Interval: 2
       StartDelay: 0
     - Monster: {fileID: 11400000, guid: c65151b951d76954bb44c39cbf2f1c4f, type: 2}
-      Count: 8
-      Interval: 1.5
+      Count: 5
+      Interval: 3
       StartDelay: 4
     - Monster: {fileID: 11400000, guid: f54279495fdf28847b2026fc164c89f7, type: 2}
-      Count: 4
-      Interval: 3
+      Count: 2
+      Interval: 6
       StartDelay: 6
     - Monster: {fileID: 11400000, guid: f3cdb30139f535c4484655f5727e84d9, type: 2}
-      Count: 6
-      Interval: 1.5
+      Count: 3
+      Interval: 4
       StartDelay: 8
     - Monster: {fileID: 11400000, guid: f77d3ea8b9f5e384aba7d22512663511, type: 2}
-      Count: 4
-      Interval: 2.5
+      Count: 2
+      Interval: 6
       StartDelay: 10
     - Monster: {fileID: 11400000, guid: 99cc260222301534e92cbd8d118cbb3e, type: 2}
-      Count: 2
-      Interval: 4
+      Count: 1
+      Interval: 1
       StartDelay: 14
     - Monster: {fileID: 11400000, guid: 6ab3be6f3e7731f4c896d6b14d9ced6b, type: 2}
       Count: 1
       Interval: 1
       StartDelay: 20
-  - Budget: 610
-    StatMultiplier: 1.43
+  - Budget: 625
+    StatMultiplier: 1.25
     IsBossWave: 0
+    IsFinalWave: 0
     RouteIds: []
     Entries: []
-  - Budget: 680
-    StatMultiplier: 1.51
+  - Budget: 695
+    StatMultiplier: 1.25
     IsBossWave: 0
+    IsFinalWave: 0
     RouteIds: []
     Entries: []
-  - Budget: 760
-    StatMultiplier: 1.61
+  - Budget: 775
+    StatMultiplier: 1.25
     IsBossWave: 0
+    IsFinalWave: 0
     RouteIds: []
     Entries: []
-  - Budget: 845
-    StatMultiplier: 1.7
+  - Budget: 865
+    StatMultiplier: 1.25
     IsBossWave: 0
+    IsFinalWave: 0
     RouteIds: []
     Entries: []
-  - Budget: 940
-    StatMultiplier: 1.81
+  - Budget: 960
+    StatMultiplier: 1.25
     IsBossWave: 0
+    IsFinalWave: 0
     RouteIds: []
     Entries: []
-  - Budget: 1360
-    StatMultiplier: 1.92
+  - Budget: 1390
+    StatMultiplier: 1.25
     IsBossWave: 1
+    IsFinalWave: 0
     RouteIds: []
     Entries:
     - Monster: {fileID: 11400000, guid: 47d7e86389a30c142a15514e5479e84a, type: 2}
       Count: 1
       Interval: 1
       StartDelay: 12
-  - Budget: 1165
-    StatMultiplier: 2.04
+  - Budget: 1195
+    StatMultiplier: 1.5
     IsBossWave: 0
+    IsFinalWave: 0
     RouteIds: []
     Entries: []
-  - Budget: 1300
-    StatMultiplier: 2.16
+  - Budget: 1330
+    StatMultiplier: 1.5
     IsBossWave: 0
+    IsFinalWave: 0
     RouteIds: []
     Entries: []
-  - Budget: 1445
-    StatMultiplier: 2.29
+  - Budget: 1480
+    StatMultiplier: 1.5
     IsBossWave: 0
+    IsFinalWave: 0
     RouteIds: []
     Entries: []
-  - Budget: 1610
-    StatMultiplier: 2.43
+  - Budget: 1650
+    StatMultiplier: 1.5
     IsBossWave: 0
+    IsFinalWave: 0
     RouteIds: []
     Entries: []
-  - Budget: 1795
-    StatMultiplier: 2.58
+  - Budget: 1835
+    StatMultiplier: 1.5
     IsBossWave: 0
+    IsFinalWave: 0
     RouteIds: []
     Entries: []
-  - Budget: 2600
-    StatMultiplier: 2.74
+  - Budget: 2660
+    StatMultiplier: 1.5
     IsBossWave: 1
+    IsFinalWave: 0
     RouteIds: []
     Entries:
     - Monster: {fileID: 11400000, guid: 132863196e972634b9c7f3dbcc070157, type: 2}
       Count: 1
       Interval: 1
       StartDelay: 15
-  - Budget: 2225
-    StatMultiplier: 2.91
+  - Budget: 2280
+    StatMultiplier: 2
     IsBossWave: 0
+    IsFinalWave: 0
     RouteIds: []
     Entries: []
-  - Budget: 2480
-    StatMultiplier: 3.08
+  - Budget: 2535
+    StatMultiplier: 2
     IsBossWave: 0
+    IsFinalWave: 0
     RouteIds: []
     Entries: []
-  - Budget: 2760
-    StatMultiplier: 3.27
+  - Budget: 2825
+    StatMultiplier: 2
     IsBossWave: 0
+    IsFinalWave: 0
     RouteIds: []
     Entries: []
-  - Budget: 3080
-    StatMultiplier: 3.47
+  - Budget: 3145
+    StatMultiplier: 2
     IsBossWave: 0
+    IsFinalWave: 0
     RouteIds: []
     Entries: []
-  - Budget: 3430
-    StatMultiplier: 3.68
+  - Budget: 3505
+    StatMultiplier: 2
     IsBossWave: 0
+    IsFinalWave: 0
     RouteIds: []
     Entries: []
-  - Budget: 3815
-    StatMultiplier: 3.91
+  - Budget: 3905
+    StatMultiplier: 2
     IsBossWave: 0
+    IsFinalWave: 1
     RouteIds: []
-    Entries: []
+    Entries:
+    - Monster: {fileID: 11400000, guid: e3f3917715995114a956acd954cf69f2, type: 2}
+      Count: 1
+      Interval: 1
+      StartDelay: 0

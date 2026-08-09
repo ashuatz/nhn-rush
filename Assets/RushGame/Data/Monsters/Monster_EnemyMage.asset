@@ -22,6 +22,9 @@ MonoBehaviour:
   GoldReward: 15
   LifeDamage: 1
   IsBoss: 0
+  IsFinalBoss: 0
+  BatchSize: 1
+  AllowBatchGrowth: 0
   RegenPerSecond: 0
   MeleeDamage: 22
   MeleeInterval: 1

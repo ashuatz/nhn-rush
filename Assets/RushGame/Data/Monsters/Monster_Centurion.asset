@@ -15,13 +15,16 @@ MonoBehaviour:
   DisplayName: "\uBC31\uC778\uB300\uC7A5"
   Prefab: {fileID: 4050186483573110342, guid: c5232d9c2bbb3474280e21faea4045e8, type: 3}
   MaxHp: 420
-  MoveSpeed: 1.44
+  MoveSpeed: 1.4399999
   PhysicalDefense: 3
   MagicalDefense: 1
   IsFlying: 0
   GoldReward: 30
   LifeDamage: 1
   IsBoss: 0
+  IsFinalBoss: 0
+  BatchSize: 1
+  AllowBatchGrowth: 0
   RegenPerSecond: 0
   MeleeDamage: 35
   MeleeInterval: 1
