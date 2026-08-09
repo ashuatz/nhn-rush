@@ -217,6 +217,49 @@ namespace Rush.EditorTools
             return mat;
         }
 
+        /// <summary>
+        /// HP 디버그 뷰용 평면색 머티리얼 4개 (HP 높은 구간부터).
+        /// Lit을 쓰면 그림자 진 쪽 몬스터의 색이 어두워져 구간 판독이 흔들리므로 Unlit으로 만든다.
+        /// </summary>
+        static Material[] EnsureDebugHpMaterials()
+        {
+            EnsureFolder(MaterialDir);
+
+            return new[]
+            {
+                EnsureUnlitMaterial("Mat_DebugHp0", new Color(0.30f, 0.85f, 0.35f)),
+                EnsureUnlitMaterial("Mat_DebugHp1", new Color(0.95f, 0.85f, 0.20f)),
+                EnsureUnlitMaterial("Mat_DebugHp2", new Color(0.98f, 0.55f, 0.15f)),
+                EnsureUnlitMaterial("Mat_DebugHp3", new Color(0.92f, 0.20f, 0.18f)),
+            };
+        }
+
+        static Material EnsureUnlitMaterial(string name, Color color)
+        {
+            string path = $"{MaterialDir}/{name}.mat";
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+
+            if (existing != null)
+                return existing;
+
+            var shader = Shader.Find("Universal Render Pipeline/Unlit");
+
+            if (shader == null)
+                shader = Shader.Find("Unlit/Color");
+
+            var mat = new Material(shader);
+
+            if (mat.HasProperty("_BaseColor"))
+                mat.SetColor("_BaseColor", color);
+
+            if (mat.HasProperty("_Color"))
+                mat.SetColor("_Color", color);
+
+            AssetDatabase.CreateAsset(mat, path);
+
+            return mat;
+        }
+
         public static void CreateDummyPrefabs()
         {
             CreateFolders();
@@ -1778,9 +1821,17 @@ namespace Rush.EditorTools
         };
 
         /// <summary>
+        /// 적 이동속도 일괄 배수. 아래 시트 값은 그대로 두고 여기서만 조정한다.
+        ///
+        /// 시트 원본으로는 경로 평균 길이 35유닛을 정찰병이 11초, 민병이 22초에 완주해
+        /// 타워의 사거리 체류 시간이 너무 짧았다. 상대 밸런스는 그대로 두고 전체를 늦춘다.
+        /// </summary>
+        const float MonsterSpeedScale = 0.75f;
+
+        /// <summary>
         /// 적 6종 + 중간 보스 3종. 스탯은 스프레드시트(적 6종/적 스탯 스케일링)가 원본이며
         /// 셋업을 다시 실행하면 항상 시트 값으로 재베이크한다.
-        /// 이동속도는 민병 1.6 유닛/초를 상대값 1.0으로 둔 환산이다.
+        /// 이동속도는 민병 1.6 유닛/초를 상대값 1.0으로 둔 환산이며, MonsterSpeedScale이 곱해진다.
         /// 보스 킬 보상은 웨이브 배수를 곱해 시트의 보스 수익(165/315/600)이 되는 기본값이다.
         /// </summary>
         public static void CreateMonsterData()
@@ -1893,6 +1944,9 @@ namespace Rush.EditorTools
 
             setup(data);
 
+            // 시트 값은 setup 안에 그대로 두고, 페이싱 조정은 여기 한 곳에서만 건다
+            data.MoveSpeed *= MonsterSpeedScale;
+
             if (data.Prefab == null)
                 data.Prefab = LoadPrefab(assetName);
 
@@ -1970,10 +2024,12 @@ namespace Rush.EditorTools
 
             stage.StartLife = 20;
             stage.StartGold = 300;
-            stage.FirstWaveDelay = 15f;
-            stage.WaveInterval = 30f;
+            // 페이싱: 적이 느려진 만큼(MonsterSpeedScale) 웨이브 간격도 함께 늘려
+            // 한 웨이브가 다 지나가기 전에 다음 웨이브가 겹치지 않게 한다.
+            stage.FirstWaveDelay = 25f;
+            stage.WaveInterval = 45f;
             stage.EarlyCallBudgetFraction = 0.15f;
-            stage.RandomSpawnInterval = 0.8f;
+            stage.RandomSpawnInterval = 1.2f;
             stage.RandomPool = new[] { militia, heavy, rider, scout, mage, centurion };
 
             stage.Waves = new WaveData[24];
@@ -1988,6 +2044,8 @@ namespace Rush.EditorTools
             }
 
             // 고정 구간 (1~6웨이브). 시트: 민병대 / 민병대+정찰병 / 중보병+라이더 / 마법사+민병대 / 중보병+마법사 / 중간 보스 1
+            // 첫 웨이브는 A1 한 줄로만 들어온다. 어디서 나오는지 먼저 보여주고 시작한다.
+            stage.Waves[0].RouteIds = new[] { "A1" };
             stage.Waves[0].Entries = new[]
             {
                 Entry(militia, 64, 0.6f),
@@ -3168,11 +3226,27 @@ namespace Rush.EditorTools
             var dashboard = EnsureComponent<DebugDashboard>(uiGo);
             var rewardOverlay = EnsureComponent<RewardOverlay>(uiGo);
             var rewardSidebar = EnsureComponent<RewardSidebar>(uiGo);
-            var healthOverlay = EnsureComponent<MonsterHealthOverlay>(uiGo);
+            EnsureComponent<MonsterHealthOverlay>(uiGo);
+
+            var debugView = EnsureComponent<MonsterDebugView>(uiGo);
+
+            var debugSo = new SerializedObject(debugView);
+            var bands = debugSo.FindProperty("_bandMaterials");
+
+            if (bands != null && bands.arraySize == 0)
+            {
+                var materials = EnsureDebugHpMaterials();
+                bands.arraySize = materials.Length;
+
+                for (int i = 0; i < materials.Length; i++)
+                    bands.GetArrayElementAtIndex(i).objectReferenceValue = materials[i];
+            }
+
+            debugSo.ApplyModifiedPropertiesWithoutUndo();
 
             var hudSo = new SerializedObject(hud);
             FillIfEmpty(hudSo, "_stage", stage);
-            FillIfEmpty(hudSo, "_healthOverlay", healthOverlay);
+            FillIfEmpty(hudSo, "_debugView", debugView);
             hudSo.ApplyModifiedPropertiesWithoutUndo();
 
             var overlaySo = new SerializedObject(rewardOverlay);

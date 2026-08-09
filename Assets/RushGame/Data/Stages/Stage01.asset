@@ -39,6 +39,7 @@ MonoBehaviour:
   - Budget: 355
     StatMultiplier: 1.06
     IsBossWave: 0
+    RouteIds: []
     Entries:
     - Monster: {fileID: 11400000, guid: 22f90338bd6ead049a2a6a3040d40cc0, type: 2}
       Count: 37
@@ -51,6 +52,7 @@ MonoBehaviour:
   - Budget: 395
     StatMultiplier: 1.13
     IsBossWave: 0
+    RouteIds: []
     Entries:
     - Monster: {fileID: 11400000, guid: c65151b951d76954bb44c39cbf2f1c4f, type: 2}
       Count: 24
@@ -63,6 +65,7 @@ MonoBehaviour:
   - Budget: 440
     StatMultiplier: 1.19
     IsBossWave: 0
+    RouteIds: []
     Entries:
     - Monster: {fileID: 11400000, guid: f77d3ea8b9f5e384aba7d22512663511, type: 2}
       Count: 14
@@ -75,6 +78,7 @@ MonoBehaviour:
   - Budget: 490
     StatMultiplier: 1.27
     IsBossWave: 0
+    RouteIds: []
     Entries:
     - Monster: {fileID: 11400000, guid: c65151b951d76954bb44c39cbf2f1c4f, type: 2}
       Count: 20
@@ -87,6 +91,7 @@ MonoBehaviour:
   - Budget: 715
     StatMultiplier: 1.34
     IsBossWave: 1
+    RouteIds: []
     Entries:
     - Monster: {fileID: 11400000, guid: 22f90338bd6ead049a2a6a3040d40cc0, type: 2}
       Count: 18
@@ -119,26 +124,32 @@ MonoBehaviour:
   - Budget: 610
     StatMultiplier: 1.43
     IsBossWave: 0
+    RouteIds: []
     Entries: []
   - Budget: 680
     StatMultiplier: 1.51
     IsBossWave: 0
+    RouteIds: []
     Entries: []
   - Budget: 760
     StatMultiplier: 1.61
     IsBossWave: 0
+    RouteIds: []
     Entries: []
   - Budget: 845
     StatMultiplier: 1.7
     IsBossWave: 0
+    RouteIds: []
     Entries: []
   - Budget: 940
     StatMultiplier: 1.81
     IsBossWave: 0
+    RouteIds: []
     Entries: []
   - Budget: 1360
     StatMultiplier: 1.92
     IsBossWave: 1
+    RouteIds: []
     Entries:
     - Monster: {fileID: 11400000, guid: 47d7e86389a30c142a15514e5479e84a, type: 2}
       Count: 1
@@ -147,26 +158,32 @@ MonoBehaviour:
   - Budget: 1165
     StatMultiplier: 2.04
     IsBossWave: 0
+    RouteIds: []
     Entries: []
   - Budget: 1300
     StatMultiplier: 2.16
     IsBossWave: 0
+    RouteIds: []
     Entries: []
   - Budget: 1445
     StatMultiplier: 2.29
     IsBossWave: 0
+    RouteIds: []
     Entries: []
   - Budget: 1610
     StatMultiplier: 2.43
     IsBossWave: 0
+    RouteIds: []
     Entries: []
   - Budget: 1795
     StatMultiplier: 2.58
     IsBossWave: 0
+    RouteIds: []
     Entries: []
   - Budget: 2600
     StatMultiplier: 2.74
     IsBossWave: 1
+    RouteIds: []
     Entries:
     - Monster: {fileID: 11400000, guid: 132863196e972634b9c7f3dbcc070157, type: 2}
       Count: 1
@@ -175,24 +192,30 @@ MonoBehaviour:
   - Budget: 2225
     StatMultiplier: 2.91
     IsBossWave: 0
+    RouteIds: []
     Entries: []
   - Budget: 2480
     StatMultiplier: 3.08
     IsBossWave: 0
+    RouteIds: []
     Entries: []
   - Budget: 2760
     StatMultiplier: 3.27
     IsBossWave: 0
+    RouteIds: []
     Entries: []
   - Budget: 3080
     StatMultiplier: 3.47
     IsBossWave: 0
+    RouteIds: []
     Entries: []
   - Budget: 3430
     StatMultiplier: 3.68
     IsBossWave: 0
+    RouteIds: []
     Entries: []
   - Budget: 3815
     StatMultiplier: 3.91
     IsBossWave: 0
+    RouteIds: []
     Entries: []

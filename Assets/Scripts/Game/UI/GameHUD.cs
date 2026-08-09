@@ -14,9 +14,12 @@ namespace Rush.UI
     {
         static readonly Color PanelColor = new Color(0.08f, 0.08f, 0.1f, 0.85f);
         static readonly Color TextColor = Color.white;
+        static readonly Color PauseBorderColor = new Color(1f, 0.92f, 0.6f, 0.75f);
+
+        const float PauseButtonSize = 38f;
 
         [SerializeField] StageController _stage;
-        [SerializeField] MonsterHealthOverlay _healthOverlay;
+        [SerializeField] Rush.Combat.MonsterDebugView _debugView;
 
         VisualElement _container;
         Label _goldLabel;
@@ -26,6 +29,8 @@ namespace Rush.UI
         Button _earlyCallButton;
         Button _speedButton;
         Button _hpToggleButton;
+        Button _pauseButton;
+        VisualElement _pauseOverlay;
         VisualElement _resultOverlay;
         Label _resultLabel;
 
@@ -78,8 +83,12 @@ namespace Rush.UI
             _container.style.bottom = 0;
 
             _container.Add(BuildTopBar());
+            _container.Add(BuildPauseButton());
             _container.Add(BuildWavePanel());
             _container.Add(BuildResultOverlay());
+
+            // 일시정지 팝업은 다른 UI를 덮어야 하므로 마지막에 넣는다
+            _container.Add(BuildPauseOverlay());
 
             root.Add(_container);
         }
@@ -128,6 +137,118 @@ namespace Rush.UI
             bar.Add(_hpToggleButton);
 
             return bar;
+        }
+
+        VisualElement BuildPauseButton()
+        {
+            _pauseButton = new Button(OnPauseClicked);
+            _pauseButton.text = string.Empty;
+            _pauseButton.tooltip = "일시정지";
+
+            _pauseButton.style.position = Position.Absolute;
+            _pauseButton.style.top = 8;
+            _pauseButton.style.right = 8;
+            _pauseButton.style.width = PauseButtonSize;
+            _pauseButton.style.height = PauseButtonSize;
+            _pauseButton.style.backgroundColor = PanelColor;
+            _pauseButton.style.alignItems = Align.Center;
+            _pauseButton.style.justifyContent = Justify.Center;
+
+            ClearSpacing(_pauseButton);
+
+            // 건설 라디얼의 아이콘 버튼과 같은 원형 + 금색 테두리로 맞춘다
+            _pauseButton.style.borderLeftWidth = 2;
+            _pauseButton.style.borderRightWidth = 2;
+            _pauseButton.style.borderTopWidth = 2;
+            _pauseButton.style.borderBottomWidth = 2;
+            _pauseButton.style.borderLeftColor = PauseBorderColor;
+            _pauseButton.style.borderRightColor = PauseBorderColor;
+            _pauseButton.style.borderTopColor = PauseBorderColor;
+            _pauseButton.style.borderBottomColor = PauseBorderColor;
+
+            float radius = PauseButtonSize * 0.5f;
+            _pauseButton.style.borderTopLeftRadius = radius;
+            _pauseButton.style.borderTopRightRadius = radius;
+            _pauseButton.style.borderBottomLeftRadius = radius;
+            _pauseButton.style.borderBottomRightRadius = radius;
+
+            var icon = new GlyphIcon(IconGlyph.Pause);
+            icon.style.width = PauseButtonSize * 0.4f;
+            icon.style.height = PauseButtonSize * 0.4f;
+            icon.style.flexShrink = 0f;
+            _pauseButton.Add(icon);
+
+            return _pauseButton;
+        }
+
+        /// <summary>기본 테마가 넣는 마진/패딩을 걷어낸다. 남아 있으면 원형 버튼 안에서 아이콘이 밀린다.</summary>
+        static void ClearSpacing(VisualElement element)
+        {
+            element.style.marginLeft = 0;
+            element.style.marginRight = 0;
+            element.style.marginTop = 0;
+            element.style.marginBottom = 0;
+            element.style.paddingLeft = 0;
+            element.style.paddingRight = 0;
+            element.style.paddingTop = 0;
+            element.style.paddingBottom = 0;
+        }
+
+        VisualElement BuildPauseOverlay()
+        {
+            _pauseOverlay = new VisualElement();
+            _pauseOverlay.style.position = Position.Absolute;
+            _pauseOverlay.style.left = 0;
+            _pauseOverlay.style.right = 0;
+            _pauseOverlay.style.top = 0;
+            _pauseOverlay.style.bottom = 0;
+            _pauseOverlay.style.backgroundColor = new Color(0f, 0f, 0f, 0.6f);
+            _pauseOverlay.style.alignItems = Align.Center;
+            _pauseOverlay.style.justifyContent = Justify.Center;
+            _pauseOverlay.style.display = DisplayStyle.None;
+
+            var box = new VisualElement();
+            box.style.backgroundColor = PanelColor;
+            box.style.minWidth = 220;
+            box.style.paddingLeft = 28;
+            box.style.paddingRight = 28;
+            box.style.paddingTop = 22;
+            box.style.paddingBottom = 22;
+            box.style.borderTopLeftRadius = 8;
+            box.style.borderTopRightRadius = 8;
+            box.style.borderBottomLeftRadius = 8;
+            box.style.borderBottomRightRadius = 8;
+            box.style.alignItems = Align.Stretch;
+
+            var title = new Label("일시정지");
+            title.style.color = TextColor;
+            title.style.fontSize = 26;
+            title.style.unityFontStyleAndWeight = FontStyle.Bold;
+            title.style.unityTextAlign = TextAnchor.MiddleCenter;
+            title.style.marginBottom = 16;
+            box.Add(title);
+
+            box.Add(MakeMenuButton("계속하기", OnResumeClicked));
+            box.Add(MakeMenuButton("다시 시작", OnRestartClicked));
+            box.Add(MakeMenuButton("종료", OnQuitClicked));
+
+            _pauseOverlay.Add(box);
+
+            return _pauseOverlay;
+        }
+
+        static Button MakeMenuButton(string text, System.Action onClick)
+        {
+            var button = new Button(onClick);
+            button.text = text;
+            button.style.fontSize = 15;
+            button.style.marginLeft = 0;
+            button.style.marginRight = 0;
+            button.style.marginBottom = 6;
+            button.style.paddingTop = 8;
+            button.style.paddingBottom = 8;
+
+            return button;
         }
 
         VisualElement BuildWavePanel()
@@ -221,10 +342,10 @@ namespace Rush.UI
 
         void OnHpToggleClicked()
         {
-            if (_healthOverlay == null)
+            if (_debugView == null)
                 return;
 
-            _healthOverlay.DisplayEnabled = !_healthOverlay.DisplayEnabled;
+            _debugView.DisplayEnabled = !_debugView.DisplayEnabled;
 
             RefreshHpToggle();
         }
@@ -234,13 +355,40 @@ namespace Rush.UI
             if (_hpToggleButton == null)
                 return;
 
-            if (_healthOverlay == null)
+            // 구간 머티리얼이 안 꽂혀 있으면 눌러도 아무 일도 안 일어난다. 그럴 땐 버튼을 감춘다.
+            if (_debugView == null || !_debugView.IsReady)
             {
                 _hpToggleButton.style.display = DisplayStyle.None;
                 return;
             }
 
-            _hpToggleButton.text = _healthOverlay.DisplayEnabled ? "HP 끄기" : "HP 켜기";
+            _hpToggleButton.style.display = DisplayStyle.Flex;
+            _hpToggleButton.text = _debugView.DisplayEnabled ? "HP 디버그 끄기" : "HP 디버그 켜기";
+        }
+
+        void OnPauseClicked()
+        {
+            SetPaused(true);
+        }
+
+        void OnResumeClicked()
+        {
+            SetPaused(false);
+        }
+
+        /// <summary>게임 정지 자체는 StageController가 담당하고, HUD는 팝업 표시만 맡는다.</summary>
+        void SetPaused(bool paused)
+        {
+            if (_stage == null || _pauseOverlay == null)
+                return;
+
+            _stage.SetMenuPause(paused);
+
+            _pauseOverlay.style.display = paused ? DisplayStyle.Flex : DisplayStyle.None;
+
+            // 건설 라디얼 등과 UIDocument를 공유하므로, 앞으로 끌어와야 뒤쪽 클릭이 막힌다
+            if (paused)
+                _pauseOverlay.BringToFront();
         }
 
         void OnRestartClicked()
@@ -248,7 +396,21 @@ namespace Rush.UI
             if (_stage == null)
                 return;
 
+            // timeScale은 씬을 새로 불러도 남으므로 먼저 되돌린다
+            SetPaused(false);
+
             _stage.RestartStage();
+        }
+
+        void OnQuitClicked()
+        {
+            SetPaused(false);
+
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
 
         void Refresh()
@@ -293,6 +455,15 @@ namespace Rush.UI
 
         void RefreshResult()
         {
+            bool finished = _stage.Phase == StagePhase.Victory || _stage.Phase == StagePhase.Defeat;
+
+            // 승패가 갈리면 일시정지는 의미가 없다. 열려 있었다면 닫고 버튼도 숨긴다.
+            if (finished && _stage.MenuPauseActive)
+                SetPaused(false);
+
+            if (_pauseButton != null)
+                _pauseButton.style.display = finished ? DisplayStyle.None : DisplayStyle.Flex;
+
             if (_stage.Phase == StagePhase.Victory)
             {
                 _resultOverlay.style.display = DisplayStyle.Flex;

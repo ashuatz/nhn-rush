@@ -15,7 +15,7 @@ MonoBehaviour:
   DisplayName: "\uC911\uAC04 \uBCF4\uC2A4 3"
   Prefab: {fileID: 224437292235967927, guid: c2a95686f1d6af541889cba9232851be, type: 3}
   MaxHp: 1800
-  MoveSpeed: 0.77
+  MoveSpeed: 0.825
   PhysicalDefense: 2
   MagicalDefense: 2
   IsFlying: 0

@@ -12,6 +12,7 @@ namespace Rush.UI
         Bomb = 3,       // 포병
         Upgrade = 4,    // 강화
         Sell = 5,       // 판매
+        Pause = 6,      // 일시정지
     }
 
     /// <summary>
@@ -124,6 +125,9 @@ namespace Rush.UI
                 case IconGlyph.Sell:
                     DrawSell(painter, space);
                     break;
+                case IconGlyph.Pause:
+                    DrawPause(painter, space);
+                    break;
             }
         }
 
@@ -147,6 +151,8 @@ namespace Rush.UI
                     return new Rect(0.22f, 0.22f, 0.56f, 0.70f);
                 case IconGlyph.Sell:
                     return new Rect(0.16f, 0.16f, 0.68f, 0.68f);
+                case IconGlyph.Pause:
+                    return new Rect(0.24f, 0.12f, 0.52f, 0.76f);
                 default:
                     return new Rect(0f, 0f, 1f, 1f);
             }
@@ -222,6 +228,24 @@ namespace Rush.UI
             Line(painter, space, 0.50f, 0.28f, 0.50f, 0.72f);
             Line(painter, space, 0.39f, 0.41f, 0.61f, 0.41f);
             Line(painter, space, 0.39f, 0.59f, 0.61f, 0.59f);
+        }
+
+        /// <summary>일시정지: 세로 막대 두 개. 선이 아니라 면으로 그려야 굵기가 일정하다.</summary>
+        static void DrawPause(Painter2D painter, Space space)
+        {
+            FillRect(painter, space, 0.24f, 0.12f, 0.42f, 0.88f);
+            FillRect(painter, space, 0.58f, 0.12f, 0.76f, 0.88f);
+        }
+
+        static void FillRect(Painter2D painter, Space space, float x0, float y0, float x1, float y1)
+        {
+            painter.BeginPath();
+            painter.MoveTo(space.P(x0, y0));
+            painter.LineTo(space.P(x1, y0));
+            painter.LineTo(space.P(x1, y1));
+            painter.LineTo(space.P(x0, y1));
+            painter.ClosePath();
+            painter.Fill();
         }
 
         static void Line(Painter2D painter, Space space, float x0, float y0, float x1, float y1)

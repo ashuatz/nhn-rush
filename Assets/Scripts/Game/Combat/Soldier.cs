@@ -63,6 +63,9 @@ namespace Rush.Combat
 
         public bool IsAlive { get; private set; }
 
+        /// <summary>교전 중인지. UnitAnimator가 공격 모션 판정에 쓴다.</summary>
+        public bool IsEngaged => _target != null;
+
         public static void ClearRegistry()
         {
             _active.Clear();

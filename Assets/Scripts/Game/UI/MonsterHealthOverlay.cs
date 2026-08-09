@@ -7,7 +7,13 @@ using UnityEngine.UIElements;
 namespace Rush.UI
 {
     /// <summary>
-    /// 몬스터 HP 표시 오버레이 (UI Toolkit).
+    /// 몬스터 HP 표시 오버레이 (UI Toolkit). 커서가 올라간 개체 하나만 머리 위에 바를 띄운다.
+    /// 전장 전체의 대략적인 HP는 MonsterDebugView가 머티리얼 색으로 보여주고,
+    /// 이 바는 정확한 수치가 필요할 때 쓰는 보조 수단이다.
+    ///
+    /// 아래 클러스터/설명선 로직은 여러 개체를 동시에 띄우던 시절의 것으로, 지금은
+    /// 한 번에 하나만 들어와 단일 경로로만 지난다. 전체 표시로 되돌릴 여지를 남겨 그대로 둔다.
+    ///
     /// 혼자 있는 몬스터는 머리 위에 바를 직접 붙이고,
     /// 화면상 겹치는 몬스터들은 옆으로 뺀 리스트로 묶은 뒤 설명선(리더 라인)으로 각 개체와 잇는다.
     ///
@@ -102,8 +108,8 @@ namespace Rush.UI
         int _usedRows;
         bool _hiddenApplied;
 
-        /// <summary>HP 표시 on/off. HUD 토글 버튼이 제어한다.</summary>
-        public bool DisplayEnabled { get; set; } = true;
+        /// <summary>커서에서 이 거리(패널 px) 안에 있는 몬스터만 바를 띄운다.</summary>
+        const float HoverRadius = 56f;
 
         void OnEnable()
         {
@@ -201,7 +207,7 @@ namespace Rush.UI
             if (_layer == null)
                 return;
 
-            if (!DisplayEnabled || RewardOfferActive())
+            if (RewardOfferActive())
             {
                 HideAll();
                 return;
@@ -223,6 +229,7 @@ namespace Rush.UI
                 return;
 
             CollectEntries(panel);
+            KeepHoveredOnly(panel);
             BuildClusters();
             LayoutLists();
             Render();
@@ -277,6 +284,49 @@ namespace Rush.UI
                     HpFraction = Mathf.Clamp01(monster.Hp / Mathf.Max(1f, monster.MaxHp)),
                 });
             }
+        }
+
+        /// <summary>
+        /// 커서에 가장 가까운 몬스터 하나만 남긴다.
+        /// 전체 HP는 디버그 뷰(MonsterDebugView)가 색으로 보여주고, 이 바는 정확한 값이 필요할 때만 쓴다.
+        ///
+        /// 콜라이더 레이캐스트 대신 화면 좌표 거리로 고른다. CollectEntries가 이미 전원의
+        /// 패널 좌표를 계산해두므로 추가 비용이 없고, 몬스터 프리팹의 콜라이더 유무에도 안 걸린다.
+        /// </summary>
+        void KeepHoveredOnly(IPanel panel)
+        {
+            if (_entries.Count == 0)
+                return;
+
+            Vector2 mouse = Input.mousePosition;
+            mouse.y = Screen.height - mouse.y;
+
+            Vector2 cursor = RuntimePanelUtils.ScreenToPanel(panel, mouse);
+
+            int best = -1;
+            float bestSqr = HoverRadius * HoverRadius;
+
+            for (int i = 0; i < _entries.Count; i++)
+            {
+                float sqr = (_entries[i].PanelPos - cursor).sqrMagnitude;
+
+                if (sqr > bestSqr)
+                    continue;
+
+                best = i;
+                bestSqr = sqr;
+            }
+
+            if (best < 0)
+            {
+                _entries.Clear();
+                return;
+            }
+
+            var hovered = _entries[best];
+
+            _entries.Clear();
+            _entries.Add(hovered);
         }
 
         /// <summary>시드 고정 탐욕 클러스터링. 시드에서 반경 안일 때만 합류하므로 연쇄 합병이 없다.</summary>

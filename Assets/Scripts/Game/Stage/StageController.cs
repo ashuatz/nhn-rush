@@ -473,13 +473,27 @@ namespace Rush.Stage
             ApplySpeed();
         }
 
+        /// <summary>
+        /// 일시정지 메뉴가 열려 있는 동안 true.
+        /// UiPauseActive와 따로 두는 이유: 보상 사이드바가 같은 플래그를 쓰고 있어,
+        /// 하나로 합치면 메뉴를 닫을 때 사이드바가 열어둔 정지까지 같이 풀린다.
+        /// </summary>
+        public bool MenuPauseActive { get; private set; }
+
+        public void SetMenuPause(bool paused)
+        {
+            MenuPauseActive = paused;
+
+            ApplySpeed();
+        }
+
         void ApplySpeed()
         {
             // 보상 선택(디밍)이나 UI 일시정지 중에는 정지를 유지한다. 배속 인덱스만 바뀌고 닫힐 때 반영된다.
             if (_rewards != null && _rewards.OfferActive)
                 return;
 
-            if (UiPauseActive)
+            if (UiPauseActive || MenuPauseActive)
             {
                 Time.timeScale = 0f;
                 return;
