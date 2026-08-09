@@ -145,6 +145,36 @@ namespace Rush.Stage
             return best;
         }
 
+        /// <summary>
+        /// 이 경로 위에서 origin과 가장 가까운 지점까지의 진행 거리 (시작점 기준).
+        /// GetPositionAtDistance와 짝이라, 경로 위를 따라 지점을 옮길 때 쓴다.
+        /// </summary>
+        public float ClosestDistanceAlong(Vector3 origin)
+        {
+            EnsureCached();
+
+            if (_points.Length < 2)
+                return 0f;
+
+            float best = 0f;
+            float bestSqr = float.MaxValue;
+
+            for (int i = 0; i < _points.Length - 1; i++)
+            {
+                Vector3 a = _points[i].position;
+                Vector3 candidate = ClosestPointOnSegment(a, _points[i + 1].position, origin);
+                float candidateSqr = (candidate - origin).sqrMagnitude;
+
+                if (candidateSqr >= bestSqr)
+                    continue;
+
+                bestSqr = candidateSqr;
+                best = _cumulative[i] + (candidate - a).magnitude;
+            }
+
+            return best;
+        }
+
         static Vector3 ClosestPointOnSegment(Vector3 a, Vector3 b, Vector3 point)
         {
             Vector3 ab = b - a;
