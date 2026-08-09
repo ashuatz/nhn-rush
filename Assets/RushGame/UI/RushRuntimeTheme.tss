@@ -1,1 +1,8 @@
 @import url("unity-theme://default");
+
+/* 기본 런타임 테마 폰트에는 한글 글리프가 없다.
+   에디터는 OS 폰트로 폴백해서 보이지만 WebGL에는 폴백 대상이 없어 글자가 통째로 사라진다.
+   그래서 프로젝트에 포함한 폰트를 전역으로 지정한다. */
+* {
+    -unity-font-definition: url("project://database/Assets/RushGame/UI/Fonts/Pretendard-Regular.ttf?fileID=12800000&guid=7b69ad15a5401b240a48f20df74014fb&type=3#Pretendard-Regular");
+}
