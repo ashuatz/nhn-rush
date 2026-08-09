@@ -19,6 +19,24 @@ namespace Rush.Combat
         float _respawnTimer;
         bool _rallyReady;
 
+        /// <summary>병사들이 지키는 지점. 플레이어가 옮기지 않으면 타워에서 가장 가까운 경로 지점이다.</summary>
+        public Vector3 RallyPoint => _rallyPoint;
+
+        /// <summary>
+        /// 타워에서 랠리 포인트를 놓을 수 있는 최대 거리 (시트: 병영 사거리).
+        /// 보상 E06(전방 전개)이 이 값을 늘린다.
+        /// </summary>
+        public float RallyRange
+        {
+            get
+            {
+                if (Data == null)
+                    return 0f;
+
+                return CurrentStat.Range * RewardSystem.GetStatMods(Data.Type).RallyRangeMul;
+            }
+        }
+
         public override void Initialize(TowerData data, StageController stage)
         {
             base.Initialize(data, stage);
@@ -27,6 +45,46 @@ namespace Rush.Combat
             _rallyReady = true;
 
             SpawnMissingSoldiers(immediate: true);
+        }
+
+        /// <summary>
+        /// 플레이어가 찍은 위치로 집결지를 옮긴다.
+        /// 배치 가능 거리 안으로 자른 뒤 가장 가까운 경로 위로 스냅한다.
+        /// 길에서 떨어진 곳에 세우면 아무것도 막지 못하므로 경로 스냅은 유지한다.
+        /// </summary>
+        public void SetRallyPoint(Vector3 worldPosition)
+        {
+            if (!_rallyReady)
+                return;
+
+            Vector3 origin = transform.position;
+            origin.y = 0f;
+
+            Vector3 target = worldPosition;
+            target.y = 0f;
+
+            Vector3 offset = target - origin;
+            float range = RallyRange;
+
+            if (offset.magnitude > range)
+                target = origin + offset.normalized * range;
+
+            _rallyPoint = SnapToPath(target);
+
+            // 이미 나가 있는 병사들도 새 집결지로 이동한다. 소환 때와 같은 순번으로 흩어 세운다.
+            int index = 0;
+
+            foreach (var soldier in _soldiers)
+            {
+                if (soldier == null)
+                    continue;
+
+                soldier.SetRallyPoint(_rallyPoint + SpreadOffset(index));
+
+                index++;
+            }
+
+            GameLog.Info("Build", "랠리 포인트 이동");
         }
 
         protected override bool TryAttack()
@@ -113,8 +171,7 @@ namespace Rush.Combat
             var stat = CurrentStat;
 
             // 집결지 주변으로 살짝 흩어서 배치
-            float angle = _soldiers.Count * 120f * Mathf.Deg2Rad;
-            Vector3 offset = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * SpawnSpreadRadius;
+            Vector3 offset = SpreadOffset(_soldiers.Count);
 
             var go = Instantiate(Data.SoldierPrefab, _rallyPoint + offset, Quaternion.identity, transform);
             var soldier = go.GetComponent<Soldier>();
@@ -128,7 +185,7 @@ namespace Rush.Combat
             float damageMax = Mathf.Max(stat.SoldierDamage, stat.SoldierDamageMax);
 
             soldier.Initialize(this, baseHp, stat.SoldierDamage, damageMax, stat.SoldierAttackInterval,
-                _rallyPoint + offset, stat.Range);
+                _rallyPoint + offset, stat.Range, stat.SoldierRegenPerSecond);
 
             _soldiers.Add(soldier);
 
@@ -164,22 +221,36 @@ namespace Rush.Combat
             _respawnTimer = RespawnSeconds();
         }
 
+        /// <summary>집결지 주변에 병사를 흩어 세우는 오프셋. 세 방향으로 120도씩 돌린다.</summary>
+        static Vector3 SpreadOffset(float index)
+        {
+            float angle = index * 120f * Mathf.Deg2Rad;
+
+            return new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * SpawnSpreadRadius;
+        }
+
         /// <summary>
         /// 타워 위치에서 가장 가까운 경로 위 지점을 병사 집결지로 삼는다.
         /// 루트가 4개이므로 그중 가장 가까운 루트 하나만 막는다 (교차 지점에 세우면 두 루트를 함께 덮는다).
         /// </summary>
         Vector3 ComputeRallyPoint()
         {
-            if (Stage == null)
-                return transform.position;
+            return SnapToPath(transform.position);
+        }
 
-            Vector3 origin = transform.position;
+        /// <summary>가장 가까운 루트 위로 끌어다 붙인다. 루트를 못 찾으면 원래 자리를 그대로 쓴다.</summary>
+        Vector3 SnapToPath(Vector3 position)
+        {
+            if (Stage == null)
+                return position;
+
+            Vector3 origin = position;
             origin.y = 0f;
 
             var path = Stage.NearestPath(origin);
 
             if (path == null)
-                return transform.position;
+                return position;
 
             return path.ClosestPoint(origin, out _);
         }

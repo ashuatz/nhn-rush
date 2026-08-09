@@ -13,6 +13,7 @@ namespace Rush.UI
         Upgrade = 4,    // 강화
         Sell = 5,       // 판매
         Pause = 6,      // 일시정지
+        Flag = 7,       // 랠리 포인트
     }
 
     /// <summary>
@@ -128,6 +129,9 @@ namespace Rush.UI
                 case IconGlyph.Pause:
                     DrawPause(painter, space);
                     break;
+                case IconGlyph.Flag:
+                    DrawFlag(painter, space);
+                    break;
             }
         }
 
@@ -153,6 +157,8 @@ namespace Rush.UI
                     return new Rect(0.16f, 0.16f, 0.68f, 0.68f);
                 case IconGlyph.Pause:
                     return new Rect(0.24f, 0.12f, 0.52f, 0.76f);
+                case IconGlyph.Flag:
+                    return new Rect(0.30f, 0.10f, 0.48f, 0.80f);
                 default:
                     return new Rect(0f, 0f, 1f, 1f);
             }
@@ -216,6 +222,19 @@ namespace Rush.UI
             Line(painter, space, 0.22f, 0.52f, 0.50f, 0.22f);   // 촉 왼쪽
             Line(painter, space, 0.78f, 0.52f, 0.50f, 0.22f);   // 촉 오른쪽
             Line(painter, space, 0.28f, 0.92f, 0.72f, 0.92f);   // 받침
+        }
+
+        /// <summary>랠리 포인트: 깃대 + 펄럭이는 삼각 깃발.</summary>
+        static void DrawFlag(Painter2D painter, Space space)
+        {
+            Line(painter, space, 0.34f, 0.10f, 0.34f, 0.90f);   // 깃대
+
+            painter.BeginPath();
+            painter.MoveTo(space.P(0.34f, 0.14f));
+            painter.LineTo(space.P(0.78f, 0.28f));
+            painter.LineTo(space.P(0.34f, 0.44f));
+            painter.ClosePath();
+            painter.Fill();
         }
 
         /// <summary>판매: 동전 테두리 + 화폐 기호.</summary>

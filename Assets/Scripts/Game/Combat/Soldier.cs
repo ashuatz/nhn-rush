@@ -54,6 +54,9 @@ namespace Rush.Combat
         Vector3 _rallyPoint;
         float _engageRange;
 
+        // 체력 재생 (상시)
+        float _baseRegenPerSecond;
+
         Monster _target;
         float _attackTimer;
 
@@ -98,7 +101,7 @@ namespace Rush.Combat
         }
 
         public void Initialize(InfantryTower owner, float baseHp, float baseDamage, float baseDamageMax,
-            float attackInterval, Vector3 rallyPoint, float baseEngageRange)
+            float attackInterval, Vector3 rallyPoint, float baseEngageRange, float regenPerSecond)
         {
             _owner = owner;
             _baseMaxHp = baseHp;
@@ -107,6 +110,7 @@ namespace Rush.Combat
             _baseEngageRange = baseEngageRange;
             _attackInterval = attackInterval;
             _rallyPoint = rallyPoint;
+            _baseRegenPerSecond = regenPerSecond;
 
             RefreshMods();
 
@@ -186,6 +190,7 @@ namespace Rush.Combat
                 RefreshMods();
 
             TickLunge();
+            TickRegen();
 
             _blocking.RemoveAll(m => m == null || !m.IsAlive);
 
@@ -215,6 +220,19 @@ namespace Rush.Combat
             }
 
             EngageTarget();
+        }
+
+        /// <summary>
+        /// 체력을 상시 회복한다. 교전 중에도 멈추지 않는다.
+        /// 충원(15초 재소환)이 전선 회전을 담당하고, 이건 병사가 그 사이 버티게 하는 쪽이다.
+        /// 회복량이 적 공격력을 넘으면 전선이 영구히 유지되므로 초당 회복은 낮게 잡는다.
+        /// </summary>
+        void TickRegen()
+        {
+            if (_baseRegenPerSecond <= 0f || Hp >= _maxHp)
+                return;
+
+            Hp = Mathf.Min(_maxHp, Hp + _baseRegenPerSecond * Time.deltaTime);
         }
 
         /// <summary>표적 예약만 한다. 저지는 접촉 후 EngageTarget에서 시도한다.</summary>
@@ -372,6 +390,18 @@ namespace Rush.Combat
             float pulse = Mathf.Sin(Mathf.PI * (1f - _lungeTimer / LungeDuration));
 
             _visual.localPosition = _visualBaseLocal + _lungeDirection * (LungeDistance * pulse);
+        }
+
+        /// <summary>
+        /// 집결지를 옮긴다 (플레이어가 랠리 포인트를 재지정했을 때).
+        /// 붙잡고 있던 적은 놓아준다. 새 집결지로 걸어가야 하는데 계속 붙들고 있으면 전선이 그 자리에 남는다.
+        /// </summary>
+        public void SetRallyPoint(Vector3 rallyPoint)
+        {
+            _rallyPoint = rallyPoint;
+
+            // 표적과 저지를 한꺼번에 놓는다 (ReleaseAllBlocks가 _target까지 비운다)
+            ReleaseAllBlocks();
         }
 
         void ReturnToRally()

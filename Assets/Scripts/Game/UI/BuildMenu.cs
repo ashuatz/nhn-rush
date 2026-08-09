@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Rush.Combat;
 using Rush.Data;
@@ -49,6 +50,15 @@ namespace Rush.UI
         /// <summary>빈 슬롯용 계열 4종. 구성이 고정이라 한 번 만들고 계속 쓴다.</summary>
         readonly List<RadialSlot> _buildSlots = new List<RadialSlot>(4);
 
+        /// <summary>마지막으로 사거리 표시에 반영한 보상 구성 버전.</summary>
+        int _statVersion = -1;
+
+        /// <summary>지금 마우스가 올라가 있는 버튼의 사거리 계산식. 없으면 선택 상태의 기본 사거리를 쓴다.</summary>
+        Func<float> _hoverRange;
+
+        /// <summary>랠리 포인트 지정 대기 중인 병영. 다음 지면 클릭이 집결지가 된다.</summary>
+        InfantryTower _rallyTarget;
+
         /// <summary>건설된 슬롯용 강화/판매. 버튼은 재사용하고 비용 문구만 갈아끼운다.</summary>
         readonly List<RadialSlot> _manageSlots = new List<RadialSlot>(2);
 
@@ -68,6 +78,7 @@ namespace Rush.UI
             Build = 0,
             Upgrade = 1,
             Sell = 2,
+            Rally = 3,
         }
 
         /// <summary>라디얼 버튼 하나. 골드 변동 때 통째로 다시 만들지 않고 상태만 갱신하려고 들고 있는다.</summary>
@@ -119,6 +130,14 @@ namespace Rush.UI
         /// <summary>버튼들은 슬롯의 화면 위치를 따라간다. 카메라가 움직여도 어긋나지 않게 매 프레임 갱신.</summary>
         void LateUpdate()
         {
+            // 보상으로 사거리가 늘면 표시 중인 원도 그 자리에서 같이 커져야 한다.
+            // 보상 선택 중에는 슬롯 선택과 호버가 유지되므로 재선택 없이는 갱신될 계기가 없다.
+            if (_statVersion != RewardSystem.StatVersion)
+            {
+                _statVersion = RewardSystem.StatVersion;
+                RefreshRangeDisplay();
+            }
+
             // 라디얼이 떠 있는 조건 = 빈 슬롯이 선택된 상태
             if (_radial == null || _selected == null || _selected.IsOccupied)
                 return;
@@ -148,11 +167,24 @@ namespace Rush.UI
 
         void Update()
         {
+            // 랠리 지정 중에는 우클릭/ESC로 빠져나갈 수 있어야 한다 (지면을 안 찍고 취소)
+            if (_rallyTarget != null && (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape)))
+            {
+                CancelRallyMode();
+                return;
+            }
+
             if (!Input.GetMouseButtonDown(0))
                 return;
 
             if (IsPointerOverUI())
                 return;
+
+            if (_rallyTarget != null)
+            {
+                PlaceRallyPoint();
+                return;
+            }
 
             PickSlot();
         }
@@ -279,9 +311,70 @@ namespace Rush.UI
             Select(slot);
         }
 
+        /// <summary>
+        /// 랠리 지정 모드에서 지면을 찍었을 때. 병영이 배치 가능 거리로 자르고 경로 위로 스냅한다.
+        /// 슬롯을 찍었더라도 그 위치를 그대로 집결지로 쓴다 (슬롯 선택으로 새지 않게).
+        /// </summary>
+        void PlaceRallyPoint()
+        {
+            var tower = _rallyTarget;
+
+            CancelRallyMode();
+
+            if (tower == null || _camera == null)
+                return;
+
+            var ray = _camera.ScreenPointToRay(Input.mousePosition);
+
+            if (!Physics.Raycast(ray, out var hit, 300f))
+                return;
+
+            tower.SetRallyPoint(hit.point);
+        }
+
+        void CancelRallyMode()
+        {
+            _rallyTarget = null;
+            _hoverRange = null;
+
+            ShowDefaultRange();
+
+            if (_radial != null && _selected != null)
+                ShowRadial();
+        }
+
+        /// <summary>랠리 지정 모드 진입. 라디얼을 잠시 감춰 지면 클릭을 방해하지 않게 한다.</summary>
+        void OnRallyClicked()
+        {
+            if (!CanOperate())
+                return;
+
+            if (!_selected.IsOccupied)
+                return;
+
+            var infantry = _selected.Occupant as InfantryTower;
+
+            if (infantry == null)
+                return;
+
+            _rallyTarget = infantry;
+
+            HideRadial();
+
+            // 배치 가능 거리를 보여준다. 어디까지 밀 수 있는지 모르면 찍을 수가 없다.
+            // 병영을 직접 캡처하지 않는다 - 파괴된 타워를 잡고 있으면 다음 평가에서 터진다.
+            _hoverRange = RallyPreviewRange;
+            _selected.ShowRange(_hoverRange());
+
+            GameLog.Info("Build", "랠리 포인트 지정: 배치할 위치를 클릭 (우클릭/ESC 취소)");
+        }
+
         void Select(TowerSlot slot)
         {
             HideGhost();
+
+            if (_rallyTarget != null)
+                CancelRallyMode();
 
             if (_selected != null)
                 _selected.SetSelected(false);
@@ -299,7 +392,19 @@ namespace Rush.UI
             if (_panel == null)
                 return;
 
-            // 버튼을 다시 만들면 호버 상태가 끊기므로 남아 있던 고스트도 같이 정리한다
+            // 랠리 지정 중에는 라디얼을 접고 배치 가능 거리를 띄운 상태다.
+            // 이 함수는 골드가 바뀔 때마다(_stage.Changed) 불리므로, 그냥 두면 적이 한 마리 죽는 순간
+            // 모드가 풀려 버린다. 판이 끝났을 때만 강제로 빠져나온다.
+            if (_rallyTarget != null)
+            {
+                if (_stage != null && _stage.IsPlayable)
+                    return;
+
+                CancelRallyMode();
+            }
+
+            // 버튼을 다시 만들면 호버 상태가 끊기므로 남아 있던 고스트와 호버 사거리도 같이 정리한다
+            _hoverRange = null;
             HideGhost();
 
             // 승리/패배 후에는 건설 조작을 막고 메뉴를 닫는다
@@ -396,6 +501,24 @@ namespace Rush.UI
         /// <summary>강화 비용은 레벨마다, 판매 환급액은 투자액마다 바뀐다. 문구까지 매번 다시 쓴다.</summary>
         void RefreshManageSlot(RadialSlot slot, Tower tower)
         {
+            if (slot.Action == RadialAction.Rally)
+            {
+                // 집결지가 있는 계열은 병영뿐이다
+                if (!(tower is InfantryTower))
+                {
+                    slot.Button.style.display = DisplayStyle.None;
+                    return;
+                }
+
+                slot.Button.style.display = DisplayStyle.Flex;
+                slot.Button.tooltip = "랠리 포인트 이동";
+                slot.Label.text = string.Empty;
+                slot.Button.SetEnabled(true);
+                slot.Icon.Tint = TextColor;
+
+                return;
+            }
+
             if (slot.Action == RadialAction.Upgrade)
             {
                 // 최종 레벨이면 버튼을 숨긴다. 비활성으로 남기면 골드만 모으면 되는 줄 착각한다.
@@ -462,8 +585,8 @@ namespace Rush.UI
                 slot.Label.text = stat.Cost.ToString();
                 slot.Button.tooltip = $"{stat.DisplayName} ({stat.Cost}G)";
 
-                float previewRange = stat.Range * RewardSystem.GetStatMods(data.Type).RangeMul;
-                AttachRangePreview(slot.Button, previewRange, captured);
+                AttachRangePreview(slot.Button,
+                    () => stat.Range * RewardSystem.GetStatMods(captured.Type).RangeMul, captured);
 
                 _buildSlots.Add(slot);
             }
@@ -479,6 +602,26 @@ namespace Rush.UI
             var sell = CreateSlot(IconGlyph.Sell, RadialDirection.Down, OnSellClicked);
             sell.Action = RadialAction.Sell;
             _manageSlots.Add(sell);
+
+            // 랠리 포인트는 병영에만 뜬다 (RefreshManageSlot이 계열을 보고 숨긴다)
+            var rally = CreateSlot(IconGlyph.Flag, RadialDirection.Left, OnRallyClicked);
+            rally.Action = RadialAction.Rally;
+            AttachRangePreview(rally.Button, RallyPreviewRange);
+            _manageSlots.Add(rally);
+        }
+
+        /// <summary>랠리 버튼 호버 시 보여줄 배치 가능 거리. 병영이 아니면 0이라 표시가 꺼진다.</summary>
+        float RallyPreviewRange()
+        {
+            if (_selected == null || !_selected.IsOccupied)
+                return 0f;
+
+            var infantry = _selected.Occupant as InfantryTower;
+
+            if (infantry == null)
+                return 0f;
+
+            return infantry.RallyRange;
         }
 
         RadialSlot CreateSlot(IconGlyph glyph, RadialDirection direction, System.Action onClick)
@@ -582,6 +725,24 @@ namespace Rush.UI
             }
         }
 
+        /// <summary>
+        /// 지금 보여야 할 사거리를 다시 계산해 표시한다.
+        /// 호버 중이면 그 버튼의 계산식이 우선이고, 아니면 선택 상태의 기본 사거리다.
+        /// </summary>
+        void RefreshRangeDisplay()
+        {
+            if (_hoverRange == null)
+            {
+                ShowDefaultRange();
+                return;
+            }
+
+            if (_selected == null)
+                return;
+
+            _selected.ShowRange(_hoverRange());
+        }
+
         /// <summary>선택 상태의 기본 사거리 표시: 건설된 타워는 자기 사거리, 빈 슬롯은 표시 없음.</summary>
         void ShowDefaultRange()
         {
@@ -600,15 +761,19 @@ namespace Rush.UI
         /// <summary>
         /// 버튼에 마우스를 올리는 동안 해당 사거리를 미리 보여준다.
         /// buildData를 넘기면 건물 실루엣(고스트)도 함께 띄운다 (빈 슬롯 건설 버튼 전용).
+        ///
+        /// 사거리는 값이 아니라 계산식을 받는다. 건설 버튼은 판당 한 번만 만들어지므로
+        /// 값으로 받으면 이후에 얻은 사거리 보상(장궁/전초 기지)이 프리뷰에 영원히 반영되지 않는다.
         /// </summary>
-        void AttachRangePreview(Button button, float radius, TowerData buildData = null)
+        void AttachRangePreview(Button button, Func<float> radius, TowerData buildData = null)
         {
             button.RegisterCallback<MouseEnterEvent>(evt =>
             {
                 if (_selected == null)
                     return;
 
-                _selected.ShowRange(radius);
+                _hoverRange = radius;
+                _selected.ShowRange(radius());
 
                 if (buildData != null)
                     ShowGhost(buildData);
@@ -616,6 +781,8 @@ namespace Rush.UI
 
             button.RegisterCallback<MouseLeaveEvent>(evt =>
             {
+                _hoverRange = null;
+
                 ShowDefaultRange();
                 HideGhost();
             });
@@ -637,16 +804,28 @@ namespace Rush.UI
                 if (!tower.CanUpgrade)
                     return;
 
-                var next = tower.Data.Levels[tower.LevelIndex + 1];
-
-                _selected.ShowRange(next.Range * RewardSystem.GetStatMods(tower.Data.Type).RangeMul);
+                _hoverRange = () => UpgradePreviewRange(tower);
+                _selected.ShowRange(_hoverRange());
             });
 
             button.RegisterCallback<MouseLeaveEvent>(evt =>
             {
+                _hoverRange = null;
+
                 ShowDefaultRange();
                 HideGhost();
             });
+        }
+
+        /// <summary>다음 단계 사거리. 호버 도중 타워가 팔리거나 만렙이 되면 0을 돌려 표시를 끈다.</summary>
+        static float UpgradePreviewRange(Tower tower)
+        {
+            if (tower == null || !tower.CanUpgrade)
+                return 0f;
+
+            var next = tower.Data.Levels[tower.LevelIndex + 1];
+
+            return next.Range * RewardSystem.GetStatMods(tower.Data.Type).RangeMul;
         }
 
         void ShowGhost(TowerData data)
@@ -720,8 +899,8 @@ namespace Rush.UI
             button.style.marginBottom = 4;
             button.SetEnabled(_stage.Gold >= cost);
 
-            float previewRange = branch.Stat.Range * RewardSystem.GetStatMods(tower.Data.Type).RangeMul;
-            AttachRangePreview(button, previewRange);
+            AttachRangePreview(button,
+                () => branch.Stat.Range * RewardSystem.GetStatMods(tower.Data.Type).RangeMul);
 
             _buttonArea.Add(button);
         }
