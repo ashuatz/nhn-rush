@@ -80,7 +80,7 @@ namespace Rush.EditorTools
             Row("E09", Ctrl, N, "강철 갑주", "병영 유닛 체력 +15%", "병영 한정", Inf, DamageTag.None, 3, RewardEffectType.SoldierHpPercent, 0.15f),
             Row("P01", Fire, N, "정밀 조준", "단일 피해 +10%", "단일 태그 한정", Any, DamageTag.Single, 3, RewardEffectType.DamagePercentTag, 0.10f),
             Row("P02", Fire, N, "파편 확산", "광역 피해 +10%", "광역 태그 한정", Any, DamageTag.Splash, 3, RewardEffectType.DamagePercentTag, 0.10f),
-            Row("P03", Fire, N, "마력 침투", "마법 피해가 20% 확률로 대상의 마법 저항을 1단계 영구히 낮춤", "확률 판정 · 저항 0단계 적에겐 무의미", Any, DamageTag.Magic, 3, RewardEffectType.MagicResistShredChance, 0f, 0f, 0.20f),
+            Row("P03", Fire, N, "마력 침투", "마법 피해가 15% 확률로 대상의 마법 저항을 1단계 영구히 낮춤", "확률 판정 · 저항 0단계 적에겐 무의미", Any, DamageTag.Magic, 3, RewardEffectType.MagicResistShredChance, 0f, 0f, 0.15f),
             Row("P04", Fire, N, "관통 탄두", "포병 피해가 20% 확률로 물리 방어를 무시하고 들어감", "확률 판정 · 방어 0단계 적에겐 차이 없음", Arty, DamageTag.None, 3, RewardEffectType.IgnorePhysDefChance, 0f, 0f, 0.20f),
             Row("P05", Fire, N, "정밀 시전", "마법사 타워 피해의 최소~최대 폭이 33% 좁아짐 (3중첩 시 고정값)", "마법사 한정", Mage, DamageTag.None, 3, RewardEffectType.DamageRangeNarrow, 0.33f,
                 0f, 0f, 0f, false, "피해 최소~최대 범위 시스템이 아직 없음 (현재 고정 피해)"),
@@ -97,7 +97,8 @@ namespace Rush.EditorTools
             Row("C08", Fire, R, "조준 유지", "같은 적을 연속 공격할 때마다 피해 +8% 누적 (최대 +40%)", "대상이 바뀌면 초기화 · 연사 계열은 이득이 적음", Any, DamageTag.None, 1, RewardEffectType.ConsecutiveHitStack, 0.08f, 0.40f),
             Row("D01", Fire, R, "약점 노출", "감속·저지 상태의 적이 받는 피해 +25%", "감속원이 없으면 완전 무효", Any, DamageTag.None, 1, RewardEffectType.DamageVsControlled, 0.25f),
             Row("D02", Ctrl, R, "강제 전송", "마법 타워 공격이 10% 확률로 대상을 뒤로 넉백", "", Mage, DamageTag.None, 1, RewardEffectType.KnockbackChance, 0f, 1.5f, 0.10f),
-            Row("D03", Ctrl, R, "방벽", "병영 유닛의 물리 방어 1단계 상승", "병영 한정", Inf, DamageTag.None, 1, RewardEffectType.SoldierDamageReduction, 0.15f),
+            // 방어 1단계 = 피해 25% 감소 (시트: 적 시스템 방어 단계표)
+            Row("D03", Ctrl, R, "방벽", "병영 유닛의 물리 방어 1단계 상승", "병영 한정", Inf, DamageTag.None, 1, RewardEffectType.SoldierDamageReduction, 0.25f),
             Row("D04", Fire, R, "직격", "마법 저항 0단계인 적에게 마법 피해 +30%", "저항이 남아 있으면 무효 · 마력 침투로 0단계를 만들어야 함", Any, DamageTag.Magic, 1, RewardEffectType.DamageVsResistZero, 0.30f),
             Row("M03", Fire, R, "광역 확장", "광역 피해의 범위 +20%", "광역 태그 한정", Any, DamageTag.Splash, 1, RewardEffectType.SplashRadiusPercent, 0.20f),
             Row("M04", Fire, R, "급소 타격", "단일 피해가 25% 확률로 물리 방어를 무시하고 들어감", "확률 판정 · 방어 0단계 적에겐 차이 없음", Any, DamageTag.Single, 1, RewardEffectType.IgnorePhysDefChance, 0f, 0f, 0.25f),
@@ -118,12 +119,12 @@ namespace Rush.EditorTools
             Row("B1A", Ctrl, H, "전선 확장", "병영 유닛 1기가 적 2기를 동시에 저지", "병영 한정 · 전선이 없으면 무효", Inf, DamageTag.None, 1, RewardEffectType.SoldierMultiBlock, 1f),
             Row("B1B", Ctrl, H, "방패 밀치기", "병영 유닛의 공격이 15% 확률로 적을 뒤로 밀어냄 · 밀려난 적은 저지가 풀려 다시 붙잡아야 함", "병영 한정", Inf, DamageTag.None, 1, RewardEffectType.SoldierKnockbackChance, 0f, 1.2f, 0.15f),
             Row("B2A", Ctrl, H, "충격파", "포병 폭발에 맞은 적이 15% 확률로 1초간 기절 · 기절이 끝나면 3초간 기절 면역", "포병 한정", Arty, DamageTag.None, 1, RewardEffectType.StunChance, 0f, 3f, 0.15f, 1f),
-            Row("C13", Fire, H, "연발 장전", "공격할 때마다 15% 확률로 추가 발사체 1발 (피해 150% · 소범위 광역)", "연사가 빠른 타워일수록 발동이 잦다", Any, DamageTag.None, 1, RewardEffectType.BonusProcShot, 1.5f, 1f, 0.15f),
+            Row("C13", Fire, H, "연발 장전", "공격할 때마다 15% 확률로 추가 발사체 1발 (피해 150% · 소범위 광역)", "병영 제외 · 연사가 빠른 타워일수록 발동이 잦다", Any, DamageTag.None, 1, RewardEffectType.BonusProcShot, 1.5f, 1f, 0.15f),
 
             // ---------- 전설 ----------
             Row("B2B", Fire, L, "융단 폭격", "포병 공격이 두 지점으로 나뉘어 착탄 (각 60% 피해)", "적이 흩어져 있어야 이득 · 단일 표적에는 총 피해가 줄어든다", Arty, DamageTag.Splash, 1, RewardEffectType.ArtillerySplitShot, 0.60f),
             Row("B3A", Econ, L, "전시 채권", "즉시 골드 +300 · 이후 웨이브 시작 골드 +80", "", Any, DamageTag.None, 1, RewardEffectType.InstantAndWaveGold, 300f, 80f),
-            Row("B3B", Ctrl, L, "동절기", "모든 감속 효과의 지속시간 1.6배", "감속원이 없으면 무효", Any, DamageTag.None, 1, RewardEffectType.SlowDurationPercent, 0.60f),
+            Row("B3B", Ctrl, L, "동절기", "모든 감속 효과의 지속시간 1.5배", "감속원이 없으면 무효", Any, DamageTag.None, 1, RewardEffectType.SlowDurationPercent, 0.50f),
             Row("M06", Place, L, "전초 기지", "궁수 타워 사거리 +25%", "궁수 한정", Archer, DamageTag.None, 1, RewardEffectType.RangePercent, 0.25f),
             Row("C10", Fire, L, "속성 각인", "마법 피해가 대상의 마법 저항을 완전히 무시 (이뮨 포함)", "마법 피해원이 없으면 무효", Any, DamageTag.Magic, 1, RewardEffectType.IgnoreMagicResistAll),
             Row("C11", Ctrl, L, "무기력", "감속·저지 상태의 적은 공격력도 30% 감소", "전선이나 감속이 없으면 무효", Any, DamageTag.None, 1, RewardEffectType.ControlledAttackWeaken, 0.30f),

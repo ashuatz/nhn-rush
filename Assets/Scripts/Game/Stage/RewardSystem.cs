@@ -38,6 +38,10 @@ namespace Rush.Stage
         bool _rerollsInitialized;
         bool _offerLegendaryOnly;
 
+        /// <summary>이번 제시의 장수와 다시뽑기 허용 여부. 보스 처치 보상은 2장 / 다시뽑기 불가다.</summary>
+        int _offerCardCount;
+        bool _offerAllowReroll;
+
         public RewardFlowConfig Config => _config;
 
         public bool OfferActive { get; private set; }
@@ -65,6 +69,9 @@ namespace Rush.Stage
         public IReadOnlyList<RewardDefinition> CurrentOffer => _offer;
 
         public int RerollsLeft => _rerollsLeft;
+
+        /// <summary>이번 제시에 다시뽑기 자체가 허용되는지. 보스 처치 보상은 횟수와 무관하게 막힌다.</summary>
+        public bool RerollAllowed => _offerAllowReroll;
 
         /// <summary>제시 시작/변경/종료 시 발화. UI는 이것만 구독한다.</summary>
         public event Action OfferChanged;
@@ -106,7 +113,7 @@ namespace Rush.Stage
 
         /// <summary>
         /// 웨이브 시작을 가로챈다. 제시가 열리면 true를 돌려주고, 선택이 끝나면 proceed를 호출한다.
-        /// 보스 웨이브는 시작 제시를 생략하고, 보스 직후 웨이브는 확정 전설 제시다.
+        /// 보스 웨이브는 시작 제시를 생략한다 (보상은 보스를 처치했을 때 나온다).
         /// </summary>
         public bool TryInterceptWaveStart(int waveNumber, Action proceed)
         {
@@ -126,22 +133,20 @@ namespace Rush.Stage
             if (_stage.IsBossWave(waveNumber))
                 return false;
 
-            bool legendaryOnly = _stage.IsBossWave(waveNumber - 1);
-
-            if (!OpenOffer(legendaryOnly))
+            if (!OpenOffer(legendaryOnly: false, _config.CardsPerOffer, allowReroll: true))
                 return false;
 
             _pendingProceed = proceed;
 
-            if (legendaryOnly)
-                GameLog.Info("Reward", $"웨이브 {waveNumber} 확정 전설 보상 제시");
-            else
-                GameLog.Info("Reward", $"웨이브 {waveNumber} 보상 제시");
+            GameLog.Info("Reward", $"웨이브 {waveNumber} 보상 제시");
 
             return true;
         }
 
-        /// <summary>중간 보스 처치 보상 (한 판 3회). 웨이브 진행 중에 게임을 멈추고 제시한다.</summary>
+        /// <summary>
+        /// 중간 보스 처치 보상 (한 판 3회). 웨이브 진행 중에 게임을 멈추고 제시한다.
+        /// 시트(중간보스 3종): 전설 등급 2개 중 1개 선택, 다시 뽑기 불가.
+        /// </summary>
         public bool TryOfferBossReward()
         {
             if (OfferActive)
@@ -150,22 +155,24 @@ namespace Rush.Stage
             if (_config == null || _stage == null)
                 return false;
 
-            if (!OpenOffer(legendaryOnly: false))
+            if (!OpenOffer(legendaryOnly: true, _config.BossCardsPerOffer, allowReroll: false))
                 return false;
 
             _pendingProceed = null;
 
-            GameLog.Info("Reward", "보스 처치 보상 제시");
+            GameLog.Info("Reward", "보스 처치 보상 제시 (전설 확정)");
 
             return true;
         }
 
-        bool OpenOffer(bool legendaryOnly)
+        bool OpenOffer(bool legendaryOnly, int cardCount, bool allowReroll)
         {
             EnsureRerolls();
 
             _discardedThisOffer.Clear();
             _offerLegendaryOnly = legendaryOnly;
+            _offerCardCount = Mathf.Max(1, cardCount);
+            _offerAllowReroll = allowReroll;
 
             // 전설 풀이 바닥났을 때만 제시 전체를 일반 규칙으로 폴백한다 (리롤 중 폴백 금지)
             if (legendaryOnly)
@@ -176,7 +183,7 @@ namespace Rush.Stage
                     _offerLegendaryOnly = false;
             }
 
-            if (!BuildOffer(_offerLegendaryOnly))
+            if (!BuildOffer(_offerLegendaryOnly, _offerCardCount))
                 return false;
 
             OfferActive = true;
@@ -199,7 +206,7 @@ namespace Rush.Stage
             _rerollsLeft = _config.RerollsPerRun;
         }
 
-        bool BuildOffer(bool legendaryOnly)
+        bool BuildOffer(bool legendaryOnly, int requestedCount)
         {
             _offer.Clear();
 
@@ -208,7 +215,7 @@ namespace Rush.Stage
             if (_candidateBuffer.Count == 0)
                 return false;
 
-            int cardCount = Mathf.Min(_config.CardsPerOffer, _candidateBuffer.Count);
+            int cardCount = Mathf.Min(requestedCount, _candidateBuffer.Count);
 
             for (int i = 0; i < cardCount; i++)
             {
@@ -344,14 +351,18 @@ namespace Rush.Stage
                 if (!OfferActive)
                     return false;
 
+                // 보스 처치 보상은 다시 뽑기가 없다 (시트: 중간보스 3종)
+                if (!_offerAllowReroll)
+                    return false;
+
                 if (_rerollsLeft <= 0)
                     return false;
 
                 if (_config.RerollCost > 0 && _stage.Gold < _config.RerollCost)
                     return false;
 
-                // 3장 전체 교체가 불가능하면(확정 전설 풀 소진 등) 리롤을 막는다
-                return RerollCandidateCount() >= _config.CardsPerOffer;
+                // 제시분 전체 교체가 불가능하면(확정 전설 풀 소진 등) 리롤을 막는다
+                return RerollCandidateCount() >= _offerCardCount;
             }
         }
 
@@ -381,13 +392,13 @@ namespace Rush.Stage
 
             _rerollsLeft--;
 
-            // 3장 전체 교체. 버린 카드는 이 화면에 다시 등장하지 않는다.
+            // 제시분 전체 교체. 버린 카드는 이 화면에 다시 등장하지 않는다.
             var previous = new List<RewardDefinition>(_offer);
 
             foreach (var card in previous)
                 _discardedThisOffer.Add(card);
 
-            if (!BuildOffer(_offerLegendaryOnly))
+            if (!BuildOffer(_offerLegendaryOnly, _offerCardCount))
             {
                 // 남은 후보가 없어 교체 불가 - 버린 기록/횟수/비용을 되돌리고 기존 제시 유지
                 GameLog.Warn("Reward", "다시뽑기 실패 - 남은 후보 없음");
