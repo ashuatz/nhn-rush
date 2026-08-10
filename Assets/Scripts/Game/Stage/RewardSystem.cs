@@ -11,7 +11,7 @@ namespace Rush.Stage
     /// <summary>
     /// 로그라이트 보상 시스템.
     /// 웨이브 시작 직전에 게임을 멈추고(디밍) 카드 3장을 제시한다: 1장 선택 / 다시뽑기(판 전체 5회).
-    /// 보스 웨이브(6/12/18)도 같은 시점에 제시하며, 그 웨이브만 확정 전설 2장 / 다시뽑기 불가다.
+    /// 보스 라운드 직후 웨이브(7/13/19)만 확정 전설 2장 / 다시뽑기 불가이고 나머지는 평시 구성이다.
     /// 버린(제시됐지만 안 뽑은) 카드는 같은 제시 화면(다시뽑기 포함)에 다시 나오지 않는다.
     /// 보유한 카드의 효과는 전투 코드가 static 쿼리로 읽어 간다 (씬에 배치, 부트스트랩 없음).
     /// 수치는 전부 RewardDefinition/RewardFlowConfig 에셋에 있고 Balance Board에서 조절한다.
@@ -38,7 +38,7 @@ namespace Rush.Stage
         bool _rerollsInitialized;
         bool _offerLegendaryOnly;
 
-        /// <summary>이번 제시의 장수와 다시뽑기 허용 여부. 보스 웨이브 보상은 2장 / 다시뽑기 불가다.</summary>
+        /// <summary>이번 제시의 장수와 다시뽑기 허용 여부. 보스 클리어 보상은 2장 / 다시뽑기 불가다.</summary>
         int _offerCardCount;
         bool _offerAllowReroll;
 
@@ -70,7 +70,7 @@ namespace Rush.Stage
 
         public int RerollsLeft => _rerollsLeft;
 
-        /// <summary>이번 제시에 다시뽑기 자체가 허용되는지. 보스 웨이브 보상은 횟수와 무관하게 막힌다.</summary>
+        /// <summary>이번 제시에 다시뽑기 자체가 허용되는지. 보스 클리어 보상은 횟수와 무관하게 막힌다.</summary>
         public bool RerollAllowed => _offerAllowReroll;
 
         /// <summary>제시 시작/변경/종료 시 발화. UI는 이것만 구독한다.</summary>
@@ -113,8 +113,11 @@ namespace Rush.Stage
 
         /// <summary>
         /// 웨이브 시작을 가로챈다. 제시가 열리면 true를 돌려주고, 선택이 끝나면 proceed를 호출한다.
-        /// 보스 웨이브(6/12/18)도 다른 웨이브와 똑같이 시작 시에 제시하며, 구성만 전설 확정 2장 /
-        /// 다시뽑기 불가다 (시트: 중간보스 3종). 예전에는 보스를 처치한 순간에 제시했다.
+        ///
+        /// 모든 제시는 웨이브 시작 시점에 열린다. 중간 보스 라운드를 넘긴 직후 웨이브(7/13/19)만
+        /// 전설 확정 2장 / 다시뽑기 불가이고, 보스 웨이브(6/12/18)를 포함한 나머지는 평시 구성이다.
+        /// 보스 처치 순간이 아니라 다음 웨이브 시작에 주는 이유는 제시 시점을 웨이브 시작 하나로 모아
+        /// 전투 중에 화면이 멈추지 않게 하려는 것이다.
         /// </summary>
         public bool TryInterceptWaveStart(int waveNumber, Action proceed)
         {
@@ -130,15 +133,18 @@ namespace Rush.Stage
             if ((waveNumber - _config.FirstRewardWave) % Mathf.Max(1, _config.EveryNWaves) != 0)
                 return false;
 
-            // 보스 웨이브는 전설 확정 제시. 전설 풀이 바닥나면 OpenOffer가 일반 규칙으로 폴백한다.
-            if (_stage.IsBossWave(waveNumber))
+            // 보스 라운드를 넘긴 직후 웨이브(7/13/19)가 보스 클리어 보상이다.
+            // 처치 여부는 보지 않는다. 보스를 흘려보내면 이미 라이프 20을 잃고 회복 수단도 없어서,
+            // 보상까지 빼면 이중 처벌이 된다.
+            // 전설 풀이 바닥나면 OpenOffer가 일반 규칙으로 폴백한다.
+            if (_stage.IsBossWave(waveNumber - 1))
             {
                 if (!OpenOffer(legendaryOnly: true, _config.BossCardsPerOffer, allowReroll: false))
                     return false;
 
                 _pendingProceed = proceed;
 
-                GameLog.Info("Reward", $"웨이브 {waveNumber} 보스 보상 제시 (전설 확정)");
+                GameLog.Info("Reward", $"웨이브 {waveNumber} 보스 클리어 보상 제시 (전설 확정)");
 
                 return true;
             }
@@ -339,7 +345,7 @@ namespace Rush.Stage
                 if (!OfferActive)
                     return false;
 
-                // 보스 웨이브 보상은 다시 뽑기가 없다 (시트: 중간보스 3종)
+                // 보스 클리어 보상은 다시 뽑기가 없다 (시트: 중간보스 3종)
                 if (!_offerAllowReroll)
                     return false;
 

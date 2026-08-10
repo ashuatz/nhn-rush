@@ -202,7 +202,7 @@ namespace Rush.UI
 
             var config = _rewards.Config;
 
-            // 보스 웨이브 보상은 다시뽑기가 없는 제시라 버튼을 아예 감춘다 (남은 횟수는 그대로 보존된다)
+            // 보스 클리어 보상은 다시뽑기가 없는 제시라 버튼을 아예 감춘다 (남은 횟수는 그대로 보존된다)
             if (!_rewards.RerollAllowed)
             {
                 _rerollButton.style.display = DisplayStyle.None;
