@@ -53,13 +53,28 @@ namespace Rush.EditorTools
         [MenuItem("Rush/캐릭터 애니메이션 셋업", false, 320)]
         public static void Run()
         {
+            Setup(forceRebuild: false);
+        }
+
+        /// <summary>
+        /// 컨트롤러 그래프를 손으로 고쳐 놨다가 표준 상태로 되돌릴 때만 쓴다.
+        /// 에셋 자체는 그대로 두고 내용만 다시 만들므로 프리팹 참조는 끊기지 않는다.
+        /// </summary>
+        [MenuItem("Rush/캐릭터 애니메이션 셋업 (컨트롤러 강제 재생성)", false, 321)]
+        public static void RunForced()
+        {
+            Setup(forceRebuild: true);
+        }
+
+        static void Setup(bool forceRebuild)
+        {
             // 리깅 모델이 없으면 붙일 Animator 자체가 없다. 순서를 틀릴 여지가 없도록 여기서 같이 돌린다
             // (이미 연결된 프리팹은 RushUnitArtSetup이 건너뛰므로 여러 번 눌러도 안전하다).
             RushUnitArtSetup.Run();
 
             ConvertRigsToHumanoid();
 
-            var controller = BuildController();
+            var controller = BuildController(forceRebuild);
 
             if (controller == null)
                 return;
@@ -153,7 +168,17 @@ namespace Rush.EditorTools
 
         // ── 2. 애니메이터 컨트롤러 ───────────────────────────────────────────
 
-        static AnimatorController BuildController()
+        /// <summary>
+        /// 컨트롤러를 만들거나 갱신한다.
+        ///
+        /// 에셋을 절대 지우지 않는 것이 핵심이다. DeleteAsset으로 지우고 다시 만들면
+        /// 프리팹이 물고 있던 컨트롤러 오브젝트가 그 자리에서 파괴돼 Animator의
+        /// Controller 칸이 Missing으로 뜨고, 재임포트나 에디터 재시작 전까지 모션이 죽는다.
+        /// 파일 전체가 새 fileID로 다시 쓰이는 바람에 매 실행마다 통짜 diff가 나는 문제도 같이 없앤다.
+        ///
+        /// 이미 같은 내용이면 손대지 않는다. 그래프가 다르거나 forceRebuild면 에셋은 유지한 채 내용만 갈아친다.
+        /// </summary>
+        static AnimatorController BuildController(bool forceRebuild)
         {
             var idle = LoadClip(IdleClip);
             var run = LoadClip(RunClip);
@@ -168,10 +193,22 @@ namespace Rush.EditorTools
 
             EnsureFolder(ControllerDir);
 
-            // 매번 새로 만든다. 손으로 고친 게 있으면 덮이므로 임시 셋업으로만 쓸 것.
-            AssetDatabase.DeleteAsset(ControllerPath);
+            var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
 
-            var controller = AnimatorController.CreateAnimatorControllerAtPath(ControllerPath);
+            if (controller == null)
+            {
+                controller = AnimatorController.CreateAnimatorControllerAtPath(ControllerPath);
+            }
+            else if (!forceRebuild && Matches(controller, idle, run, attack, die))
+            {
+                Debug.Log($"[Anim] 컨트롤러 유지: {ControllerPath}");
+
+                return controller;
+            }
+            else
+            {
+                ClearGraph(controller);
+            }
 
             controller.AddParameter("Moving", AnimatorControllerParameterType.Bool);
             controller.AddParameter("Attacking", AnimatorControllerParameterType.Bool);
@@ -214,6 +251,77 @@ namespace Rush.EditorTools
             Debug.Log($"[Anim] 컨트롤러 생성: {ControllerPath}");
 
             return controller;
+        }
+
+        /// <summary>
+        /// 이미 원하는 그래프인지. 상태 이름과 물린 클립, 파라미터만 본다
+        /// (전이 세부값은 여기서 검사하지 않는다 - 손으로 튜닝한 값을 헛되게 날릴 이유가 없다).
+        /// 같으면 에셋을 건드리지 않아 재실행해도 diff가 나지 않는다.
+        /// </summary>
+        static bool Matches(AnimatorController controller, AnimationClip idle, AnimationClip run,
+                            AnimationClip attack, AnimationClip die)
+        {
+            if (controller.layers.Length == 0)
+                return false;
+
+            var parameterNames = controller.parameters.Select(p => p.name).ToList();
+
+            if (parameterNames.Count != 3)
+                return false;
+
+            if (!parameterNames.Contains("Moving") || !parameterNames.Contains("Attacking") || !parameterNames.Contains("Dead"))
+                return false;
+
+            var states = controller.layers[0].stateMachine.states;
+
+            if (states.Length != 4)
+                return false;
+
+            return HasState(states, "Idle", idle)
+                   && HasState(states, "Run", run)
+                   && HasState(states, "Attack", attack)
+                   && HasState(states, "Die", die);
+        }
+
+        static bool HasState(ChildAnimatorState[] states, string name, AnimationClip clip)
+        {
+            foreach (var child in states)
+            {
+                if (child.state == null || child.state.name != name)
+                    continue;
+
+                return child.state.motion == clip;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 컨트롤러 에셋은 남기고 그래프만 비운다. 지우고 다시 만들면 참조가 끊기므로 이 경로만 쓴다.
+        /// 상태를 지우면 그 상태에 붙은 전이도 같이 사라진다.
+        /// </summary>
+        static void ClearGraph(AnimatorController controller)
+        {
+            foreach (var parameter in controller.parameters)
+                controller.RemoveParameter(parameter);
+
+            // 레이어가 없는 컨트롤러는 아래에서 layers[0]을 못 쓴다 (손으로 지웠을 때만 나오는 경우)
+            if (controller.layers.Length == 0)
+                controller.AddLayer("Base Layer");
+
+            var machine = controller.layers[0].stateMachine;
+
+            foreach (var transition in machine.anyStateTransitions)
+                machine.RemoveAnyStateTransition(transition);
+
+            foreach (var transition in machine.entryTransitions)
+                machine.RemoveEntryTransition(transition);
+
+            foreach (var child in machine.stateMachines)
+                machine.RemoveStateMachine(child.stateMachine);
+
+            foreach (var child in machine.states)
+                machine.RemoveState(child.state);
         }
 
         static void Link(AnimatorState from, AnimatorState to, params (string Name, bool Value)[] conditions)
@@ -268,10 +376,19 @@ namespace Rush.EditorTools
                         continue;
                     }
 
+                    bool needsUnitAnimator = animator.GetComponent<UnitAnimator>() == null;
+                    bool alreadyWired = animator.runtimeAnimatorController == controller
+                                        && !animator.applyRootMotion
+                                        && !needsUnitAnimator;
+
+                    // 이미 같으면 저장하지 않는다. 매번 저장하면 바뀐 것 없이 프리팹 diff만 쌓인다.
+                    if (alreadyWired)
+                        continue;
+
                     animator.runtimeAnimatorController = controller;
                     animator.applyRootMotion = false;
 
-                    if (animator.GetComponent<UnitAnimator>() == null)
+                    if (needsUnitAnimator)
                         animator.gameObject.AddComponent<UnitAnimator>();
 
                     PrefabUtility.SaveAsPrefabAsset(contents, path);

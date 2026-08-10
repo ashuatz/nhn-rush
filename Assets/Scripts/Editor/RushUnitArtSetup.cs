@@ -117,10 +117,12 @@ namespace Rush.EditorTools
                 // 여기서 건너뛰기만 하면 그걸 되돌릴 방법이 없다.
                 if (contents.transform.Find(ArtChildName) != null)
                 {
-                    SetDummyVisible(contents, false);
-                    PrefabUtility.SaveAsPrefabAsset(contents, path);
-
-                    Debug.Log($"[UnitArt] {mapping.Prefab}: 이미 연결됨 - 정적 모델만 정리");
+                    // 켜진 게 없으면 저장도 하지 않는다. 매번 저장하면 바뀐 것 없이 프리팹 diff만 쌓인다.
+                    if (SetDummyVisible(contents, false))
+                    {
+                        PrefabUtility.SaveAsPrefabAsset(contents, path);
+                        Debug.Log($"[UnitArt] {mapping.Prefab}: 이미 연결됨 - 겹친 정적 모델 정리");
+                    }
 
                     return false;
                 }
@@ -180,16 +182,27 @@ namespace Rush.EditorTools
             }
         }
 
-        /// <summary>더미 큐브(Art 바깥의 렌더러)를 켜고 끈다. 오브젝트는 남겨둔다.</summary>
-        static void SetDummyVisible(GameObject root, bool visible)
+        /// <summary>
+        /// 더미 큐브(Art 바깥의 렌더러)를 켜고 끈다. 오브젝트는 남겨둔다.
+        /// 실제로 바뀐 렌더러가 있으면 true.
+        /// </summary>
+        static bool SetDummyVisible(GameObject root, bool visible)
         {
+            bool changed = false;
+
             foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
             {
                 if (IsUnderArt(renderer.transform))
                     continue;
 
+                if (renderer.enabled == visible)
+                    continue;
+
                 renderer.enabled = visible;
+                changed = true;
             }
+
+            return changed;
         }
 
         static bool IsUnderArt(Transform target)
