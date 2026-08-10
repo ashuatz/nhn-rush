@@ -21,7 +21,7 @@ namespace Rush.Data
         [Header("제시 구성")]
         [Min(1)] public int CardsPerOffer = 3;
 
-        [Tooltip("중간 보스 처치 보상의 제시 장수. 시트(중간보스 3종): 전설 2개 중 1개 선택, 다시 뽑기 불가")]
+        [Tooltip("보스 웨이브(6/12/18) 시작 보상의 제시 장수. 시트(중간보스 3종): 전설 2개 중 1개 선택, 다시 뽑기 불가")]
         [Min(1)] public int BossCardsPerOffer = 2;
 
         [Tooltip("다시뽑기 총 횟수. 한 판 전체에서 이만큼만 쓸 수 있고 보상으로 늘릴 수 없다")]

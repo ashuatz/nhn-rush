@@ -566,12 +566,9 @@ namespace Rush.Stage
 
             if (monster.Data.IsBoss)
             {
-                // 보스가 죽었으면 게이트를 풀어 다음 웨이브 대기를 다시 흐르게 한다
+                // 보스가 죽었으면 게이트를 풀어 다음 웨이브 대기를 다시 흐르게 한다.
+                // 중간 보스 보상은 여기가 아니라 그 웨이브를 시작할 때 제시된다 (TryInterceptWaveStart).
                 _bossResolved = true;
-
-                // 중간 보스 처치 보상 (한 판 3회)
-                if (!monster.Data.IsFinalBoss && _rewards != null && Phase == StagePhase.Running)
-                    _rewards.TryOfferBossReward();
 
                 // 최종 보스는 잡졸이 남아 있어도 즉시 승리다 (시트: 24웨이브 종료 조건)
                 if (monster.Data.IsFinalBoss && Phase == StagePhase.Running)

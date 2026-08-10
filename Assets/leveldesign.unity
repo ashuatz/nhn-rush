@@ -641,7 +641,7 @@ Transform:
   m_GameObject: {fileID: 89425533}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 8.21, y: 0, z: 3.42}
+  m_LocalPosition: {x: 7.54, y: 0, z: 2.9}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -942,7 +942,7 @@ Transform:
   m_GameObject: {fileID: 112675710}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 8.2, y: 0, z: 3.05}
+  m_LocalPosition: {x: 11.78, y: 0, z: 5.13}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3160,7 +3160,7 @@ Transform:
   m_GameObject: {fileID: 496091081}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 8.48, y: 0, z: 3.62}
+  m_LocalPosition: {x: 8.8, y: 0, z: 3.76}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4528,7 +4528,7 @@ Transform:
   m_GameObject: {fileID: 647256932}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 7.9799995, y: 0, z: 2.93}
+  m_LocalPosition: {x: 9.94, y: 0, z: 4.6}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -12150,6 +12150,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Rush.UI.GameHUD
   _stage: {fileID: 1500143602}
   _debugView: {fileID: 1738854037}
+  _worldCamera: {fileID: 0}
 --- !u!114 &1738854032
 MonoBehaviour:
   m_ObjectHideFlags: 0

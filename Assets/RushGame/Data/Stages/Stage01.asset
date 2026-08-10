@@ -308,37 +308,37 @@ MonoBehaviour:
       Interval: 1
       StartDelay: 12
   - Budget: 1195
-    StatMultiplier: 1.5
+    StatMultiplier: 1.75
     IsBossWave: 0
     IsFinalWave: 0
     RouteIds: []
     Entries: []
   - Budget: 1330
-    StatMultiplier: 1.5
+    StatMultiplier: 1.75
     IsBossWave: 0
     IsFinalWave: 0
     RouteIds: []
     Entries: []
   - Budget: 1480
-    StatMultiplier: 1.5
+    StatMultiplier: 1.75
     IsBossWave: 0
     IsFinalWave: 0
     RouteIds: []
     Entries: []
   - Budget: 1650
-    StatMultiplier: 1.5
+    StatMultiplier: 1.75
     IsBossWave: 0
     IsFinalWave: 0
     RouteIds: []
     Entries: []
   - Budget: 1835
-    StatMultiplier: 1.5
+    StatMultiplier: 1.75
     IsBossWave: 0
     IsFinalWave: 0
     RouteIds: []
     Entries: []
   - Budget: 2660
-    StatMultiplier: 1.5
+    StatMultiplier: 1.75
     IsBossWave: 1
     IsFinalWave: 0
     RouteIds: []
@@ -348,37 +348,37 @@ MonoBehaviour:
       Interval: 1
       StartDelay: 15
   - Budget: 2280
-    StatMultiplier: 2
+    StatMultiplier: 3.5
     IsBossWave: 0
     IsFinalWave: 0
     RouteIds: []
     Entries: []
   - Budget: 2535
-    StatMultiplier: 2
+    StatMultiplier: 3.5
     IsBossWave: 0
     IsFinalWave: 0
     RouteIds: []
     Entries: []
   - Budget: 2825
-    StatMultiplier: 2
+    StatMultiplier: 3.5
     IsBossWave: 0
     IsFinalWave: 0
     RouteIds: []
     Entries: []
   - Budget: 3145
-    StatMultiplier: 2
+    StatMultiplier: 3.5
     IsBossWave: 0
     IsFinalWave: 0
     RouteIds: []
     Entries: []
   - Budget: 3505
-    StatMultiplier: 2
+    StatMultiplier: 3.5
     IsBossWave: 0
     IsFinalWave: 0
     RouteIds: []
     Entries: []
   - Budget: 3905
-    StatMultiplier: 2
+    StatMultiplier: 3.5
     IsBossWave: 0
     IsFinalWave: 1
     RouteIds: []

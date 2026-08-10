@@ -15,6 +15,7 @@ MonoBehaviour:
   FirstRewardWave: 2
   EveryNWaves: 1
   CardsPerOffer: 3
+  BossCardsPerOffer: 2
   RerollsPerRun: 5
   RerollCost: 0
   TargetCommon: 60.14
