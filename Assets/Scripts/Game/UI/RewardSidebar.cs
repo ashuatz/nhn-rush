@@ -265,7 +265,9 @@ namespace Rush.UI
 
             BuildTooltip();
 
-            root.Add(_root);
+            // 화면 앵커 서랍이라 레터박스 안쪽 칸에 넣는다.
+            // 칸이 잘라내므로 접힌 상태(오른쪽으로 밀어낸 위치)도 띠 위로 보이지 않는다.
+            UiLayers.Content(root).Add(_root);
         }
 
         /// <summary>설명 팝업. 런타임 UI Toolkit은 기본 tooltip을 그려주지 않아 직접 만든다.</summary>

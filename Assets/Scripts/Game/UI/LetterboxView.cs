@@ -67,6 +67,9 @@ namespace Rush.UI
         VisualElement _shadeA;
         VisualElement _shadeB;
 
+        /// <summary>화면 앵커 UI가 들어 있는 칸. 레터박스 사각형에 맞춰 좁힌다.</summary>
+        VisualElement _content;
+
         int _appliedWidth;
         int _appliedHeight;
 
@@ -103,6 +106,10 @@ namespace Rush.UI
 
             ReleaseBackdrop();
             ReleaseRamps();
+
+            // 칸 자체는 다른 컴포넌트의 UI가 들어 있으므로 없애지 않고 전체 화면으로만 돌려놓는다
+            ResetContent();
+            _content = null;
 
             if (_root != null)
             {
@@ -196,6 +203,8 @@ namespace Rush.UI
             // 왼쪽 띠는 오른쪽 변이, 오른쪽 띠는 왼쪽 변이 플레이 영역과 맞닿는다
             PlaceBar(_barA, _imageA, _shadeA, 0f, 0f, x, 1f, ShadeEdge.Right);
             PlaceBar(_barB, _imageB, _shadeB, x + width, 0f, x, 1f, ShadeEdge.Left);
+
+            PlaceContent(x, 0f, width, 1f);
         }
 
         /// <summary>창이 16:9보다 좁다(길쭉하다) - 위아래에 띠가 생긴다.</summary>
@@ -209,6 +218,37 @@ namespace Rush.UI
             // 위쪽 띠는 아래 변이, 아래쪽 띠는 위 변이 플레이 영역과 맞닿는다
             PlaceBar(_barA, _imageA, _shadeA, 0f, 0f, 1f, y, ShadeEdge.Bottom);
             PlaceBar(_barB, _imageB, _shadeB, 0f, y + height, 1f, y, ShadeEdge.Top);
+
+            PlaceContent(0f, y, 1f, height);
+        }
+
+        /// <summary>
+        /// 화면 앵커 UI 칸을 플레이 영역에 맞춘다. 이 칸 안의 UI는 left/right 0 이 곧 16:9 경계가 된다.
+        /// </summary>
+        void PlaceContent(float nx, float ny, float nw, float nh)
+        {
+            if (_content == null)
+                return;
+
+            float panelWidth = _root.resolvedStyle.width;
+            float panelHeight = _root.resolvedStyle.height;
+
+            _content.style.left = nx * panelWidth;
+            _content.style.top = ny * panelHeight;
+            _content.style.width = nw * panelWidth;
+            _content.style.height = nh * panelHeight;
+        }
+
+        /// <summary>레터박스가 없을 때는 칸을 화면 전체로 돌린다.</summary>
+        void ResetContent()
+        {
+            if (_content == null)
+                return;
+
+            _content.style.left = 0f;
+            _content.style.top = 0f;
+            _content.style.width = Length.Percent(100);
+            _content.style.height = Length.Percent(100);
         }
 
         /// <summary>
@@ -384,6 +424,8 @@ namespace Rush.UI
             _barA.style.display = DisplayStyle.None;
             _barB.style.display = DisplayStyle.None;
 
+            ResetContent();
+
             if (_backdropCamera != null)
                 _backdropCamera.enabled = false;
         }
@@ -465,6 +507,7 @@ namespace Rush.UI
         void BuildUI(VisualElement root)
         {
             _root = root;
+            _content = UiLayers.Content(root);
 
             _barA = CreateBar(out _imageA, out _shadeA);
             _barB = CreateBar(out _imageB, out _shadeB);
