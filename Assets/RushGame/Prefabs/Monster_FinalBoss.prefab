@@ -31,7 +31,7 @@ Transform:
   m_LocalScale: {x: 2.2, y: 2.2, z: 2.2}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 6807975088169631711}
+  - {fileID: 5291748057731291747}
   m_Father: {fileID: 1313457386175668407}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &4178137308737297428
@@ -91,7 +91,7 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!1 &4739825004383034201
+--- !u!1 &2990848191093833786
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -99,7 +99,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 6807975088169631711}
+  - component: {fileID: 5291748057731291747}
   m_Layer: 0
   m_Name: Model
   m_TagString: Untagged
@@ -107,20 +107,20 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &6807975088169631711
+--- !u!4 &5291748057731291747
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4739825004383034201}
+  m_GameObject: {fileID: 2990848191093833786}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.45454544, y: 0.45454544, z: 0.45454544}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 3573929575976903470}
+  - {fileID: 5678958568492007293}
   m_Father: {fileID: 985714390726532444}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &6584990542294019240
@@ -172,13 +172,13 @@ MonoBehaviour:
   _deathFx: {fileID: 2505401845234213573, guid: ecc2486d62b40774eac29189c5a406e1, type: 3}
   _probeLead: 1.6
   _turnSpeed: 300
---- !u!1001 &3896633470195123397
+--- !u!1001 &5279643488615209110
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 6807975088169631711}
+    m_TransformParent: {fileID: 5291748057731291747}
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 7e2b3f57d36e863409871b040ab917c9, type: 3}
       propertyPath: m_LocalScale.x
@@ -245,10 +245,10 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 7e2b3f57d36e863409871b040ab917c9, type: 3}
---- !u!4 &3573929575976903470 stripped
+--- !u!4 &5678958568492007293 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 7e2b3f57d36e863409871b040ab917c9, type: 3}
-  m_PrefabInstance: {fileID: 3896633470195123397}
+  m_PrefabInstance: {fileID: 5279643488615209110}
   m_PrefabAsset: {fileID: 0}
 --- !u!1001 &5446837510539809865
 PrefabInstance:
@@ -371,6 +371,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67f8cb6c12bb26e4a81e79cc92476e6e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Rush.Combat.UnitAnimator
+  _referenceMoveSpeed: 1.6
 --- !u!4 &5484738546436862882 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 2a21c9bb05cd5e64cabcd567a14a7478, type: 3}
