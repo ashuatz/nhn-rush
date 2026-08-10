@@ -284,13 +284,14 @@ namespace Rush.EditorTools
             if (controller.layers.Length == 0)
                 return false;
 
-            var parameterNames = controller.parameters.Select(p => p.name).ToList();
-
-            if (parameterNames.Count != 4)
+            if (controller.parameters.Length != 4)
                 return false;
 
-            if (!parameterNames.Contains("Moving") || !parameterNames.Contains("Attacking")
-                || !parameterNames.Contains("Dead") || !parameterNames.Contains(MoveSpeedParam))
+            // 이름만 보면 타입이 어긋난 파라미터(예: MoveSpeed가 Bool)를 정상으로 넘겨버린다
+            if (!HasParameter(controller, "Moving", AnimatorControllerParameterType.Bool)
+                || !HasParameter(controller, "Attacking", AnimatorControllerParameterType.Bool)
+                || !HasParameter(controller, "Dead", AnimatorControllerParameterType.Bool)
+                || !HasParameter(controller, MoveSpeedParam, AnimatorControllerParameterType.Float))
                 return false;
 
             var states = controller.layers[0].stateMachine.states;
@@ -304,10 +305,25 @@ namespace Rush.EditorTools
                 || !HasState(states, "Die", die))
                 return false;
 
-            // 파라미터만 있고 Run에 안 물려 있으면 배율이 먹지 않는다
+            // 파라미터만 있고 Run에 안 물려 있으면 배율이 먹지 않는다.
+            // 기본 speed가 1이 아니면 배율에 곱해져 의도한 속도가 안 나온다.
             var runState = FindState(states, "Run");
 
-            return runState != null && runState.speedParameterActive && runState.speedParameter == MoveSpeedParam;
+            return runState != null
+                   && runState.speedParameterActive
+                   && runState.speedParameter == MoveSpeedParam
+                   && Mathf.Approximately(runState.speed, 1f);
+        }
+
+        static bool HasParameter(AnimatorController controller, string name, AnimatorControllerParameterType type)
+        {
+            foreach (var parameter in controller.parameters)
+            {
+                if (parameter.name == name)
+                    return parameter.type == type;
+            }
+
+            return false;
         }
 
         static bool HasState(ChildAnimatorState[] states, string name, AnimationClip clip)

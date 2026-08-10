@@ -7,7 +7,12 @@ namespace Rush.Combat
     /// 전투 로직은 건드리지 않고 폴링만 한다 (임시 애니메이션 연결이라 최소 침투로 둔다).
     ///
     /// 모델 루트(Art 자식)에 붙는다. Monster/Soldier는 프리팹 루트에 있으므로 부모에서 찾는다.
+    ///
+    /// 실행 순서를 뒤로 미뤄 Monster/Soldier가 이번 프레임 이동을 끝낸 뒤에 잰다.
+    /// 같은 순서끼리는 호출 순서가 보장되지 않는데, 먼저 돌면 지난 프레임 이동량을
+    /// 이번 프레임 deltaTime으로 나누게 되어 프레임 시간이 흔들릴 때 재생 속도가 출렁인다.
     /// </summary>
+    [DefaultExecutionOrder(100)]
     public class UnitAnimator : MonoBehaviour
     {
         /// <summary>이 속도(유닛/초) 이상이면 이동 중으로 본다.</summary>

@@ -25,10 +25,15 @@ namespace Rush.Combat
         const string VisualName = "Visual";
         const string TierVisualsName = "TierVisuals";
 
+        /// <summary>티어 모델 노드 이름 규칙. Tier1~Tier3 + 최종 분기 모델 Tier4A/Tier4B (RushSetupActions가 주입).</summary>
+        const string TierPrefix = "Tier";
+        const string BranchTierAName = "Tier4A";
+        const string BranchTierBName = "Tier4B";
+
         /// <summary>판매 환급 기본 70%. 스프레드시트(타워 시트) 공통 규칙.</summary>
         const float BaseSellRefundFraction = 0.7f;
 
-        /// <summary>레벨 수가 티어 모델 수보다 많을 때(Lv4 = 3티어 재사용) 최상위 티어를 키우는 배율.</summary>
+        /// <summary>분기 모델이 없어 최상위 티어를 재사용할 때 단계마다 키우는 배율.</summary>
         const float ReusedTierScaleStep = 0.12f;
 
         static readonly List<Tower> _activeTowers = new List<Tower>();
@@ -390,8 +395,7 @@ namespace Rush.Combat
 
         /// <summary>
         /// 레벨 변화 시 비주얼 갱신.
-        /// 티어 모델(TierVisuals 자식)이 있으면 레벨에 맞는 티어만 켠다.
-        /// 레벨이 티어 수를 넘으면(Lv4 = 3티어) 최상위 티어를 재사용하고 살짝 키워 구분한다.
+        /// 티어 모델(TierVisuals 자식)이 있으면 레벨/분기에 맞는 티어만 켠다.
         /// 티어 모델이 없으면 예전 방식(더미 큐브 스케일)으로 폴백한다.
         /// </summary>
         protected virtual void OnLevelChanged()
@@ -411,27 +415,92 @@ namespace Rush.Combat
 
         void ApplyTierVisual()
         {
-            // 더미 큐브는 티어 모델이 있으면 항상 끈다
+            var target = FindTierVisual(out float scale);
+
+            // 더미 큐브는 켤 티어를 찾았을 때만 끈다 (못 찾으면 타워가 안 보이므로 폴백 유지)
             if (_visual != null)
-                _visual.gameObject.SetActive(false);
+                _visual.gameObject.SetActive(target == null);
 
-            int tierCount = _tierVisuals.childCount;
-            int tierIndex = Mathf.Min(LevelIndex, tierCount - 1);
-            int reusedSteps = Mathf.Max(0, LevelIndex - (tierCount - 1));
-
-            for (int i = 0; i < tierCount; i++)
+            for (int i = 0; i < _tierVisuals.childCount; i++)
             {
                 var tier = _tierVisuals.GetChild(i);
-                bool active = i == tierIndex;
+                bool active = tier == target;
 
                 tier.gameObject.SetActive(active);
 
                 if (!active)
                     continue;
 
-                float scale = 1f + reusedSteps * ReusedTierScaleStep;
                 tier.localScale = new Vector3(scale, scale, scale);
             }
+        }
+
+        /// <summary>
+        /// 현재 레벨/분기에 대응하는 티어 모델을 고른다.
+        /// 분기를 확정했으면 분기 모델(Tier4A/Tier4B), 그 전에는 Tier1~Tier3.
+        /// 분기 모델이 주입되지 않은 계열은 마지막 티어를 재사용하고 살짝 키워 구분한다.
+        /// </summary>
+        Transform FindTierVisual(out float scale)
+        {
+            scale = 1f;
+
+            if (BranchChoice != TowerBranchChoice.None)
+            {
+                var branchTier = FindBranchTier();
+
+                if (branchTier != null)
+                    return branchTier;
+            }
+
+            var levelTier = _tierVisuals.Find($"{TierPrefix}{LevelIndex + 1}");
+
+            if (levelTier != null)
+                return levelTier;
+
+            // 폴백: 분기 모델을 제외한 마지막 티어를 재사용하고 넘어간 단계만큼 키운다
+            Transform lastPlainTier = null;
+            int plainCount = 0;
+
+            for (int i = 0; i < _tierVisuals.childCount; i++)
+            {
+                var tier = _tierVisuals.GetChild(i);
+
+                if (IsBranchTierName(tier.name))
+                    continue;
+
+                lastPlainTier = tier;
+                plainCount++;
+            }
+
+            if (lastPlainTier == null)
+                return null;
+
+            int reusedSteps = Mathf.Max(0, LevelIndex - (plainCount - 1));
+            scale = 1f + reusedSteps * ReusedTierScaleStep;
+
+            return lastPlainTier;
+        }
+
+        Transform FindBranchTier()
+        {
+            if (BranchChoice == TowerBranchChoice.A)
+                return _tierVisuals.Find(BranchTierAName);
+
+            if (BranchChoice == TowerBranchChoice.B)
+                return _tierVisuals.Find(BranchTierBName);
+
+            return null;
+        }
+
+        static bool IsBranchTierName(string name)
+        {
+            if (name == BranchTierAName)
+                return true;
+
+            if (name == BranchTierBName)
+                return true;
+
+            return false;
         }
 
         protected virtual void Update()

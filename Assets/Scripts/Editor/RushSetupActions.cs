@@ -914,7 +914,8 @@ namespace Rush.EditorTools
 
         /// <summary>
         /// fbx 아트 모델을 프리팹에 배선한다.
-        /// 타워: TierVisuals/Tier1~3 자식으로 주입하고 더미 큐브는 끈다 (레벨별 온오프는 Tower가 처리).
+        /// 타워: TierVisuals/Tier1~3 + 최종 분기 Tier4A/Tier4B 자식으로 주입하고 더미 큐브는 끈다
+        /// (레벨/분기별 온오프는 Tower가 처리). 타워 모델은 스케일을 건드리지 않고 바닥만 맞춘다.
         /// 병사/몬스터: Visual 노드 아래에 모델을 넣고 큐브 렌더러만 끈다 (런지 모션 등 트랜스폼 유지).
         /// 재실행하면 기존 주입분을 지우고 다시 만든다.
         /// </summary>
@@ -922,10 +923,10 @@ namespace Rush.EditorTools
         {
             BindCharacterMaterials();
 
-            InjectTowerTiers("Tower_Archer", "archertower", 1.5f);
-            InjectTowerTiers("Tower_Infantry", "barracktower", 1.5f);
-            InjectTowerTiers("Tower_Mage", "magiciantower", 1.6f);
-            InjectTowerTiers("Tower_Artillery", "cannontower", 1.4f);
+            InjectTowerTiers("Tower_Archer", "archertower");
+            InjectTowerTiers("Tower_Infantry", "barracktower");
+            InjectTowerTiers("Tower_Mage", "magiciantower");
+            InjectTowerTiers("Tower_Artillery", "cannontower");
 
             InjectSoldierModel();
             InjectMonsterModels();
@@ -935,7 +936,7 @@ namespace Rush.EditorTools
             Report("아트 모델 적용 완료");
         }
 
-        static void InjectTowerTiers(string prefabName, string fbxFamily, float targetHeight)
+        static void InjectTowerTiers(string prefabName, string fbxFamily)
         {
             string prefabPath = $"{PrefabDir}/{prefabName}.prefab";
 
@@ -961,30 +962,21 @@ namespace Rush.EditorTools
             for (int tier = 1; tier <= 3; tier++)
             {
                 string fbxPath = $"{FbxEnvironment}/{fbxFamily}/{fbxFamily}0{tier}/{fbxFamily}0{tier}.fbx";
-                var model = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
-
-                if (model == null)
-                {
-                    Report($"{prefabName}: {fbxPath} 없음 - 티어 {tier} 건너뜀");
-                    continue;
-                }
-
-                var wrapper = new GameObject($"Tier{tier}");
-                wrapper.transform.SetParent(tierRoot.transform);
-                wrapper.transform.localPosition = Vector3.zero;
-
-                var instance = (GameObject)PrefabUtility.InstantiatePrefab(model, wrapper.transform);
-                instance.transform.localPosition = Vector3.zero;
-                instance.transform.localRotation = Quaternion.identity;
-
-                NormalizeToHeight(instance.transform, targetHeight, bottomY: 0f);
-                StripColliders(instance);
 
                 // 기본은 1티어만 보이게. 런타임에는 Tower.OnLevelChanged가 다시 정한다.
-                wrapper.SetActive(tier == 1);
-
-                injected++;
+                if (InjectTierModel(prefabName, tierRoot.transform, $"Tier{tier}", fbxPath, visible: tier == 1))
+                    injected++;
             }
+
+            // 최종 분기(Lv4) 모델: A는 04-1, B는 04-2. Tower.ApplyTierVisual이 이름으로 찾는다.
+            string branchAPath = $"{FbxEnvironment}/{fbxFamily}/{fbxFamily}04-1/{fbxFamily}04-1.fbx";
+            string branchBPath = $"{FbxEnvironment}/{fbxFamily}/{fbxFamily}04-2/{fbxFamily}04-2.fbx";
+
+            if (InjectTierModel(prefabName, tierRoot.transform, "Tier4A", branchAPath, visible: false))
+                injected++;
+
+            if (InjectTierModel(prefabName, tierRoot.transform, "Tier4B", branchBPath, visible: false))
+                injected++;
 
             // 더미 큐브는 티어 모델이 하나라도 있으면 꺼 둔다 (없으면 폴백으로 유지)
             var visual = contents.transform.Find("Visual");
@@ -999,6 +991,37 @@ namespace Rush.EditorTools
             PrefabUtility.UnloadPrefabContents(contents);
 
             Report($"{prefabName}: 티어 모델 {injected}개 주입");
+        }
+
+        /// <summary>
+        /// 티어 래퍼 노드 하나를 만들고 fbx 인스턴스를 넣는다.
+        /// 스케일은 임포트 상태를 그대로 쓰고(아트 담당) 바닥 정렬만 한다.
+        /// 모델이 없으면 건너뛰고 false를 돌려준다 (해당 티어는 Tower가 폴백 처리).
+        /// </summary>
+        static bool InjectTierModel(string prefabName, Transform tierRoot, string wrapperName, string fbxPath, bool visible)
+        {
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
+
+            if (model == null)
+            {
+                Report($"{prefabName}: {fbxPath} 없음 - {wrapperName} 건너뜀");
+                return false;
+            }
+
+            var wrapper = new GameObject(wrapperName);
+            wrapper.transform.SetParent(tierRoot);
+            wrapper.transform.localPosition = Vector3.zero;
+
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(model, wrapper.transform);
+            instance.transform.localPosition = Vector3.zero;
+            instance.transform.localRotation = Quaternion.identity;
+
+            AlignToGround(instance.transform, bottomY: 0f);
+            StripColliders(instance);
+
+            wrapper.SetActive(visible);
+
+            return true;
         }
 
         /// <summary>
@@ -1271,7 +1294,19 @@ namespace Rush.EditorTools
             instance.localScale = instance.localScale * scale;
 
             // 스케일 반영 후 바운드를 다시 재서 바닥/중심을 맞춘다
-            bounds = CalculateRendererBounds(instance);
+            AlignToGround(instance, bottomY);
+        }
+
+        /// <summary>
+        /// 스케일은 그대로 두고(임포트 상태 유지) 바닥이 월드 bottomY,
+        /// 수평 중심이 부모 원점에 오도록 위치만 보정한다.
+        /// </summary>
+        internal static void AlignToGround(Transform instance, float bottomY)
+        {
+            var bounds = CalculateRendererBounds(instance);
+
+            if (bounds.size.y <= 0.0001f)
+                return;
 
             Vector3 pivot = Vector3.zero;
 
