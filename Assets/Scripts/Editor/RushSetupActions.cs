@@ -931,6 +931,9 @@ namespace Rush.EditorTools
             InjectSoldierModel();
             InjectMonsterModels();
 
+            // 새로 주입된 몬스터 렌더러는 캐스트 섀도우가 켜진 상태이므로 다시 끈다 (플래너 섀도우 사용)
+            RushPlanarShadowSetup.Run();
+
             AssetDatabase.SaveAssets();
 
             Report("아트 모델 적용 완료");

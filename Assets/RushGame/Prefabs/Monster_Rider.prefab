@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 998493727232402468}
   - component: {fileID: 8901771068304821434}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Monster_Rider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -58,7 +58,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1037487894258972052}
   - component: {fileID: 3312884057461209331}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Visual
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -106,7 +106,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8511499385380331737}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Model
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -177,9 +177,21 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: 0fcca5e9df162dd44b3d95e0819c95fd, type: 3}
+      propertyPath: m_CastShadows
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: 0fcca5e9df162dd44b3d95e0819c95fd, type: 3}
+      propertyPath: m_RenderingLayerMask
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 0fcca5e9df162dd44b3d95e0819c95fd, type: 3}
       propertyPath: m_Name
       value: watcherorb
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 0fcca5e9df162dd44b3d95e0819c95fd, type: 3}
+      propertyPath: m_Layer
+      value: 8
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
