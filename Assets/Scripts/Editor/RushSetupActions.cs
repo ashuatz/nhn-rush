@@ -9,6 +9,7 @@ using Rush.UI;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.UIElements;
 
 namespace Rush.EditorTools
@@ -2489,6 +2490,41 @@ namespace Rush.EditorTools
             cam.transform.rotation = Quaternion.Euler(55f, 0f, 0f);
         }
 
+        /// <summary>
+        /// 레터박스 띠에 깔 흐린 배경을 렌더할 카메라. 메인 카메라 자식으로 두어 화각/위치를 자동으로 따라가게 한다.
+        /// LetterboxView가 띠가 보일 때만 켜므로 여기서는 꺼진 상태로 만든다.
+        /// </summary>
+        static Camera EnsureBackdropCamera()
+        {
+            var main = Camera.main;
+
+            if (main == null)
+                return null;
+
+            var existing = main.transform.Find("BackdropCamera");
+            GameObject go;
+
+            if (existing != null)
+            {
+                go = existing.gameObject;
+            }
+            else
+            {
+                go = new GameObject("BackdropCamera");
+                go.transform.SetParent(main.transform, false);
+            }
+
+            var cam = EnsureComponent<Camera>(go);
+            cam.enabled = false;
+
+            // 저해상도 배경이라 후처리는 낭비다
+            var data = EnsureComponent<UniversalAdditionalCameraData>(go);
+            data.renderType = CameraRenderType.Base;
+            data.renderPostProcessing = false;
+
+            return cam;
+        }
+
         static void SetupGround()
         {
             var ground = GameObject.Find("Ground");
@@ -3288,6 +3324,8 @@ namespace Rush.EditorTools
             var dashboard = EnsureComponent<DebugDashboard>(uiGo);
             var rewardOverlay = EnsureComponent<RewardOverlay>(uiGo);
             var rewardSidebar = EnsureComponent<RewardSidebar>(uiGo);
+            var orientationGate = EnsureComponent<OrientationGate>(uiGo);
+            var letterbox = EnsureComponent<LetterboxView>(uiGo);
             EnsureComponent<MonsterHealthOverlay>(uiGo);
 
             var debugView = EnsureComponent<MonsterDebugView>(uiGo);
@@ -3320,6 +3358,15 @@ namespace Rush.EditorTools
             FillIfEmpty(sidebarSo, "_stage", stage);
             FillIfEmpty(sidebarSo, "_rewards", stage.GetComponent<RewardSystem>());
             sidebarSo.ApplyModifiedPropertiesWithoutUndo();
+
+            var gateSo = new SerializedObject(orientationGate);
+            FillIfEmpty(gateSo, "_stage", stage);
+            gateSo.ApplyModifiedPropertiesWithoutUndo();
+
+            var letterboxSo = new SerializedObject(letterbox);
+            FillIfEmpty(letterboxSo, "_camera", Camera.main);
+            FillIfEmpty(letterboxSo, "_backdropCamera", EnsureBackdropCamera());
+            letterboxSo.ApplyModifiedPropertiesWithoutUndo();
 
             var dashSo = new SerializedObject(dashboard);
             FillIfEmpty(dashSo, "_stage", stage);
