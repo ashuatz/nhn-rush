@@ -59,6 +59,7 @@ GameObject:
   - component: {fileID: 1037487894258972052}
   - component: {fileID: 736721472850427933}
   - component: {fileID: 1643333661779800666}
+  - component: {fileID: 3312884057461209331}
   m_Layer: 0
   m_Name: Visual
   m_TagString: Untagged
@@ -139,6 +140,22 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &3312884057461209331
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2973196995806654050}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b1c7d9e30a5f42a8ce61f7b2d84c905, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Rush.Combat.FlyerHover
+  _bobAmplitude: 0.25
+  _bobSpeed: 3
+  _lookDuration: 1.5
+  _lookTurnSpeed: 540
 --- !u!1 &9019186647823831661
 GameObject:
   m_ObjectHideFlags: 0
