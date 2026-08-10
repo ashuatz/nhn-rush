@@ -35,6 +35,12 @@ namespace Rush.EditorTools
         /// <summary>반복 재생할 클립. 공격/죽음은 한 번만 재생한다.</summary>
         static readonly string[] LoopingClips = { IdleClip, RunClip, AttackClip };
 
+        /// <summary>
+        /// Run 상태의 재생 속도 배율. UnitAnimator가 실측 이동 속도로 채운다.
+        /// 느린 유닛(보스 0.8)은 느리게, 빠른 유닛(정찰병 3.2)은 빠르게 발을 젓는다.
+        /// </summary>
+        const string MoveSpeedParam = "MoveSpeed";
+
         /// <summary>애니메이터를 붙일 프리팹. RushUnitArtSetup이 리깅 모델을 넣은 것들이다.</summary>
         static readonly string[] TargetPrefabs =
         {
@@ -214,6 +220,16 @@ namespace Rush.EditorTools
             controller.AddParameter("Attacking", AnimatorControllerParameterType.Bool);
             controller.AddParameter("Dead", AnimatorControllerParameterType.Bool);
 
+            // 기본값 1 = 기준 속도로 달릴 때 클립 원래 속도
+            var moveSpeed = new AnimatorControllerParameter
+            {
+                name = MoveSpeedParam,
+                type = AnimatorControllerParameterType.Float,
+                defaultFloat = 1f,
+            };
+
+            controller.AddParameter(moveSpeed);
+
             var machine = controller.layers[0].stateMachine;
 
             var idleState = machine.AddState("Idle");
@@ -221,6 +237,10 @@ namespace Rush.EditorTools
 
             var runState = machine.AddState("Run");
             runState.motion = run;
+
+            // 달리기만 속도를 태운다. 공격/죽음은 연출 타이밍이라 원래 속도를 유지한다.
+            runState.speedParameterActive = true;
+            runState.speedParameter = MoveSpeedParam;
 
             var attackState = machine.AddState("Attack");
             attackState.motion = attack;
@@ -266,10 +286,11 @@ namespace Rush.EditorTools
 
             var parameterNames = controller.parameters.Select(p => p.name).ToList();
 
-            if (parameterNames.Count != 3)
+            if (parameterNames.Count != 4)
                 return false;
 
-            if (!parameterNames.Contains("Moving") || !parameterNames.Contains("Attacking") || !parameterNames.Contains("Dead"))
+            if (!parameterNames.Contains("Moving") || !parameterNames.Contains("Attacking")
+                || !parameterNames.Contains("Dead") || !parameterNames.Contains(MoveSpeedParam))
                 return false;
 
             var states = controller.layers[0].stateMachine.states;
@@ -277,23 +298,34 @@ namespace Rush.EditorTools
             if (states.Length != 4)
                 return false;
 
-            return HasState(states, "Idle", idle)
-                   && HasState(states, "Run", run)
-                   && HasState(states, "Attack", attack)
-                   && HasState(states, "Die", die);
+            if (!HasState(states, "Idle", idle)
+                || !HasState(states, "Run", run)
+                || !HasState(states, "Attack", attack)
+                || !HasState(states, "Die", die))
+                return false;
+
+            // 파라미터만 있고 Run에 안 물려 있으면 배율이 먹지 않는다
+            var runState = FindState(states, "Run");
+
+            return runState != null && runState.speedParameterActive && runState.speedParameter == MoveSpeedParam;
         }
 
         static bool HasState(ChildAnimatorState[] states, string name, AnimationClip clip)
         {
+            var state = FindState(states, name);
+
+            return state != null && state.motion == clip;
+        }
+
+        static AnimatorState FindState(ChildAnimatorState[] states, string name)
+        {
             foreach (var child in states)
             {
-                if (child.state == null || child.state.name != name)
-                    continue;
-
-                return child.state.motion == clip;
+                if (child.state != null && child.state.name == name)
+                    return child.state;
             }
 
-            return false;
+            return null;
         }
 
         /// <summary>

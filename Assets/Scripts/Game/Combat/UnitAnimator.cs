@@ -13,9 +13,23 @@ namespace Rush.Combat
         /// <summary>이 속도(유닛/초) 이상이면 이동 중으로 본다.</summary>
         const float MoveThreshold = 0.05f;
 
+        /// <summary>재생 배율 하한/상한. 0에 가까우면 발이 얼어붙고, 너무 크면 다리가 헛돈다.</summary>
+        const float MinPlaybackRate = 0.4f;
+        const float MaxPlaybackRate = 1.8f;
+
+        /// <summary>배율 감쇠 시간(초). 저지/슬로우로 속도가 튈 때 재생 속도가 딸꾹질하지 않게.</summary>
+        const float RateDamp = 0.15f;
+
         static readonly int MovingHash = Animator.StringToHash("Moving");
         static readonly int AttackingHash = Animator.StringToHash("Attacking");
         static readonly int DeadHash = Animator.StringToHash("Dead");
+        static readonly int MoveSpeedHash = Animator.StringToHash("MoveSpeed");
+
+        /// <summary>
+        /// 이 속도(유닛/초)로 달릴 때 클립을 원래 속도로 재생한다. SwordRun이 자연스러워 보이는 기준값이며,
+        /// 민병(1.6) 기준으로 잡았다. 보스(0.8)는 절반 속도, 정찰병(3.2)은 상한까지 빨라진다.
+        /// </summary>
+        [SerializeField] float _referenceMoveSpeed = 1.6f;
 
         Animator _animator;
         Monster _monster;
@@ -23,6 +37,9 @@ namespace Rush.Combat
 
         Vector3 _lastPosition;
         bool _dead;
+
+        /// <summary>실측 이동 속도(유닛/초). 일시정지 프레임에는 갱신하지 않고 직전 값을 유지한다.</summary>
+        float _speed;
 
         void Awake()
         {
@@ -48,8 +65,27 @@ namespace Rush.Combat
             if (_dead)
                 return;
 
-            _animator.SetBool(MovingHash, IsMoving());
+            MeasureSpeed();
+
+            _animator.SetBool(MovingHash, _speed > MoveThreshold);
             _animator.SetBool(AttackingHash, IsAttacking());
+
+            ApplyRunRate();
+        }
+
+        /// <summary>
+        /// 달리기 재생 속도를 실측 이동 속도에 맞춘다.
+        /// 데이터의 MoveSpeed를 직접 읽지 않고 실측을 쓰는 이유는 IsMoving과 같다 -
+        /// 슬로우/기절/버프가 어떻게 반영되든 결과 속도만 보면 되기 때문이다.
+        /// </summary>
+        void ApplyRunRate()
+        {
+            if (_referenceMoveSpeed <= 0.0001f)
+                return;
+
+            float rate = Mathf.Clamp(_speed / _referenceMoveSpeed, MinPlaybackRate, MaxPlaybackRate);
+
+            _animator.SetFloat(MoveSpeedHash, rate, RateDamp, Time.deltaTime);
         }
 
         bool IsDead()
@@ -64,10 +100,10 @@ namespace Rush.Combat
         }
 
         /// <summary>
-        /// 실제 이동량으로 판정한다. 저지/기절/슬로우가 속도에 어떻게 반영되든
+        /// 실제 이동량으로 속도를 잰다. 저지/기절/슬로우가 속도에 어떻게 반영되든
         /// 결과만 보면 되므로 상태 플래그를 하나하나 따라갈 필요가 없다.
         /// </summary>
-        bool IsMoving()
+        void MeasureSpeed()
         {
             Vector3 current = transform.position;
             float delta = (current - _lastPosition).magnitude;
@@ -76,9 +112,9 @@ namespace Rush.Combat
 
             // 일시정지(timeScale 0)에는 판정을 바꾸지 않고 직전 값을 유지한다
             if (Time.deltaTime <= 0f)
-                return _animator.GetBool(MovingHash);
+                return;
 
-            return delta / Time.deltaTime > MoveThreshold;
+            _speed = delta / Time.deltaTime;
         }
 
         bool IsAttacking()

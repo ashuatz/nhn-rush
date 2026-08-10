@@ -156,7 +156,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
-  m_BackGroundColor: {r: 0.26801398, g: 0.3735848, b: 0.26432887, a: 0}
+  m_BackGroundColor: {r: 0.37647063, g: 0.5176471, b: 0.058823533, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -177,8 +177,8 @@ Camera:
     y: 0
     width: 1
     height: 1
-  near clip plane: 0.3
-  far clip plane: 1000
+  near clip plane: 30
+  far clip plane: 120
   field of view: 15
   orthographic: 0
   orthographic size: 5
@@ -917,6 +917,8 @@ MonoBehaviour:
   _targetAspect: 1.7777778
   _backdropHeight: 180
   _backdropDim: 0.35
+  _edgeShadeWidth: 34
+  _edgeShadeStrength: 0.55
 --- !u!1 &1927937931
 GameObject:
   m_ObjectHideFlags: 0
