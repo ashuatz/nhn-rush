@@ -44,11 +44,19 @@ namespace Rush.EditorTools
             "Monster_EnemyMage",
             "Monster_Centurion",
             "Soldier",
+            "Monster_MidBoss1",
+            "Monster_MidBoss2",
+            "Monster_MidBoss3",
+            "Monster_FinalBoss",
         };
 
         [MenuItem("Rush/캐릭터 애니메이션 셋업", false, 320)]
         public static void Run()
         {
+            // 리깅 모델이 없으면 붙일 Animator 자체가 없다. 순서를 틀릴 여지가 없도록 여기서 같이 돌린다
+            // (이미 연결된 프리팹은 RushUnitArtSetup이 건너뛰므로 여러 번 눌러도 안전하다).
+            RushUnitArtSetup.Run();
+
             ConvertRigsToHumanoid();
 
             var controller = BuildController();
@@ -74,7 +82,9 @@ namespace Rush.EditorTools
             var paths = AssetDatabase.FindAssets("t:Model", new[] { CharacterRoot })
                 .Select(AssetDatabase.GUIDToAssetPath)
                 .Where(p => p.EndsWith(".fbx", System.StringComparison.OrdinalIgnoreCase))
-                .Where(p => p.Contains("_rig.fbx") || p.Replace('\\', '/').StartsWith(AnimDir))
+                // 적 리그는 "_Rig.fbx", 병사는 "_rig.fbx"로 파일명 대소문자가 섞여 있다
+                .Where(p => p.EndsWith("_rig.fbx", System.StringComparison.OrdinalIgnoreCase)
+                            || p.Replace('\\', '/').StartsWith(AnimDir))
                 .ToList();
 
             int converted = 0;

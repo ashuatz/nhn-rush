@@ -23,25 +23,35 @@ namespace Rush.EditorTools
             public readonly string Prefab;
             public readonly string Rig;
 
-            public Mapping(string prefab, string rig)
+            /// <summary>목표 신장(m). 0이면 리그 fbx 임포트 스케일을 그대로 쓴다.</summary>
+            public readonly float Height;
+
+            public Mapping(string prefab, string rig, float height = 0f)
             {
                 Prefab = prefab;
                 Rig = rig;
+                Height = height;
             }
         }
 
         /// <summary>
-        /// 프리팹 - 리깅 모델 대응. Rider와 중간 보스 3종은 전용 아트가 아직 없어 뺐다
-        /// (넣으려면 여기 줄만 추가하면 된다).
+        /// 프리팹 - 리깅 모델 대응.
+        /// 보스 4종은 전용 아트가 없어 성격이 가까운 모델을 크기만 키워 돌려 쓴다
+        /// (신장은 RushSetupActions.MonsterModels와 같은 값).
+        /// Rider는 watcherorb + FlyerHover 구성이라 검 모션이 맞지 않아 뺐다.
         /// </summary>
         static readonly Mapping[] Mappings =
         {
-            new Mapping("Monster_Militia", $"{CharacterDir}/Anemy/AnemySoldier/AnemySoldier_rig.fbx"),
-            new Mapping("Monster_HeavyInfantry", $"{CharacterDir}/Anemy/AnemyHeavy/AnemyHeavy_rig.fbx"),
-            new Mapping("Monster_Scout", $"{CharacterDir}/Anemy/AnemyScout/AnemyScout_rig.fbx"),
-            new Mapping("Monster_EnemyMage", $"{CharacterDir}/Anemy/AnemyMagician/AnemyMagician_rig.fbx"),
-            new Mapping("Monster_Centurion", $"{CharacterDir}/Anemy/AnemyCaptain/AnemyCaptain_rig.fbx"),
+            new Mapping("Monster_Militia", $"{CharacterDir}/Anemy/AnemySoldier/AnemySoldier_Rig.fbx"),
+            new Mapping("Monster_HeavyInfantry", $"{CharacterDir}/Anemy/AnemyHeavy/AnemyHeavy_Rig.fbx"),
+            new Mapping("Monster_Scout", $"{CharacterDir}/Anemy/AnemyScout/AnemyScout_Rig.fbx"),
+            new Mapping("Monster_EnemyMage", $"{CharacterDir}/Anemy/AnemyMagician/AnemyMagician_Rig.fbx"),
+            new Mapping("Monster_Centurion", $"{CharacterDir}/Anemy/AnemyCaptain/AnemyCaptain_Rig.fbx"),
             new Mapping("Soldier", $"{CharacterDir}/Hero/soldier/soldier_rig.fbx"),
+            new Mapping("Monster_MidBoss1", $"{CharacterDir}/Anemy/AnemyHeavy/AnemyHeavy_Rig.fbx", 1.5f),
+            new Mapping("Monster_MidBoss2", $"{CharacterDir}/Anemy/AnemyCaptain/AnemyCaptain_Rig.fbx", 1.7f),
+            new Mapping("Monster_MidBoss3", $"{CharacterDir}/Anemy/AnemyCaptain/AnemyCaptain_Rig.fbx", 1.9f),
+            new Mapping("Monster_FinalBoss", $"{CharacterDir}/Anemy/AnemyCaptain/AnemyCaptain_Rig.fbx", 2.3f),
         };
 
         [MenuItem("Rush/유닛 프리팹에 리깅 모델 연결", false, 300)]
@@ -102,9 +112,16 @@ namespace Rush.EditorTools
 
             try
             {
+                // 이미 연결돼 있으면 모델은 그대로 두고 T포즈 정적 모델만 다시 끈다.
+                // ApplyArtModels를 다시 돌리면 Visual/Model이 켜진 채 새로 생겨 아트가 겹쳐 보이는데,
+                // 여기서 건너뛰기만 하면 그걸 되돌릴 방법이 없다.
                 if (contents.transform.Find(ArtChildName) != null)
                 {
-                    Debug.Log($"[UnitArt] {mapping.Prefab}: 이미 연결됨 - 건너뜀");
+                    SetDummyVisible(contents, false);
+                    PrefabUtility.SaveAsPrefabAsset(contents, path);
+
+                    Debug.Log($"[UnitArt] {mapping.Prefab}: 이미 연결됨 - 정적 모델만 정리");
+
                     return false;
                 }
 
@@ -117,9 +134,18 @@ namespace Rush.EditorTools
                 art.transform.localRotation = Quaternion.identity;
                 art.transform.localScale = Vector3.one;
 
+                // 모델에 딸려 온 콜라이더는 슬롯 클릭 레이캐스트를 막으므로 지운다.
+                // 루트의 전투용 콜라이더는 Art 밖에 있어 영향받지 않는다.
+                RushSetupActions.StripColliders(art);
+
+                // 보스처럼 신장이 지정된 것만 크기를 다시 잡는다.
+                if (mapping.Height > 0f)
+                    RushSetupActions.NormalizeToHeight(art.transform, mapping.Height, bottomY: 0f);
+
                 PrefabUtility.SaveAsPrefabAsset(contents, path);
 
-                Debug.Log($"[UnitArt] {mapping.Prefab} <- {System.IO.Path.GetFileName(mapping.Rig)}");
+                string sizing = mapping.Height > 0f ? $", 신장 {mapping.Height:F2}m" : string.Empty;
+                Debug.Log($"[UnitArt] {mapping.Prefab} <- {System.IO.Path.GetFileName(mapping.Rig)}{sizing}");
 
                 return true;
             }

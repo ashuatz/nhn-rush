@@ -1260,7 +1260,7 @@ namespace Rush.EditorTools
         /// 바닥이 월드 bottomY, 수평 중심이 부모 원점에 오도록 위치를 보정한다.
         /// 프리팹 편집 콘텐츠는 원점에 놓이므로 여기서의 월드 좌표는 곧 프리팹 로컬 좌표다.
         /// </summary>
-        static void NormalizeToHeight(Transform instance, float targetHeight, float bottomY)
+        internal static void NormalizeToHeight(Transform instance, float targetHeight, float bottomY)
         {
             var bounds = CalculateRendererBounds(instance);
 
@@ -1316,7 +1316,7 @@ namespace Rush.EditorTools
         }
 
         /// <summary>모델에 딸려 온 콜라이더는 슬롯 클릭 레이캐스트를 방해하므로 제거한다.</summary>
-        static void StripColliders(GameObject root)
+        internal static void StripColliders(GameObject root)
         {
             foreach (var collider in root.GetComponentsInChildren<Collider>(true))
                 UnityEngine.Object.DestroyImmediate(collider);
