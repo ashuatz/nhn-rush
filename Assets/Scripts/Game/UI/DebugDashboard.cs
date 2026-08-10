@@ -126,7 +126,9 @@ namespace Rush.UI
             _logLabel.style.whiteSpace = WhiteSpace.Normal;
             _panel.Add(_logLabel);
 
-            root.Add(_panel);
+            // 화면 앵커 UI라 레터박스 안쪽 칸에 넣는다
+            var content = UiLayers.Content(root);
+            content.Add(_panel);
 
             // 패널이 접혀 있어도 여는 법을 알 수 있게 작은 안내를 남긴다
             _hint = new Label("[F1] 디버그");
@@ -141,7 +143,7 @@ namespace Rush.UI
             _hint.style.paddingTop = 2;
             _hint.style.paddingBottom = 2;
 
-            root.Add(_hint);
+            content.Add(_hint);
         }
 
         void SetVisible(bool visible)

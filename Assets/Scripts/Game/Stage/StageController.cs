@@ -696,17 +696,33 @@ namespace Rush.Stage
             ApplySpeed();
         }
 
+        /// <summary>
+        /// 화면이 세로로 좁아 안내막이 떠 있는 동안 true.
+        /// 위 두 플래그와 또 따로 두는 이유도 같다 - 안내막이 닫힐 때 사이드바/메뉴가 열어둔 정지를 건드리면 안 된다.
+        /// </summary>
+        public bool AspectPauseActive { get; private set; }
+
+        public void SetAspectPause(bool paused)
+        {
+            AspectPauseActive = paused;
+
+            ApplySpeed();
+        }
+
         void ApplySpeed()
         {
-            // 보상 선택(디밍)이나 UI 일시정지 중에는 정지를 유지한다. 배속 인덱스만 바뀌고 닫힐 때 반영된다.
-            if (_rewards != null && _rewards.OfferActive)
-                return;
-
-            if (UiPauseActive || MenuPauseActive)
+            // UI 정지 플래그를 오퍼 검사보다 먼저 본다.
+            // 뒤에 두면 오퍼가 떠 있는 동안 들어온 정지 요청이 무시되고, RewardSystem이 먼저 0을 만들어
+            // 놓았다는 외부 순서에만 기대게 된다.
+            if (UiPauseActive || MenuPauseActive || AspectPauseActive)
             {
                 Time.timeScale = 0f;
                 return;
             }
+
+            // 보상 선택(디밍) 중에는 정지를 유지한다. 배속 인덱스만 바뀌고 닫힐 때 반영된다.
+            if (_rewards != null && _rewards.OfferActive)
+                return;
 
             Time.timeScale = SpeedSteps[_speedIndex];
         }

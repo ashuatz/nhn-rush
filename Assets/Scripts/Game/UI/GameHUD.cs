@@ -47,6 +47,9 @@ namespace Rush.UI
         const float FlagLift = 16f;
         const float FlagFallbackHeight = 44f;
 
+        /// <summary>깃발이 화면 경계에 딱 붙지 않도록 두는 여백.</summary>
+        const float FlagMargin = 8f;
+
         [SerializeField] StageController _stage;
         [SerializeField] Rush.Combat.MonsterDebugView _debugView;
 
@@ -100,10 +103,15 @@ namespace Rush.UI
             if (_stage != null)
                 _stage.Changed -= Refresh;
 
-            // 깃발은 컨테이너와 함께 사라지므로 참조도 같이 버린다 (다시 켜질 때 새로 만든다)
             _flags.Clear();
             _speedSegments.Clear();
-            _flagLayer = null;
+
+            // 깃발 레이어는 컨테이너 밖(문서 루트)에 있으므로 따로 걷어내야 한다
+            if (_flagLayer != null)
+            {
+                _flagLayer.RemoveFromHierarchy();
+                _flagLayer = null;
+            }
 
             if (_container != null)
             {
@@ -129,6 +137,8 @@ namespace Rush.UI
 
         void BuildUI(VisualElement root)
         {
+            var content = UiLayers.Content(root);
+
             _container = new VisualElement();
             _container.pickingMode = PickingMode.Ignore;
             _container.style.position = Position.Absolute;
@@ -137,7 +147,9 @@ namespace Rush.UI
             _container.style.top = 0;
             _container.style.bottom = 0;
 
-            // 입구 깃발은 월드 좌표를 따라다니므로 다른 패널보다 아래에 깔아 둔다
+            // 입구 깃발은 월드 좌표를 따라다니므로 화면 앵커 칸이 아니라 문서 루트에 둔다.
+            // 레터박스로 좁혀진 칸에 넣으면 camera.rect가 이미 반영된 좌표가 한 번 더 밀린다.
+            // 다른 패널보다 먼저 넣어 아래에 깔린다.
             _flagLayer = new VisualElement();
             _flagLayer.pickingMode = PickingMode.Ignore;
             _flagLayer.style.position = Position.Absolute;
@@ -145,7 +157,11 @@ namespace Rush.UI
             _flagLayer.style.right = 0;
             _flagLayer.style.top = 0;
             _flagLayer.style.bottom = 0;
-            _container.Add(_flagLayer);
+            root.Add(_flagLayer);
+
+            // 추가 순서에 기대지 않고 깃발을 화면 앵커 칸 바로 아래로 명시적으로 내린다.
+            // 칸은 이 컴포넌트가 꺼져도 남아 있어, 껐다 켜면 깃발이 칸 뒤에 추가되며 위로 올라와 버린다.
+            _flagLayer.PlaceBehind(content);
 
             _container.Add(BuildTopBar());
             _container.Add(BuildPauseButton());
@@ -157,7 +173,8 @@ namespace Rush.UI
             // 일시정지 팝업은 다른 UI를 덮어야 하므로 마지막에 넣는다
             _container.Add(BuildPauseOverlay());
 
-            root.Add(_container);
+            // 화면 앵커 UI라 레터박스 안쪽 칸에 넣는다. 초광폭 창에서 띠 위로 새지 않게.
+            content.Add(_container);
         }
 
         VisualElement BuildTopBar()
@@ -719,6 +736,36 @@ namespace Rush.UI
         }
 
         /// <summary>
+        /// 카메라가 실제로 그리는 영역을 패널 좌표로 환산한다.
+        /// 레터박스가 걸려 있으면 camera.rect가 반영된 16:9 안쪽 사각형이 나온다.
+        /// </summary>
+        static Rect CameraPanelRect(IPanel panel, Camera camera)
+        {
+            var pixel = camera.pixelRect;
+
+            // 스크린 좌표는 아래가 0, 패널 좌표는 위가 0이라 y를 뒤집어 넘긴다
+            Vector2 topLeft = RuntimePanelUtils.ScreenToPanel(panel,
+                new Vector2(pixel.xMin, Screen.height - pixel.yMax));
+
+            Vector2 bottomRight = RuntimePanelUtils.ScreenToPanel(panel,
+                new Vector2(pixel.xMax, Screen.height - pixel.yMin));
+
+            return new Rect(topLeft, bottomRight - topLeft);
+        }
+
+        /// <summary>길이 size인 요소를 [min, max] 안으로 밀어 넣는다. 칸이 요소보다 좁으면 시작점에 붙인다.</summary>
+        static float ClampSpan(float value, float size, float min, float max)
+        {
+            float lowest = min + FlagMargin;
+            float highest = max - size - FlagMargin;
+
+            if (highest < lowest)
+                return lowest;
+
+            return Mathf.Clamp(value, lowest, highest);
+        }
+
+        /// <summary>
         /// 다음 웨이브가 나올 입구에 깃발을 띄운다. 깃발을 누르면 조기소환이고,
         /// 보너스는 남은 시간에 비례하므로 카운트다운과 함께 줄어든다.
         /// </summary>
@@ -770,8 +817,15 @@ namespace Rush.UI
                 if (height <= 0f)
                     height = FlagFallbackHeight;
 
-                flag.Root.style.left = position.x - FlagWidth * 0.5f;
-                flag.Root.style.top = position.y - height - FlagLift;
+                // 입구는 맵 가장자리에 있어 중심 정렬만 하면 left가 음수로 나가 깃발이 반쯤 잘린다.
+                // 카메라가 실제로 그리는 사각형(레터박스가 걸리면 그 안쪽) 안으로 밀어 넣는다.
+                var bounds = CameraPanelRect(panel, camera);
+
+                float left = ClampSpan(position.x - FlagWidth * 0.5f, FlagWidth, bounds.xMin, bounds.xMax);
+                float top = ClampSpan(position.y - height - FlagLift, height, bounds.yMin, bounds.yMax);
+
+                flag.Root.style.left = left;
+                flag.Root.style.top = top;
                 flag.Root.style.display = DisplayStyle.Flex;
                 flag.Title.text = title;
                 flag.Bonus.text = bonus;

@@ -232,6 +232,11 @@ namespace Rush.UI
             // 손잡이보다 납작해진 상자가 뜬금없이 붙어 있는 모양이 된다.
             _panel.style.minHeight = PanelMinHeight;
 
+            // 보상이 쌓이면 목록이 패널을 밀어 올려 서랍 대역(top 90 ~ bottom 140) 밖으로 자라고,
+            // 화면 위아래로 삐져나간 채 잘린다. alignItems Center는 늘리지 않는 대신 넘치는 것도 막지 않는다.
+            // 대역 높이로 상한을 걸어 남는 만큼은 아래 ScrollView가 스크롤로 흡수하게 한다.
+            _panel.style.maxHeight = Length.Percent(100);
+
             _titleLabel = new Label("획득 특성");
             _titleLabel.style.color = Color.white;
             _titleLabel.style.fontSize = 14;
@@ -241,7 +246,15 @@ namespace Rush.UI
 
             _list = new ScrollView(ScrollViewMode.Vertical);
             _list.style.flexGrow = 1;
+
+            // 상한에 걸린 패널 안에서 줄어들 수 있어야 스크롤이 돈다. 안 줄어들면 목록이 그대로 커진다.
+            _list.style.flexShrink = 1;
             _panel.Add(_list);
+
+            // 대역이 190보다 낮은 창(아주 납작한 비율)에서는 minHeight가 maxHeight를 이겨 다시 넘친다.
+            // 남은 높이보다 큰 최소 높이는 요구하지 않는다.
+            _root.RegisterCallback<GeometryChangedEvent>(evt =>
+                _panel.style.minHeight = Mathf.Min(PanelMinHeight, evt.newRect.height));
 
             // 손잡이를 패널 높이에 맞춰 한 덩어리로 보이게 한다.
             // 목록 길이에 따라 패널 높이가 변하므로 레이아웃이 잡힐 때마다 다시 맞춘다.
@@ -252,7 +265,9 @@ namespace Rush.UI
 
             BuildTooltip();
 
-            root.Add(_root);
+            // 화면 앵커 서랍이라 레터박스 안쪽 칸에 넣는다.
+            // 칸이 잘라내므로 접힌 상태(오른쪽으로 밀어낸 위치)도 띠 위로 보이지 않는다.
+            UiLayers.Content(root).Add(_root);
         }
 
         /// <summary>설명 팝업. 런타임 UI Toolkit은 기본 tooltip을 그려주지 않아 직접 만든다.</summary>

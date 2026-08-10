@@ -59,6 +59,7 @@ GameObject:
   - component: {fileID: 1037487894258972052}
   - component: {fileID: 736721472850427933}
   - component: {fileID: 1643333661779800666}
+  - component: {fileID: 3312884057461209331}
   m_Layer: 0
   m_Name: Visual
   m_TagString: Untagged
@@ -139,6 +140,22 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &3312884057461209331
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2973196995806654050}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b1c7d9e30a5f42a8ce61f7b2d84c905, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Rush.Combat.FlyerHover
+  _bobAmplitude: 0.25
+  _bobSpeed: 3
+  _lookDuration: 1.5
+  _lookTurnSpeed: 540
 --- !u!1 &9019186647823831661
 GameObject:
   m_ObjectHideFlags: 0
@@ -169,8 +186,71 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4622848265891106682}
+  - {fileID: 853720181552610285}
   m_Father: {fileID: 1037487894258972052}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &888260835799669766
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 8511499385380331737}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 0fcca5e9df162dd44b3d95e0819c95fd, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0fcca5e9df162dd44b3d95e0819c95fd, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0fcca5e9df162dd44b3d95e0819c95fd, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0fcca5e9df162dd44b3d95e0819c95fd, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7071067
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0fcca5e9df162dd44b3d95e0819c95fd, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0fcca5e9df162dd44b3d95e0819c95fd, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0fcca5e9df162dd44b3d95e0819c95fd, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0fcca5e9df162dd44b3d95e0819c95fd, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0fcca5e9df162dd44b3d95e0819c95fd, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 0fcca5e9df162dd44b3d95e0819c95fd, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 0fcca5e9df162dd44b3d95e0819c95fd, type: 3}
+      propertyPath: m_Name
+      value: watcherorb
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 0fcca5e9df162dd44b3d95e0819c95fd, type: 3}
+--- !u!4 &853720181552610285 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 0fcca5e9df162dd44b3d95e0819c95fd, type: 3}
+  m_PrefabInstance: {fileID: 888260835799669766}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &5164803572948609169
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -234,6 +314,10 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: a4d87b77ed0d07943b95ffc6ba0f274b, type: 3}
       propertyPath: m_Name
       value: AnemyScout
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: a4d87b77ed0d07943b95ffc6ba0f274b, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

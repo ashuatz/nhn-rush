@@ -234,8 +234,10 @@ namespace Rush.UI
             _buttonArea = new VisualElement();
             _panel.Add(_buttonArea);
 
-            root.Add(_panel);
+            // 화면 앵커 패널이라 레터박스 안쪽 칸에 넣는다
+            UiLayers.Content(root).Add(_panel);
 
+            // 라디얼은 슬롯 월드 좌표로 매 프레임 놓이므로 문서 루트에 그대로 둔다
             BuildRadial(root);
         }
 
