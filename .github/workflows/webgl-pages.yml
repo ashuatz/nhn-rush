@@ -2,6 +2,13 @@ name: WebGL Pages
 
 # v로 시작하는 태그를 푸시하면 WebGL 빌드를 만들어 GitHub Pages에 올린다.
 # 예: git tag v0.1.0 && git push origin v0.1.0
+#
+# 캐시 워밍(빌드 시간 단축):
+#   Actions 캐시는 "그 런의 ref + 기본 브랜치" 스코프에서만 복원된다.
+#   태그 런이 저장한 캐시는 refs/tags/vX 스코프라 다음 태그 런에서는 보이지 않아 매번 콜드 빌드가 된다.
+#   그래서 main 브랜치를 골라 이 워크플로를 수동 실행(Run workflow)하면
+#   기본 브랜치 스코프에 Library 캐시가 남고, 이후 모든 태그 빌드가 restore-keys로 그걸 복원한다.
+#   수동 실행은 배포하지 않는다 (deploy 잡이 태그에서만 돈다).
 on:
   push:
     tags:
@@ -31,6 +38,8 @@ jobs:
         with:
           fetch-depth: 0
 
+      # 정확한 키는 에셋이 바뀌면 매번 달라진다. 실제로 일하는 건 restore-keys 접두사 복원이다.
+      # 단 스코프 밖 캐시는 접두사가 맞아도 복원되지 않는다 (위 캐시 워밍 설명 참고).
       - name: Cache Library
         uses: actions/cache@v4
         with:
@@ -71,6 +80,8 @@ jobs:
   deploy:
     name: Deploy to Pages
     needs: build
+    # 태그에서만 배포한다. main에서 캐시 워밍용으로 수동 실행했을 때 Pages를 덮어쓰지 않게.
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
       pages: write
