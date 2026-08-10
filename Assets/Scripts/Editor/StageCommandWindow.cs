@@ -777,8 +777,17 @@ namespace Rush.EditorTools
             {
                 var stage = FindFirstObjectByType<StageController>();
 
-                if (stage != null)
-                    stage.CallNextWaveEarly();
+                if (stage == null)
+                    return;
+
+                // 1웨이브는 조기소환이 없어 이 버튼이 시작 버튼 역할을 한다
+                if (stage.AwaitingFirstWave)
+                {
+                    stage.StartFirstWave();
+                    return;
+                }
+
+                stage.CallNextWaveEarly();
             }));
             _runtimeControls.Add(MakeButton("골드 +100", () =>
             {

@@ -645,6 +645,13 @@ namespace Rush.UI
             if (_stage == null)
                 return;
 
+            // 같은 자리의 버튼이지만 1웨이브에서는 "시작", 그 뒤로는 "조기소환"이다
+            if (_stage.AwaitingFirstWave)
+            {
+                _stage.StartFirstWave();
+                return;
+            }
+
             _stage.CallNextWaveEarly();
         }
 
@@ -889,6 +896,21 @@ namespace Rush.UI
             if (_countdownLabel == null)
                 return;
 
+            // 1웨이브는 카운트다운이 없다. 타워를 다 짓고 플레이어가 직접 시작한다.
+            if (_stage.AwaitingFirstWave)
+            {
+                _countdownLabel.text = "준비";
+                _countdownValueLabel.text = string.Empty;
+                _countdownTrack.style.display = DisplayStyle.None;
+
+                ShowEarlyCall(true);
+                SetEarlyCallEnabled(true);
+
+                _earlyCallButton.text = "웨이브 시작";
+                _earlyCallButton.tooltip = "타워를 다 지었으면 눌러 1웨이브를 시작한다. 시작 보너스 골드는 없다.";
+                return;
+            }
+
             // "없음" 표기는 정말 웨이브가 다 나왔을 때만. 보상 선택 등으로 잠시 막힌 상태와 구분한다.
             if (_stage.AllWavesStarted)
             {
@@ -954,7 +976,7 @@ namespace Rush.UI
             _earlyCallButton.style.color = enabled ? AccentTextColor : MutedTextColor;
         }
 
-        /// <summary>남은 시간 비율. 첫 웨이브는 대기 시간이 따로라 분모를 바꿔 잡는다.</summary>
+        /// <summary>남은 시간 비율. 1웨이브는 카운트다운 자체가 없어 여기까지 오지 않는다.</summary>
         float CountdownRatio()
         {
             var data = _stage.Data;
@@ -962,7 +984,7 @@ namespace Rush.UI
             if (data == null)
                 return 0f;
 
-            float total = _stage.WaveNumber == 0 ? data.FirstWaveDelay : data.WaveInterval;
+            float total = data.WaveInterval;
 
             if (total <= 0f)
                 return 0f;

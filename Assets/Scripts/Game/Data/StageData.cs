@@ -131,10 +131,10 @@ namespace Rush.Data
     {
         [Header("시작 자원")]
         public int StartLife = 20;
-        public int StartGold = 350;
+        public int StartGold = 550;
 
         [Header("웨이브 페이싱")]
-        public float FirstWaveDelay = 25f;
+        [Tooltip("2웨이브부터의 웨이브 간 대기 (초). 1웨이브는 대기 없이 시작 버튼으로 내보낸다")]
         public float WaveInterval = 80f;
 
         [Header("조기소환 보너스 (다음 웨이브 예산의 비율)")]

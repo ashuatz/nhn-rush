@@ -34,7 +34,7 @@ MonoBehaviour:
     SoldierDamage: 4
     SoldierDamageMax: 7
     SoldierAttackInterval: 1
-    SoldierRespawnSeconds: 15
+    SoldierRespawnSeconds: 10
     SoldierDamageCut: 0
   - DisplayName: "\uBCD1\uC601 2\uB2E8\uACC4"
     Cost: 115
@@ -50,7 +50,7 @@ MonoBehaviour:
     SoldierDamage: 7
     SoldierDamageMax: 12
     SoldierAttackInterval: 1
-    SoldierRespawnSeconds: 15
+    SoldierRespawnSeconds: 10
     SoldierDamageCut: 0
   - DisplayName: "\uBCD1\uC601 3\uB2E8\uACC4"
     Cost: 185
@@ -66,7 +66,7 @@ MonoBehaviour:
     SoldierDamage: 10
     SoldierDamageMax: 18
     SoldierAttackInterval: 1
-    SoldierRespawnSeconds: 15
+    SoldierRespawnSeconds: 10
     SoldierDamageCut: 0
   BranchA:
     Name: "\uC81C\uAD6D \uCE5C\uC704\uB300 (\uAE30\uC0AC\uB2E8)"
@@ -85,7 +85,7 @@ MonoBehaviour:
       SoldierDamage: 13
       SoldierDamageMax: 25
       SoldierAttackInterval: 1
-      SoldierRespawnSeconds: 15
+      SoldierRespawnSeconds: 13
       SoldierDamageCut: 0.25
     Skills:
     - DisplayName: "\uC2E0\uC131\uD55C \uC758\uBB34"
@@ -144,7 +144,7 @@ MonoBehaviour:
       SoldierDamage: 24
       SoldierDamageMax: 40
       SoldierAttackInterval: 1
-      SoldierRespawnSeconds: 15
+      SoldierRespawnSeconds: 10
       SoldierDamageCut: 0
     Skills:
     - DisplayName: "\uD604\uC0C1\uAE08 \uC218\uAC70"

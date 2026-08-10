@@ -1424,16 +1424,16 @@ namespace Rush.EditorTools
                 data.DamageType = DamageType.Physical;
                 data.Levels = new[]
                 {
-                    new TowerLevelStat { DisplayName = "병영 1단계", Cost = 70, Range = SheetRange(100f), AttackInterval = 1f, SoldierCount = 3, SoldierHp = 60, SoldierDamage = 3, SoldierDamageMax = 5, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f, SoldierRegenPerSecond = 1.8f },
-                    new TowerLevelStat { DisplayName = "병영 2단계", Cost = 115, Range = SheetRange(100f), AttackInterval = 1f, SoldierCount = 3, SoldierHp = 110, SoldierDamage = 5, SoldierDamageMax = 8, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f, SoldierRegenPerSecond = 3.3f },
-                    new TowerLevelStat { DisplayName = "병영 3단계", Cost = 185, Range = SheetRange(100f), AttackInterval = 1f, SoldierCount = 3, SoldierHp = 170, SoldierDamage = 8, SoldierDamageMax = 11, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f, SoldierRegenPerSecond = 5.1f },
+                    new TowerLevelStat { DisplayName = "병영 1단계", Cost = 70, Range = SheetRange(100f), AttackInterval = 1f, SoldierCount = 3, SoldierHp = 60, SoldierDamage = 3, SoldierDamageMax = 5, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 10f, SoldierRegenPerSecond = 1.8f },
+                    new TowerLevelStat { DisplayName = "병영 2단계", Cost = 115, Range = SheetRange(100f), AttackInterval = 1f, SoldierCount = 3, SoldierHp = 110, SoldierDamage = 5, SoldierDamageMax = 8, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 10f, SoldierRegenPerSecond = 3.3f },
+                    new TowerLevelStat { DisplayName = "병영 3단계", Cost = 185, Range = SheetRange(100f), AttackInterval = 1f, SoldierCount = 3, SoldierHp = 170, SoldierDamage = 8, SoldierDamageMax = 11, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 10f, SoldierRegenPerSecond = 5.1f },
                 };
 
                 // 기사단: 높은 방어/체력, 전선 유지 특화 (방어/저항 1단계 = 피해 25% 감쇄 근사)
                 data.BranchA = new TowerBranchDef
                 {
                     Name = "제국 친위대 (기사단)",
-                    Stat = new TowerLevelStat { DisplayName = "기사단", Cost = 330, Range = SheetRange(100f), AttackInterval = 1f, SoldierCount = 3, SoldierHp = 280, SoldierDamage = 10, SoldierDamageMax = 15, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f, SoldierRegenPerSecond = 8.4f, SoldierDamageCut = 0.25f },
+                    Stat = new TowerLevelStat { DisplayName = "기사단", Cost = 330, Range = SheetRange(100f), AttackInterval = 1f, SoldierCount = 3, SoldierHp = 280, SoldierDamage = 10, SoldierDamageMax = 15, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 13f, SoldierRegenPerSecond = 8.4f, SoldierDamageCut = 0.25f },
                     Skills = new[]
                     {
                         Skill("신성한 의무", "유닛의 체력이 1 이하로 떨어지면 즉시 체력 100% 회복 · 쿨타임 60/45/30초", BranchSkillType.HolyDuty, 600, 60f, 45f, 30f),
@@ -1446,7 +1446,7 @@ namespace Rush.EditorTools
                 data.BranchB = new TowerBranchDef
                 {
                     Name = "영웅 용병단",
-                    Stat = new TowerLevelStat { DisplayName = "용병단", Cost = 330, Range = SheetRange(100f), AttackInterval = 1f, SoldierCount = 3, SoldierHp = 220, SoldierDamage = 15, SoldierDamageMax = 20, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 15f, SoldierRegenPerSecond = 6.6f },
+                    Stat = new TowerLevelStat { DisplayName = "용병단", Cost = 330, Range = SheetRange(100f), AttackInterval = 1f, SoldierCount = 3, SoldierHp = 220, SoldierDamage = 15, SoldierDamageMax = 20, SoldierAttackInterval = 1f, SoldierRespawnSeconds = 10f, SoldierRegenPerSecond = 6.6f },
                     Skills = new[]
                     {
                         Skill("현상금 수거", "용병이 적을 죽이면 골드의 1.4/1.7/2배 획득 (올림) · 전장 회수와 합연산", BranchSkillType.BountyCollect, 750, 1.4f, 1.7f, 2f),
@@ -2082,10 +2082,10 @@ namespace Rush.EditorTools
             var boss3 = LoadMonster("Monster_MidBoss3");
 
             stage.StartLife = 20;
-            stage.StartGold = 350;
+            stage.StartGold = 550;
             // 시트(웨이브 타이밍): 스폰 구간 60초 + 웨이브 간 대기 20초 = 한 사이클 80초.
             // 스폰을 60초 안에 끝내는 배치 규칙은 아직 없어서 현재는 사이클 길이만 맞춘다.
-            stage.FirstWaveDelay = 25f;
+            // 1웨이브는 대기 없이 플레이어가 시작 버튼을 눌러 내보낸다 (타워를 다 짓고 시작).
             stage.WaveInterval = 80f;
             stage.EarlyCallBudgetFraction = 0.15f;
             stage.RandomPool = new[] { militia, heavy, rider, scout, mage, centurion };

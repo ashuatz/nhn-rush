@@ -201,11 +201,13 @@ namespace Rush.Stage
             Gold = _stageData.StartGold;
             Life = _stageData.StartLife;
             Phase = StagePhase.Ready;
-            _nextWaveTimer = _stageData.FirstWaveDelay;
+
+            // 1웨이브는 카운트다운이 없다. 타워를 다 짓고 시작 버튼을 누를 때까지 기다린다 (StartFirstWave).
+            _nextWaveTimer = 0f;
 
             GameLog.Info("Stage", $"스테이지 시작 - 난이도 {DifficultyName}, 골드 {Gold}, 생명 {Life}");
 
-            // 첫 웨이브 입구를 미리 정한다 (대기 시간 동안 표기된다)
+            // 첫 웨이브 입구를 미리 정한다 (시작 버튼을 누르기 전까지 표기된다)
             PlanNextWaveEntrances();
 
             Notify();
@@ -253,8 +255,9 @@ namespace Rush.Stage
 
             ReleaseStuckBossGate();
 
-            // 다음 웨이브 자동 진행 카운트다운. 보스 게이트가 걸려 있으면 시간이 흐르지 않는다.
-            if (!AllWavesStarted && !BossGateBlocking)
+            // 다음 웨이브 자동 진행 카운트다운.
+            // 1웨이브 대기와 보스 게이트에서는 시간이 흐르지 않는다 (각각 시작 버튼/보스 처치로 풀린다).
+            if (!AllWavesStarted && !AwaitingFirstWave && !BossGateBlocking)
             {
                 _nextWaveTimer -= Time.deltaTime;
 
@@ -405,11 +408,40 @@ namespace Rush.Stage
                 if (_stageData == null)
                     return 0f;
 
-                // 첫 웨이브는 대기 시간 자체가 다르다. 같은 잣대로 재면 시작하자마자 보너스가 깎인다.
-                float span = WaveNumber == 0 ? _stageData.FirstWaveDelay : _stageData.WaveInterval;
-
-                return Mathf.Clamp01(NextWaveIn / Mathf.Max(0.01f, span));
+                return Mathf.Clamp01(NextWaveIn / Mathf.Max(0.01f, _stageData.WaveInterval));
             }
+        }
+
+        /// <summary>
+        /// 1웨이브 시작 대기 상태. 카운트다운 없이 플레이어가 시작 버튼을 누를 때까지 멈춰 있는다.
+        /// HUD가 카운트다운 대신 시작 버튼을 띄우는 조건이다.
+        /// </summary>
+        public bool AwaitingFirstWave
+        {
+            get
+            {
+                if (!_setupValid)
+                    return false;
+
+                if (Phase != StagePhase.Ready)
+                    return false;
+
+                return WaveNumber == 0;
+            }
+        }
+
+        /// <summary>
+        /// 1웨이브 수동 시작. 타워를 다 짓고 준비가 끝났을 때 플레이어가 직접 누른다.
+        /// 조기소환이 아니라 시작이므로 보너스 골드는 없고, 보상 제시도 거치지 않는다.
+        /// </summary>
+        public void StartFirstWave()
+        {
+            if (!AwaitingFirstWave)
+                return;
+
+            GameLog.Info("Wave", "1웨이브 시작 (플레이어 시작)");
+
+            StartWaveNow();
         }
 
         /// <summary>
@@ -441,6 +473,10 @@ namespace Rush.Stage
             get
             {
                 if (!IsPlayable)
+                    return false;
+
+                // 1웨이브는 조기소환 대상이 아니다. 카운트다운 없이 시작 버튼으로 내보낸다 (StartFirstWave).
+                if (WaveNumber == 0)
                     return false;
 
                 // 보상 선택 중에는 웨이브를 앞당길 수 없다

@@ -13,8 +13,7 @@ MonoBehaviour:
   m_Name: Stage01
   m_EditorClassIdentifier: Assembly-CSharp::Rush.Data.StageData
   StartLife: 20
-  StartGold: 350
-  FirstWaveDelay: 25
+  StartGold: 550
   WaveInterval: 80
   EarlyCallBudgetFraction: 0.15
   RandomPool:

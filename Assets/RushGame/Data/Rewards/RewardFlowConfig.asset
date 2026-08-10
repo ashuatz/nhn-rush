@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bd12f82e4613924408432018b4e3db42, type: 3}
   m_Name: RewardFlowConfig
   m_EditorClassIdentifier: Assembly-CSharp::Rush.Data.RewardFlowConfig
-  FirstRewardWave: 1
+  FirstRewardWave: 2
   EveryNWaves: 1
   CardsPerOffer: 3
   RerollsPerRun: 5

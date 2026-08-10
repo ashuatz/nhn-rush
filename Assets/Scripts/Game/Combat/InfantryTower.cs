@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System;
 using Rush.Data;
 using Rush.Stage;
 using UnityEngine;
@@ -13,10 +13,19 @@ namespace Rush.Combat
     {
         const float SpawnSpreadRadius = 0.45f;
 
-        readonly List<Soldier> _soldiers = new List<Soldier>();
+        /// <summary>
+        /// 병사 자리. 인덱스가 곧 집결지 주변 배치 순번이라, 죽었다 돌아와도 원래 서 있던 자리로 온다.
+        /// 자리를 고정하지 않으면 부분 충원 때 살아 있는 병사와 같은 지점에 겹쳐 선다.
+        /// </summary>
+        Soldier[] _slots = new Soldier[0];
+
+        /// <summary>
+        /// 자리별 충원 대기 시간. 병사마다 따로 흐르므로 뒤이어 죽은 병사가 앞선 병사의 충원을 밀어내지 않는다.
+        /// 0 이하면 대기 없이 채운다.
+        /// </summary>
+        float[] _slotTimers = new float[0];
 
         Vector3 _rallyPoint;
-        float _respawnTimer;
         bool _rallyReady;
 
         /// <summary>병사들이 지키는 지점. 플레이어가 옮기지 않으면 타워에서 가장 가까운 경로 지점이다.</summary>
@@ -44,7 +53,7 @@ namespace Rush.Combat
             _rallyPoint = ComputeRallyPoint();
             _rallyReady = true;
 
-            SpawnMissingSoldiers(immediate: true);
+            FillEmptySlots();
         }
 
         /// <summary>
@@ -65,17 +74,13 @@ namespace Rush.Combat
 
             _rallyPoint = ClampToPathWithinRange(origin, target);
 
-            // 이미 나가 있는 병사들도 새 집결지로 이동한다. 소환 때와 같은 순번으로 흩어 세운다.
-            int index = 0;
-
-            foreach (var soldier in _soldiers)
+            // 이미 나가 있는 병사들도 새 집결지로 이동한다. 자리 순번은 그대로 유지한다.
+            for (int i = 0; i < _slots.Length; i++)
             {
-                if (soldier == null)
+                if (_slots[i] == null)
                     continue;
 
-                soldier.SetRallyPoint(_rallyPoint + SpreadOffset(index));
-
-                index++;
+                _slots[i].SetRallyPoint(_rallyPoint + SpreadOffset(i));
             }
 
             GameLog.Info("Build", "랠리 포인트 이동");
@@ -89,21 +94,47 @@ namespace Rush.Combat
 
         protected override void Update()
         {
-            if (Data == null)
+            if (Data == null || !_rallyReady)
                 return;
 
-            _soldiers.RemoveAll(s => s == null);
+            EnsureSlots();
 
-            if (_soldiers.Count >= CurrentStat.SoldierCount)
+            // 빈 자리마다 자기 대기 시간을 따로 흘린다. 동시에 죽었으면 동시에 돌아온다.
+            for (int i = 0; i < _slots.Length; i++)
+            {
+                if (_slots[i] != null)
+                    continue;
+
+                if (_slotTimers[i] > 0f)
+                {
+                    _slotTimers[i] -= Time.deltaTime;
+
+                    if (_slotTimers[i] > 0f)
+                        continue;
+                }
+
+                SpawnSoldierAt(i, isRespawn: true);
+            }
+        }
+
+        /// <summary>자리 수를 현재 레벨의 병사 수에 맞춘다. 줄어들면 넘치는 자리의 병사를 먼저 정리한다.</summary>
+        void EnsureSlots()
+        {
+            int count = Mathf.Max(0, CurrentStat.SoldierCount);
+
+            if (_slots.Length == count)
                 return;
 
-            _respawnTimer -= Time.deltaTime;
+            for (int i = count; i < _slots.Length; i++)
+            {
+                if (_slots[i] == null)
+                    continue;
 
-            if (_respawnTimer > 0f)
-                return;
+                _slots[i].DespawnByOwner();
+            }
 
-            SpawnOneSoldier(isRespawn: true);
-            _respawnTimer = RespawnSeconds();
+            Array.Resize(ref _slots, count);
+            Array.Resize(ref _slotTimers, count);
         }
 
         /// <summary>강화 시 병사를 전부 새 스탯으로 재소환한다.</summary>
@@ -116,7 +147,7 @@ namespace Rush.Combat
                 return;
 
             DespawnAllSoldiers();
-            SpawnMissingSoldiers(immediate: true);
+            FillEmptySlots();
         }
 
         protected override void OnDestroy()
@@ -126,19 +157,18 @@ namespace Rush.Combat
             DespawnAllSoldiers();
         }
 
-        void SpawnMissingSoldiers(bool immediate)
+        /// <summary>빈 자리를 대기 없이 즉시 채운다 (최초 배치 / 강화 후 재배치). 충원 골드는 붙지 않는다.</summary>
+        void FillEmptySlots()
         {
-            _soldiers.RemoveAll(s => s == null);
+            EnsureSlots();
 
-            if (immediate)
+            for (int i = 0; i < _slots.Length; i++)
             {
-                while (_soldiers.Count < CurrentStat.SoldierCount)
-                    SpawnOneSoldier(isRespawn: false);
+                if (_slots[i] != null)
+                    continue;
 
-                return;
+                SpawnSoldierAt(i, isRespawn: false);
             }
-
-            _respawnTimer = RespawnSeconds();
         }
 
         float RespawnSeconds()
@@ -154,18 +184,23 @@ namespace Rush.Combat
             return Mathf.Max(3f, seconds);
         }
 
-        void SpawnOneSoldier(bool isRespawn)
+        void SpawnSoldierAt(int slot, bool isRespawn)
         {
             if (Data.SoldierPrefab == null)
             {
+                // 대기 시간을 다시 걸어 둔다. 안 그러면 매 프레임 재시도하며 경고를 도배한다.
+                _slotTimers[slot] = RespawnSeconds();
+
                 GameLog.Warn("Build", $"{Data.name}: 병사 프리팹이 비어 있음");
                 return;
             }
 
+            _slotTimers[slot] = 0f;
+
             var stat = CurrentStat;
 
-            // 집결지 주변으로 살짝 흩어서 배치
-            Vector3 offset = SpreadOffset(_soldiers.Count);
+            // 집결지 주변으로 살짝 흩어서 배치. 자리 순번이 곧 방향이라 부활해도 같은 지점이다.
+            Vector3 offset = SpreadOffset(slot);
 
             var go = Instantiate(Data.SoldierPrefab, _rallyPoint + offset, Quaternion.identity, transform);
             var soldier = go.GetComponent<Soldier>();
@@ -181,7 +216,7 @@ namespace Rush.Combat
             soldier.Initialize(this, baseHp, stat.SoldierDamage, damageMax, stat.SoldierAttackInterval,
                 _rallyPoint + offset, stat.Range, stat.SoldierRegenPerSecond);
 
-            _soldiers.Add(soldier);
+            _slots[slot] = soldier;
 
             // 현장 보급(A01): 충원(리스폰)될 때만 골드
             if (isRespawn)
@@ -198,21 +233,28 @@ namespace Rush.Combat
 
         void DespawnAllSoldiers()
         {
-            foreach (var soldier in _soldiers)
+            for (int i = 0; i < _slots.Length; i++)
             {
-                if (soldier == null)
+                _slotTimers[i] = 0f;
+
+                if (_slots[i] == null)
                     continue;
 
-                soldier.DespawnByOwner();
+                _slots[i].DespawnByOwner();
+                _slots[i] = null;
             }
-
-            _soldiers.Clear();
         }
 
+        /// <summary>병사가 죽었을 때 그 자리에만 충원 대기를 건다. 다른 자리의 대기 시간은 건드리지 않는다.</summary>
         public void NotifySoldierDied(Soldier soldier)
         {
-            _soldiers.Remove(soldier);
-            _respawnTimer = RespawnSeconds();
+            int slot = Array.IndexOf(_slots, soldier);
+
+            if (slot < 0)
+                return;
+
+            _slots[slot] = null;
+            _slotTimers[slot] = RespawnSeconds();
         }
 
         /// <summary>집결지 주변에 병사를 흩어 세우는 오프셋. 세 방향으로 120도씩 돌린다.</summary>
